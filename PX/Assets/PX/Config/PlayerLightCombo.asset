@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab137ed1c9ca64e29b403674c1ff8efc, type: 3}
+  m_Name: PlayerLightCombo
+  m_EditorClassIdentifier: PX.Runtime::PX.ComboConfig
+  steps:
+  - startup: 0.06
+    active: 0.08
+    recovery: 0.22
+    cancelDelay: 0.04
+    damage: 10
+    lunge: 3
+    hitboxCenter: {x: 1.1, y: 1}
+    hitboxSize: {x: 1.8, y: 1.4}
+    hitStop: 0.05
+  - startup: 0.07
+    active: 0.08
+    recovery: 0.24
+    cancelDelay: 0.05
+    damage: 12
+    lunge: 3.5
+    hitboxCenter: {x: 1.2, y: 1.1}
+    hitboxSize: {x: 2, y: 1.6}
+    hitStop: 0.05
+  - startup: 0.12
+    active: 0.1
+    recovery: 0.38
+    cancelDelay: 0.14
+    damage: 22
+    lunge: 6
+    hitboxCenter: {x: 1.4, y: 1.1}
+    hitboxSize: {x: 2.6, y: 2}
+    hitStop: 0.09
+  bufferTime: 0.2
+  hitboxDepth: 1.5

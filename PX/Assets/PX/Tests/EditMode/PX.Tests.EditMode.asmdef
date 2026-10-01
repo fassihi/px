@@ -1,0 +1,22 @@
+{
+    "name": "PX.Tests.EditMode",
+    "rootNamespace": "PX.Tests",
+    "references": [
+        "PX.Runtime",
+        "Unity.Mathematics",
+        "Unity.Splines",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ]
+}

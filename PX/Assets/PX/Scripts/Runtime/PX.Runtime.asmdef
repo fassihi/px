@@ -1,0 +1,10 @@
+{
+    "name": "PX.Runtime",
+    "rootNamespace": "PX",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.Mathematics",
+        "Unity.Splines"
+    ],
+    "autoReferenced": true
+}

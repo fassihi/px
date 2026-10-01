@@ -1,0 +1,37 @@
+# Unity project (PX/)
+/PX/[Ll]ibrary/
+/PX/[Tt]emp/
+/PX/[Oo]bj/
+/PX/[Bb]uild/
+/PX/[Bb]uilds/
+/PX/[Ll]ogs/
+/PX/[Uu]ser[Ss]ettings/
+/PX/[Mm]emoryCaptures/
+/PX/[Rr]ecordings/
+/PX/*.csproj
+/PX/*.sln
+/PX/*.slnx
+/PX/*.user
+/PX/*.pidb
+/PX/*.booproj
+/PX/*.svd
+/PX/*.pdb
+/PX/*.mdb
+/PX/*.opendb
+/PX/*.VC.db
+/PX/.vs/
+/PX/.vscode/
+/PX/.idea/
+/PX/.gradle/
+/PX/.utmp/
+/PX/Assets/Plugins/Editor/JetBrains*
+/PX/sysinfo.txt
+/PX/crashlytics-build.properties
+/PX/TestResults*.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local Claude Code settings
+.claude/settings.local.json
