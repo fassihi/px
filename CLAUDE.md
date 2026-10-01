@@ -1,8 +1,9 @@
 # PX: notes for Claude
 
 PX is the codename for a short 3D action side-scroller: a girl, sci-fi inspired by ancient Persian art,
-semi-stylized. Early concept stage. Amir directs design and code; Soheil makes the character and
-environment art; Claude does the coding and engine work.
+semi-stylized. Early concept stage. Amir directs design and code; Soheil is the art director (character and
+environment art) and also helps steer the overall game direction; Claude does the coding and engine work.
+Design decisions are made by Amir and Soheil together. The weapon is not decided yet: keep it swappable.
 
 - Design documents are in Notion, not in this repo: https://app.notion.com/p/deadmage/PX-3ecc022a513e80afa668e90b61bf2c1b
   Update the relevant Notion page when a design or technical decision changes, and add settled decisions to the Decision Log page.
