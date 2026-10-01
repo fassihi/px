@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -26,6 +27,8 @@ namespace PX.EditorTools
         private const string ConfigFolder = "Assets/PX/Config";
         private const string MaterialFolder = "Assets/PX/Art/Graybox/Materials";
         private const string PrefabFolder = "Assets/PX/Prefabs";
+        private const string HeroineFolder = HeroineImportSettings.Folder;
+        private const float HeroineHeight = 1.75f;
         private const string VolumeProfilePath = "Assets/Settings/SceneVolumeProfile.asset";
 
         private const float FloorDepth = 8f;
@@ -54,7 +57,8 @@ namespace PX.EditorTools
             Palette palette = LoadPalette();
             MoveConfig move = LoadOrCreateAsset<MoveConfig>($"{ConfigFolder}/PlayerMove.asset", null);
             ComboConfig combo = LoadOrCreateAsset<ComboConfig>($"{ConfigFolder}/PlayerLightCombo.asset", FillDefaultCombo);
-            GameObject playerPrefab = LoadOrCreatePrefab($"{PrefabFolder}/Player.prefab", () => CreatePlayer(move, combo, palette));
+            HeroineAnimationConfig heroineAnimation = LoadOrCreateAsset<HeroineAnimationConfig>($"{ConfigFolder}/HeroineAnimation.asset", FillHeroineAnimation);
+            GameObject playerPrefab = LoadOrCreatePrefab($"{PrefabFolder}/Player.prefab", () => CreatePlayer(move, combo, heroineAnimation, palette));
             GameObject dummyPrefab = LoadOrCreatePrefab($"{PrefabFolder}/TrainingDummy.prefab", () => CreateDummy(palette));
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -224,7 +228,7 @@ namespace PX.EditorTools
             }
         }
 
-        private static GameObject CreatePlayer(MoveConfig move, ComboConfig combo, Palette palette)
+        private static GameObject CreatePlayer(MoveConfig move, ComboConfig combo, HeroineAnimationConfig animation, Palette palette)
         {
             var root = new GameObject("Player") { tag = "Player" };
 
@@ -242,11 +246,9 @@ namespace PX.EditorTools
             root.AddComponent<PlayerInputSource>();
             var player = root.AddComponent<PlayerController>();
             var debugView = root.AddComponent<PlayerDebugView>();
+            var heroineAnimator = root.AddComponent<HeroineAnimator>();
 
-            GameObject body = AddPart(root.transform, PrimitiveType.Capsule, new Vector3(0f, 0.85f, 0f), new Vector3(0.7f, 0.85f, 0.7f), palette.PlayerBody);
-            body.name = "Body";
-            // The nose shows which way she faces until there is a real model.
-            AddPart(root.transform, PrimitiveType.Cube, new Vector3(0f, 1.35f, 0.33f), new Vector3(0.22f, 0.16f, 0.3f), palette.PlayerAccent).name = "Nose";
+            Animator animator = AddHeroineVisual(root.transform);
             GameObject slash = AddPart(root.transform, PrimitiveType.Cube, Vector3.zero, Vector3.one, palette.Slash);
             slash.name = "Hitbox";
             slash.SetActive(false);
@@ -254,9 +256,166 @@ namespace PX.EditorTools
             Wire(player, "move", move);
             Wire(player, "combo", combo);
             Wire(debugView, "player", player);
-            Wire(debugView, "body", body.GetComponent<Renderer>());
             Wire(debugView, "hitboxVisual", slash.transform);
+            Wire(heroineAnimator, "player", player);
+            Wire(heroineAnimator, "motor", root.GetComponent<CharacterMotor>());
+            Wire(heroineAnimator, "animator", animator);
+            Wire(heroineAnimator, "config", animation);
             return root;
+        }
+
+        // ------------------------------------------------------------ heroine
+
+        private static void FillHeroineAnimation(HeroineAnimationConfig config)
+        {
+            // Clips come from the Universal Animation Library (CC0). Swap them in the asset to try others.
+            AnimationClip[] clips = AssetDatabase.LoadAllAssetsAtPath($"{HeroineFolder}/Animations/UAL1_Standard.fbx")
+                .OfType<AnimationClip>()
+                .Where(clip => !clip.name.StartsWith("__preview__"))
+                .ToArray();
+            // Unity may prefix clip names with the take name, e.g. "Armature|Idle_Loop".
+            AnimationClip Find(string name) =>
+                clips.FirstOrDefault(clip => clip.name == name || clip.name.EndsWith("|" + name))
+                ?? throw new InvalidOperationException(
+                    $"Animation clip '{name}' not found in UAL1_Standard.fbx. Found: {string.Join(", ", clips.Select(clip => clip.name))}");
+
+            config.idle = Find("Idle_Loop");
+            config.run = Find("Jog_Fwd_Loop");
+            config.jumpStart = Find("Jump_Start");
+            config.jumpLoop = Find("Jump_Loop");
+            config.dash = Find("Roll");
+            config.attack = Find("Sword_Attack");
+        }
+
+        /// <summary>The model, scaled to the character controller's height, with hair and eyebrows bound to its skeleton.</summary>
+        private static Animator AddHeroineVisual(Transform root)
+        {
+            var visual = new GameObject("Visual").transform;
+            visual.SetParent(root, false);
+
+            GameObject model = InstantiateModel("Superhero_Female_FullBody.fbx", visual);
+            Material skin = LoadOrCreateTexturedMaterial("HeroineSkin", "Textures/T_Superhero_Female_Light_BaseColor.png", "Textures/T_Superhero_Female_Normal.png", Color.white, smoothness: 0.3f);
+            Material eyes = LoadOrCreateTexturedMaterial("HeroineEyes", "Textures/T_Eye_Brown.png", "Textures/T_Eye_Normal.png", Color.white, smoothness: 0.8f);
+            Material hair = LoadOrCreateTexturedMaterial("HeroineHair", "Hair/T_Hair_2_BaseColor.png", "Hair/T_Hair_2_Normal.png", new Color(0.16f, 0.1f, 0.09f), smoothness: 0.35f, alphaClip: true);
+
+            foreach (SkinnedMeshRenderer renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                // Which material goes where is decided by the mesh name; log it so a new model is easy to check.
+                string name = renderer.name;
+                renderer.sharedMaterial = name.Contains("Eyebrow") ? hair : name.Contains("Eye") ? eyes : skin;
+                Debug.Log($"Heroine mesh '{name}' uses material '{renderer.sharedMaterial.name}'.");
+            }
+
+            foreach (string hairFile in new[] { "Hair_Buns.fbx", "Eyebrows_Female.fbx" })
+            {
+                GameObject piece = InstantiateModel($"Hair/{hairFile}", visual);
+                BindToSkeleton(piece, model);
+                foreach (Renderer renderer in piece.GetComponentsInChildren<Renderer>())
+                    renderer.sharedMaterial = hair;
+            }
+
+            float height = MeasureHeight(model);
+            if (height > 0.01f)
+                visual.localScale = Vector3.one * (HeroineHeight / height);
+            Debug.Log($"Heroine model is {height:0.00} m tall before scaling.");
+
+            Animator animator = model.GetComponent<Animator>() ?? model.AddComponent<Animator>();
+            animator.applyRootMotion = false;
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            return animator;
+        }
+
+        private static GameObject InstantiateModel(string relativePath, Transform parent)
+        {
+            string path = $"{HeroineFolder}/{relativePath}";
+            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (asset == null)
+                throw new InvalidOperationException($"Model not found at {path}. Has Unity imported the heroine's files?");
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(asset, parent);
+            instance.name = Path.GetFileNameWithoutExtension(path);
+            return instance;
+        }
+
+        /// <summary>
+        /// Hair and eyebrows are skinned to a copy of the body's skeleton. Point their bones at the body's own
+        /// bones, by name, so they move with her; the copy stays in the scene, unused.
+        /// </summary>
+        private static void BindToSkeleton(GameObject piece, GameObject body)
+        {
+            var bodyBones = new System.Collections.Generic.Dictionary<string, Transform>();
+            foreach (Transform t in body.GetComponentsInChildren<Transform>())
+                bodyBones.TryAdd(t.name, t);
+
+            foreach (SkinnedMeshRenderer renderer in piece.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                Transform[] bones = renderer.bones;
+                for (int i = 0; i < bones.Length; i++)
+                {
+                    if (bones[i] != null && bodyBones.TryGetValue(bones[i].name, out Transform match))
+                        bones[i] = match;
+                    else
+                        Debug.LogWarning($"Bone '{(bones[i] != null ? bones[i].name : "null")}' of {piece.name} has no match on the body.");
+                }
+
+                renderer.bones = bones;
+                if (renderer.rootBone != null && bodyBones.TryGetValue(renderer.rootBone.name, out Transform root))
+                    renderer.rootBone = root;
+            }
+        }
+
+        private static float MeasureHeight(GameObject model)
+        {
+            Renderer[] renderers = model.GetComponentsInChildren<SkinnedMeshRenderer>();
+            if (renderers.Length == 0)
+                return 0f;
+            Bounds bounds = renderers[0].bounds;
+            foreach (Renderer renderer in renderers)
+                bounds.Encapsulate(renderer.bounds);
+            return bounds.size.y;
+        }
+
+        private static Material LoadOrCreateTexturedMaterial(string name, string baseMap, string normalMap, Color tint, float smoothness, bool alphaClip = false)
+        {
+            string path = $"{MaterialFolder}/{name}.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material != null)
+                return material;
+
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null)
+                throw new InvalidOperationException("Shader 'Universal Render Pipeline/Lit' not found. Is the Universal Render Pipeline package installed?");
+
+            material = new Material(shader);
+            material.SetColor("_BaseColor", tint);
+            material.SetTexture("_BaseMap", LoadHeroineTexture(baseMap));
+            Texture normal = LoadHeroineTexture(normalMap);
+            if (normal != null)
+            {
+                material.SetTexture("_BumpMap", normal);
+                material.EnableKeyword("_NORMALMAP");
+            }
+
+            material.SetFloat("_Smoothness", smoothness);
+            if (alphaClip)
+            {
+                material.SetFloat("_AlphaClip", 1f);
+                material.SetFloat("_Cutoff", 0.5f);
+                material.EnableKeyword("_ALPHATEST_ON");
+                material.SetFloat("_Cull", 0f); // hair cards are seen from both sides
+            }
+
+            AssetDatabase.CreateAsset(material, path);
+            return material;
+        }
+
+        private static Texture LoadHeroineTexture(string relativePath)
+        {
+            string path = $"{HeroineFolder}/{relativePath}";
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (texture == null)
+                Debug.LogWarning($"Texture not found at {path}.");
+            return texture;
         }
 
         private static GameObject CreateDummy(Palette palette)

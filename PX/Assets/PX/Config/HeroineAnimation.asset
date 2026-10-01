@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac21e649ebdb74d36bcfe1eea1384554, type: 3}
+  m_Name: HeroineAnimation
+  m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
+  idle: {fileID: 7994627924475153551, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  run: {fileID: -8815886378510225334, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  dash: {fileID: 3031411921458128146, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  attack: {fileID: -2807887025256620907, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  fadeTime: 0.1
+  runClipSpeed: 4.5
+  runSpeedScaleRange: {x: 0.6, y: 1.6}

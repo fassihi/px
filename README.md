@@ -38,13 +38,14 @@ PX/                         Unity project
         Combat/             Health, combo data, hit-stop, training dummy
         Camera/             Rail-relative camera and camera zones
         Debugging/          Graybox stand-ins for animation and UI
+        (Character/ also has HeroineAnimator, which plays the clips named in Config/HeroineAnimation)
       Scripts/Editor/       Editor tools (assembly PX.Editor)
       Tests/EditMode/       Fast tests that need no scene
       Tests/PlayMode/       Tests that play the graybox scene
       Config/               Tuning assets: PlayerMove, PlayerLightCombo
       Prefabs/              Player, TrainingDummy
       Scenes/               Graybox.unity (generated, see below)
-      Art/                  Art assets. Graybox materials for now.
+      Art/                  Art assets. Graybox materials, and the stand-in heroine (Art/Heroine)
     Settings/               Render pipeline assets and volume profiles
   Packages/                 Package manifest
   ProjectSettings/
