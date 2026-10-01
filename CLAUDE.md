@@ -50,4 +50,4 @@ UNITY="/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity
 ## Git
 
 - Binary assets go through Git LFS (see `.gitattributes`). Add new binary extensions there before committing such files.
-- Commit only when asked.
+- After every change, commit and push to `origin` (private GitHub repo `fassihi/px`). Leave unrelated Unity-generated changes out of the commit.
