@@ -309,7 +309,8 @@ namespace PX.EditorTools
             foreach (string hairFile in new[] { "Hair_Buns.fbx", "Eyebrows_Female.fbx" })
             {
                 GameObject piece = InstantiateModel($"Hair/{hairFile}", visual);
-                BindToSkeleton(piece, model);
+                // These are plain meshes, not skinned: parent them to the head bone so they follow her.
+                piece.transform.SetParent(FindChild(model.transform, "Head"), true);
                 foreach (Renderer renderer in piece.GetComponentsInChildren<Renderer>())
                     renderer.sharedMaterial = hair;
             }
@@ -337,31 +338,12 @@ namespace PX.EditorTools
             return instance;
         }
 
-        /// <summary>
-        /// Hair and eyebrows are skinned to a copy of the body's skeleton. Point their bones at the body's own
-        /// bones, by name, so they move with her; the copy stays in the scene, unused.
-        /// </summary>
-        private static void BindToSkeleton(GameObject piece, GameObject body)
+        private static Transform FindChild(Transform root, string childName)
         {
-            var bodyBones = new System.Collections.Generic.Dictionary<string, Transform>();
-            foreach (Transform t in body.GetComponentsInChildren<Transform>())
-                bodyBones.TryAdd(t.name, t);
-
-            foreach (SkinnedMeshRenderer renderer in piece.GetComponentsInChildren<SkinnedMeshRenderer>())
-            {
-                Transform[] bones = renderer.bones;
-                for (int i = 0; i < bones.Length; i++)
-                {
-                    if (bones[i] != null && bodyBones.TryGetValue(bones[i].name, out Transform match))
-                        bones[i] = match;
-                    else
-                        Debug.LogWarning($"Bone '{(bones[i] != null ? bones[i].name : "null")}' of {piece.name} has no match on the body.");
-                }
-
-                renderer.bones = bones;
-                if (renderer.rootBone != null && bodyBones.TryGetValue(renderer.rootBone.name, out Transform root))
-                    renderer.rootBone = root;
-            }
+            foreach (Transform t in root.GetComponentsInChildren<Transform>())
+                if (t.name == childName)
+                    return t;
+            throw new InvalidOperationException($"No bone named {childName} under {root.name}.");
         }
 
         private static float MeasureHeight(GameObject model)

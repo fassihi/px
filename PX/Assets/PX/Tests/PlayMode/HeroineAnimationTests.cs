@@ -92,6 +92,31 @@ namespace PX.Tests
             Assert.That((second - first).magnitude, Is.GreaterThan(0.02f), "Her hand does not move while she runs.");
         }
 
+        [UnityTest]
+        public IEnumerator TheHair_StaysOnTheHead()
+        {
+            yield return PlaceAt(OpenStretch);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>().transform;
+            Transform head = FindBone(body, "Head");
+            Assert.That(head, Is.Not.Null, "No bone named Head on the model.");
+            Renderer hair = null;
+            foreach (var r in Player.GetComponentsInChildren<Renderer>())
+                if (r.name == "Hair_Buns")
+                    hair = r;
+            Assert.That(hair, Is.Not.Null, "No hair mesh on the player.");
+            Assert.That(hair.transform.IsChildOf(head), Is.True, "The hair is not attached to the head bone.");
+
+            Input.Move = 1f;
+            yield return Frames(30);
+            Vector3 standing = head.InverseTransformPoint(hair.bounds.center);
+            for (int i = 0; i < 6; i++)
+            {
+                yield return Frames(7);
+                Vector3 offset = head.InverseTransformPoint(hair.bounds.center);
+                Assert.That(Vector3.Distance(offset, standing), Is.LessThan(0.02f), "The hair drifts away from the head while she runs.");
+            }
+        }
+
         private static Transform FindBone(Transform root, string boneName)
         {
             foreach (Transform t in root.GetComponentsInChildren<Transform>())
