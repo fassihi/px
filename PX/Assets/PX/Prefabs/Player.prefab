@@ -313,7 +313,7 @@ MonoBehaviour:
   body: {fileID: 8119423859088156986}
   hitboxVisual: {fileID: 3771475436592370939}
   dashColor: {r: 0.55, g: 0.9, b: 1, a: 1}
-  attackColor: {r: 1, g: 0.85, b: 0.45, a: 1}
+  attackColor: {r: 1, g: 0.5, b: 0.05, a: 1}
 --- !u!1 &8620255428793417758
 GameObject:
   m_ObjectHideFlags: 0

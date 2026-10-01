@@ -14,7 +14,7 @@ namespace PX
         [SerializeField] private Renderer body;
         [SerializeField] private Transform hitboxVisual;
         [SerializeField] private Color dashColor = new Color(0.55f, 0.9f, 1f);
-        [SerializeField] private Color attackColor = new Color(1f, 0.85f, 0.45f);
+        [SerializeField] private Color attackColor = new Color(1f, 0.5f, 0.05f);
 
         private MaterialPropertyBlock block;
         private Color baseColor;
