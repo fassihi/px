@@ -28,6 +28,19 @@ UNITY="/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity
 
 - Headless runs fail if the PX project is open in the editor. Check for a running Unity on this project first.
   A Unity editor open on a different project is fine.
+
+### Work process: editor open or closed
+
+- **Editor open, Unity MCP connected (preferred):** the project includes MCP for Unity (`com.coplaydev.unity-mcp`) and
+  `UnityMCP` is configured for this repo as `http://127.0.0.1:8080/mcp`. Amir starts the server in the editor
+  (Window > MCP for Unity) and reconnects it in Claude Code (or starts a new session). Check that the Unity tools are
+  listed before relying on them. Then edit code, and use the MCP to compile, run PX > Graybox > Rebuild Scene, run the
+  tests, read the console and take screenshots, without closing the editor.
+- **Editor closed:** use the headless commands above. This is the reference run and the fallback if the MCP is down.
+- Use the MCP only for build, test and inspection tasks. Do not start the server or change MCP or accessibility
+  settings without being asked, and do not script the editor around its permissions.
+- Compile errors can also be read from `~/Library/Logs/Unity/Editor.log` (`error CS`) while the editor is open.
+- Do not commit a change that has not been compiled and tested by one of the two routes. Say so when it cannot be.
 - Do not pass `-nographics` to play mode tests that render screenshots.
 - Set `PX_SCREENSHOT_DIR` on a play mode run to get PNGs of the camera views; look at them to check visual changes.
 - Compile errors appear in the log as `error CS`. Test results are NUnit XML.
