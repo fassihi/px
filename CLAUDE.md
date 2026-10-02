@@ -10,6 +10,9 @@ Design decisions are made by Amir and Soheil together. The weapon is not decided
 - `README.md` describes the layout, architecture and command lines. Read it first.
 - Soheil's art is dropped in `../art/` (next to this repo, outside git). Check it for new files when starting work
   and look at them: the art drives design and camera decisions. Do not copy it into the repo unless asked.
+  Amir adds project artwork to this Google Drive folder: https://drive.google.com/drive/u/0/folders/1u4XMGdSKXZHW3xqpR5eb8qC4W9FnaLJH
+- Persistent notes and memory for this project go in the md files in this repo (this file, `README.md`), not in
+  machine-local memory, so that all of Amir's machines share them.
 
 ## Engine
 
