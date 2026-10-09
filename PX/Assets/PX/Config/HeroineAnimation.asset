@@ -12,12 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac21e649ebdb74d36bcfe1eea1384554, type: 3}
   m_Name: HeroineAnimation
   m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
-  idle: {fileID: 7994627924475153551, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
-  run: {fileID: -8815886378510225334, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  idle: {fileID: 8406360129791286164, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  run: {fileID: 6144204302869600065, guid: 974c520d54c614683a16c05520116e5d, type: 3}
   jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   dash: {fileID: 3031411921458128146, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
-  attack: {fileID: -2807887025256620907, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  attack: {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  comboAttacks:
+  - {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  - {fileID: -6539854730773136947, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  - {fileID: 8613629562999782657, guid: 974c520d54c614683a16c05520116e5d, type: 3}
   fadeTime: 0.1
   runClipSpeed: 4.5
   runSpeedScaleRange: {x: 0.6, y: 1.6}

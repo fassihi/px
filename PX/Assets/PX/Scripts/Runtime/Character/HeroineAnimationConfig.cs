@@ -14,6 +14,9 @@ namespace PX
         public AnimationClip dash;
         public AnimationClip attack;
 
+        [Tooltip("Optional clip per combo step. A step without one (or past the end of the list) uses Attack.")]
+        public AnimationClip[] comboAttacks = System.Array.Empty<AnimationClip>();
+
         [Header("Blending")]
         [Tooltip("Seconds to cross-fade between poses.")]
         public float fadeTime = 0.1f;

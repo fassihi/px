@@ -71,14 +71,21 @@ namespace PX.EditorTools
             var player = cameraObject.AddComponent<RanaClipPlayer>();
             var playerSerialized = new SerializedObject(player);
             playerSerialized.FindProperty("animator").objectReferenceValue = animator;
-            AnimationClip[] library = AssetDatabase.LoadAllAssetsAtPath("Assets/PX/Art/Heroine/Animations/UAL1_Standard.fbx")
-                .OfType<AnimationClip>().Where(clip => !clip.name.StartsWith("__preview__")).ToArray();
-            string[] wanted = { "Idle_Loop", "Jog_Fwd_Loop", "Jump_Loop", "Roll", "Sword_Attack" };
+            // Rana's own clips first, then the stand-ins from the Universal Animation Library for what she lacks.
+            AnimationClip[] rana = LoadClips(RanaImportSettings.Folder + "/Animations/RanaAnimations.fbx");
+            AnimationClip[] library = LoadClips("Assets/PX/Art/Heroine/Animations/UAL1_Standard.fbx");
+            var shown = rana.Select(clip => (clip, label: clip.name))
+                .Concat(new[] { "Jump_Start", "Jump_Loop", "Roll" }.Select(name => (clip: FindClip(library, name), label: name + " (stand-in)")))
+                .ToArray();
             SerializedProperty clipList = playerSerialized.FindProperty("clips");
-            clipList.arraySize = wanted.Length;
-            for (int i = 0; i < wanted.Length; i++)
-                clipList.GetArrayElementAtIndex(i).objectReferenceValue =
-                    library.FirstOrDefault(clip => clip.name == wanted[i] || clip.name.EndsWith("|" + wanted[i]));
+            SerializedProperty labelList = playerSerialized.FindProperty("labels");
+            clipList.arraySize = labelList.arraySize = shown.Length;
+            for (int i = 0; i < shown.Length; i++)
+            {
+                clipList.GetArrayElementAtIndex(i).objectReferenceValue = shown[i].clip;
+                labelList.GetArrayElementAtIndex(i).stringValue = shown[i].label;
+            }
+
             playerSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             var focus = new GameObject("Focus").transform;
@@ -93,6 +100,23 @@ namespace PX.EditorTools
             Debug.Log($"Built {ScenePath}.");
         }
 
+        /// <summary>The real clips in an animation file, without the importer's preview clips.</summary>
+        public static AnimationClip[] LoadClips(string path)
+        {
+            return AssetDatabase.LoadAllAssetsAtPath(path)
+                .OfType<AnimationClip>()
+                .Where(clip => !clip.name.StartsWith("__preview__"))
+                .ToArray();
+        }
+
+        /// <summary>Finds a clip by name. Unity adds a prefix or suffix to take names ("Armature|Idle", "idle.001").</summary>
+        public static AnimationClip FindClip(AnimationClip[] clips, string name)
+        {
+            return clips.FirstOrDefault(clip => clip.name == name || clip.name.EndsWith("|" + name) || clip.name.StartsWith(name + "."))
+                ?? throw new System.InvalidOperationException(
+                    $"Animation clip '{name}' not found. Found: {string.Join(", ", clips.Select(clip => clip.name))}");
+        }
+
         private static Bounds MeasureBounds(GameObject root)
         {
             Renderer[] renderers = root.GetComponentsInChildren<Renderer>();
@@ -102,7 +126,7 @@ namespace PX.EditorTools
             return bounds;
         }
 
-        private static Material LoadOrCreateMaterial()
+        public static Material LoadOrCreateMaterial()
         {
             var material = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
             if (material != null)

@@ -11,7 +11,7 @@ namespace PX.EditorTools
         public const string Folder = "Assets/PX/Art/Rana";
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 2;
+        public override uint GetVersion() => 3;
 
         private void OnPreprocessModel()
         {
@@ -19,10 +19,11 @@ namespace PX.EditorTools
                 return;
 
             var importer = (ModelImporter)assetImporter;
-            bool isRigged = assetPath.EndsWith("RanaRigged.fbx");
-            importer.animationType = isRigged ? ModelImporterAnimationType.Human : ModelImporterAnimationType.None;
-            importer.avatarSetup = isRigged ? ModelImporterAvatarSetup.CreateFromThisModel : ModelImporterAvatarSetup.NoAvatar;
-            importer.importAnimation = false;
+            bool isAnimationFile = assetPath.Contains("/Animations/");
+            bool isHumanoid = isAnimationFile || assetPath.EndsWith("RanaRigged.fbx");
+            importer.animationType = isHumanoid ? ModelImporterAnimationType.Human : ModelImporterAnimationType.None;
+            importer.avatarSetup = isHumanoid ? ModelImporterAvatarSetup.CreateFromThisModel : ModelImporterAvatarSetup.NoAvatar;
+            importer.importAnimation = isAnimationFile;
             importer.materialImportMode = ModelImporterMaterialImportMode.None;
         }
     }

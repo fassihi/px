@@ -268,57 +268,40 @@ namespace PX.EditorTools
 
         private static void FillHeroineAnimation(HeroineAnimationConfig config)
         {
-            // Clips come from the Universal Animation Library (CC0). Swap them in the asset to try others.
-            AnimationClip[] clips = AssetDatabase.LoadAllAssetsAtPath($"{HeroineFolder}/Animations/UAL1_Standard.fbx")
-                .OfType<AnimationClip>()
-                .Where(clip => !clip.name.StartsWith("__preview__"))
-                .ToArray();
-            // Unity may prefix clip names with the take name, e.g. "Armature|Idle_Loop".
-            AnimationClip Find(string name) =>
-                clips.FirstOrDefault(clip => clip.name == name || clip.name.EndsWith("|" + name))
-                ?? throw new InvalidOperationException(
-                    $"Animation clip '{name}' not found in UAL1_Standard.fbx. Found: {string.Join(", ", clips.Select(clip => clip.name))}");
+            // Rana's own clips where she has them. She has no jump or dash yet, so those come from the
+            // Universal Animation Library (CC0); it is a humanoid rig too, so its clips retarget onto her.
+            AnimationClip[] rana = RanaViewerBuilder.LoadClips($"{RanaImportSettings.Folder}/Animations/RanaAnimations.fbx");
+            AnimationClip[] library = RanaViewerBuilder.LoadClips($"{HeroineFolder}/Animations/UAL1_Standard.fbx");
 
-            config.idle = Find("Idle_Loop");
-            config.run = Find("Jog_Fwd_Loop");
-            config.jumpStart = Find("Jump_Start");
-            config.jumpLoop = Find("Jump_Loop");
-            config.dash = Find("Roll");
-            config.attack = Find("Sword_Attack");
+            config.idle = RanaViewerBuilder.FindClip(rana, "idle");
+            config.run = RanaViewerBuilder.FindClip(rana, "run");
+            config.comboAttacks = new[]
+            {
+                RanaViewerBuilder.FindClip(rana, "box_01"),
+                RanaViewerBuilder.FindClip(rana, "box_02"),
+                RanaViewerBuilder.FindClip(rana, "front_kick_01"),
+            };
+            config.attack = config.comboAttacks[0];
+            config.jumpStart = RanaViewerBuilder.FindClip(library, "Jump_Start");
+            config.jumpLoop = RanaViewerBuilder.FindClip(library, "Jump_Loop");
+            config.dash = RanaViewerBuilder.FindClip(library, "Roll");
         }
 
-        /// <summary>The model, scaled to the character controller's height, with hair and eyebrows bound to its skeleton.</summary>
+        /// <summary>Rana's rigged model, scaled to the character controller's height.</summary>
         private static Animator AddHeroineVisual(Transform root)
         {
             var visual = new GameObject("Visual").transform;
             visual.SetParent(root, false);
 
-            GameObject model = InstantiateModel("Superhero_Female_FullBody.fbx", visual);
-            Material skin = LoadOrCreateTexturedMaterial("HeroineSkin", "Textures/T_Superhero_Female_Light_BaseColor.png", "Textures/T_Superhero_Female_Normal.png", Color.white, smoothness: 0.3f);
-            Material eyes = LoadOrCreateTexturedMaterial("HeroineEyes", "Textures/T_Eye_Brown.png", "Textures/T_Eye_Normal.png", Color.white, smoothness: 0.8f);
-            Material hair = LoadOrCreateTexturedMaterial("HeroineHair", "Hair/T_Hair_2_BaseColor.png", "Hair/T_Hair_2_Normal.png", new Color(0.16f, 0.1f, 0.09f), smoothness: 0.35f, alphaClip: true);
-
+            GameObject model = InstantiateModel($"{RanaImportSettings.Folder}/RanaRigged.fbx", visual);
+            Material skin = RanaViewerBuilder.LoadOrCreateMaterial();
             foreach (SkinnedMeshRenderer renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
-            {
-                // Which material goes where is decided by the mesh name; log it so a new model is easy to check.
-                string name = renderer.name;
-                renderer.sharedMaterial = name.Contains("Eyebrow") ? hair : name.Contains("Eye") ? eyes : skin;
-                Debug.Log($"Heroine mesh '{name}' uses material '{renderer.sharedMaterial.name}'.");
-            }
-
-            foreach (string hairFile in new[] { "Hair_Buns.fbx", "Eyebrows_Female.fbx" })
-            {
-                GameObject piece = InstantiateModel($"Hair/{hairFile}", visual);
-                // These are plain meshes, not skinned: parent them to the head bone so they follow her.
-                piece.transform.SetParent(FindChild(model.transform, "Head"), true);
-                foreach (Renderer renderer in piece.GetComponentsInChildren<Renderer>())
-                    renderer.sharedMaterial = hair;
-            }
+                renderer.sharedMaterial = skin;
 
             float height = MeasureHeight(model);
             if (height > 0.01f)
                 visual.localScale = Vector3.one * (HeroineHeight / height);
-            Debug.Log($"Heroine model is {height:0.00} m tall before scaling.");
+            Debug.Log($"Rana's model is {height:0.00} m tall before scaling.");
 
             Animator animator = model.GetComponent<Animator>() ?? model.AddComponent<Animator>();
             animator.applyRootMotion = false;
@@ -326,24 +309,15 @@ namespace PX.EditorTools
             return animator;
         }
 
-        private static GameObject InstantiateModel(string relativePath, Transform parent)
+        private static GameObject InstantiateModel(string path, Transform parent)
         {
-            string path = $"{HeroineFolder}/{relativePath}";
             var asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (asset == null)
-                throw new InvalidOperationException($"Model not found at {path}. Has Unity imported the heroine's files?");
+                throw new InvalidOperationException($"Model not found at {path}. Has Unity imported Rana's files?");
 
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(asset, parent);
             instance.name = Path.GetFileNameWithoutExtension(path);
             return instance;
-        }
-
-        private static Transform FindChild(Transform root, string childName)
-        {
-            foreach (Transform t in root.GetComponentsInChildren<Transform>())
-                if (t.name == childName)
-                    return t;
-            throw new InvalidOperationException($"No bone named {childName} under {root.name}.");
         }
 
         private static float MeasureHeight(GameObject model)
@@ -355,49 +329,6 @@ namespace PX.EditorTools
             foreach (Renderer renderer in renderers)
                 bounds.Encapsulate(renderer.bounds);
             return bounds.size.y;
-        }
-
-        private static Material LoadOrCreateTexturedMaterial(string name, string baseMap, string normalMap, Color tint, float smoothness, bool alphaClip = false)
-        {
-            string path = $"{MaterialFolder}/{name}.mat";
-            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material != null)
-                return material;
-
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null)
-                throw new InvalidOperationException("Shader 'Universal Render Pipeline/Lit' not found. Is the Universal Render Pipeline package installed?");
-
-            material = new Material(shader);
-            material.SetColor("_BaseColor", tint);
-            material.SetTexture("_BaseMap", LoadHeroineTexture(baseMap));
-            Texture normal = LoadHeroineTexture(normalMap);
-            if (normal != null)
-            {
-                material.SetTexture("_BumpMap", normal);
-                material.EnableKeyword("_NORMALMAP");
-            }
-
-            material.SetFloat("_Smoothness", smoothness);
-            if (alphaClip)
-            {
-                material.SetFloat("_AlphaClip", 1f);
-                material.SetFloat("_Cutoff", 0.5f);
-                material.EnableKeyword("_ALPHATEST_ON");
-                material.SetFloat("_Cull", 0f); // hair cards are seen from both sides
-            }
-
-            AssetDatabase.CreateAsset(material, path);
-            return material;
-        }
-
-        private static Texture LoadHeroineTexture(string relativePath)
-        {
-            string path = $"{HeroineFolder}/{relativePath}";
-            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if (texture == null)
-                Debug.LogWarning($"Texture not found at {path}.");
-            return texture;
         }
 
         private static GameObject CreateDummy(Palette palette)

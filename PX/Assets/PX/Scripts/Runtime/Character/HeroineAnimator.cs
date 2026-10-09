@@ -41,6 +41,11 @@ namespace PX
 
         public HeroinePose CurrentPose { get; private set; }
 
+        public HeroineAnimationConfig Config => config;
+
+        /// <summary>The clip behind the attack pose right now, which changes with the combo step.</summary>
+        public AnimationClip AttackClip => clips[(int)HeroinePose.Attack];
+
         private void OnEnable()
         {
             if (animator == null || config == null)
@@ -51,7 +56,7 @@ namespace PX
             clips[(int)HeroinePose.JumpStart] = config.jumpStart;
             clips[(int)HeroinePose.JumpLoop] = config.jumpLoop;
             clips[(int)HeroinePose.Dash] = config.dash;
-            clips[(int)HeroinePose.Attack] = config.attack;
+            clips[(int)HeroinePose.Attack] = AttackClipFor(0);
 
             graph = PlayableGraph.Create("Heroine");
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
@@ -87,7 +92,11 @@ namespace PX
             float dt = Time.deltaTime;
             HeroinePose pose = ChoosePose(dt);
 
-            if (pose != CurrentPose || NewAttackStarted())
+            bool attackStarted = NewAttackStarted();
+            if (attackStarted)
+                UseAttackClip(AttackClipFor(player.ComboIndex));
+
+            if (pose != CurrentPose || attackStarted)
                 times[(int)pose] = 0.0;
             CurrentPose = pose;
             lastState = player.State;
@@ -132,6 +141,33 @@ namespace PX
 
             airTime = 0f;
             return Mathf.Abs(motor.Velocity.x) > 0.3f ? HeroinePose.Run : HeroinePose.Idle;
+        }
+
+        private AnimationClip AttackClipFor(int comboIndex)
+        {
+            AnimationClip[] perStep = config.comboAttacks;
+            AnimationClip clip = perStep != null && perStep.Length > 0 ? perStep[Mathf.Clamp(comboIndex, 0, perStep.Length - 1)] : null;
+            return clip != null ? clip : config.attack;
+        }
+
+        /// <summary>Swaps the clip behind the attack pose, so each combo step can show its own animation.</summary>
+        private void UseAttackClip(AnimationClip clip)
+        {
+            const int slot = (int)HeroinePose.Attack;
+            if (clip == null || clip == clips[slot])
+                return;
+
+            if (playables[slot].IsValid())
+            {
+                graph.Disconnect(mixer, slot);
+                playables[slot].Destroy();
+            }
+
+            clips[slot] = clip;
+            playables[slot] = AnimationClipPlayable.Create(graph, clip);
+            playables[slot].SetSpeed(0.0);
+            graph.Connect(playables[slot], 0, mixer, slot);
+            mixer.SetInputWeight(slot, weights[slot]);
         }
 
         private bool NewAttackStarted()

@@ -80,8 +80,8 @@ namespace PX.Tests
         {
             yield return PlaceAt(OpenStretch);
             var body = Player.GetComponentInChildren<UnityEngine.Animator>();
-            Transform hand = FindBone(body.transform, "hand_r");
-            Assert.That(hand, Is.Not.Null, "No bone named hand_r on the model.");
+            Transform hand = body.GetBoneTransform(HumanBodyBones.RightHand);
+            Assert.That(hand, Is.Not.Null, "The model has no right hand bone. Is it imported as a humanoid?");
 
             Input.Move = 1f;
             yield return Frames(20);
@@ -93,28 +93,26 @@ namespace PX.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheHair_StaysOnTheHead()
+        public IEnumerator EachComboStep_PlaysItsOwnClip()
         {
-            yield return PlaceAt(OpenStretch);
-            var body = Player.GetComponentInChildren<UnityEngine.Animator>().transform;
-            Transform head = FindBone(body, "Head");
-            Assert.That(head, Is.Not.Null, "No bone named Head on the model.");
-            Renderer hair = null;
-            foreach (var r in Player.GetComponentsInChildren<Renderer>())
-                if (r.name == "Hair_Buns")
-                    hair = r;
-            Assert.That(hair, Is.Not.Null, "No hair mesh on the player.");
-            Assert.That(hair.transform.IsChildOf(head), Is.True, "The hair is not attached to the head bone.");
+            yield return PlaceAt(85f);
+            AnimationClip[] perStep = Player.GetComponent<HeroineAnimator>().Config.comboAttacks;
+            Assume.That(perStep.Length, Is.GreaterThan(1), "The animation config has no per-step attack clips.");
 
-            Input.Move = 1f;
-            yield return Frames(30);
-            Vector3 standing = head.InverseTransformPoint(hair.bounds.center);
-            for (int i = 0; i < 6; i++)
+            var seen = new System.Collections.Generic.Dictionary<int, AnimationClip>();
+            for (int i = 0; i < 90; i++)
             {
-                yield return Frames(7);
-                Vector3 offset = head.InverseTransformPoint(hair.bounds.center);
-                Assert.That(Vector3.Distance(offset, standing), Is.LessThan(0.02f), "The hair drifts away from the head while she runs.");
+                if (i % 5 == 0)
+                    Input.PressAttack();
+                yield return null;
+                if (Player.State == PlayerState.Attack)
+                    seen[Player.ComboIndex] = Animator.AttackClip;
             }
+
+            Assert.That(seen.Count, Is.GreaterThan(1), "The combo did not get past its first swing.");
+            foreach (var step in seen)
+                Assert.That(step.Value, Is.EqualTo(perStep[Mathf.Min(step.Key, perStep.Length - 1)]), $"Combo step {step.Key} plays the wrong clip.");
+            Assert.That(seen[1], Is.Not.EqualTo(seen[0]), "The first two swings play the same clip.");
         }
 
         private static Transform FindBone(Transform root, string boneName)
