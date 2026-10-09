@@ -22,7 +22,7 @@ namespace PX.EditorTools
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(RanaImportSettings.Folder + "/RanaRigged.fbx");
+            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(RanaImportSettings.BodyPath);
             var model = (GameObject)PrefabUtility.InstantiatePrefab(modelAsset);
             model.name = "Rana";
 
@@ -32,7 +32,7 @@ namespace PX.EditorTools
 
             Animator animator = model.GetComponent<Animator>() ?? model.AddComponent<Animator>();
             if (animator.avatar == null || !animator.avatar.isValid || !animator.avatar.isHuman)
-                Debug.LogError("RanaRigged.fbx did not import as a valid humanoid: check the Rig tab and the bone mapping.");
+                Debug.LogError("The Rana body did not import as a valid humanoid: check the Rig tab and the bone mapping.");
             animator.applyRootMotion = false;
 
             Bounds bounds = MeasureBounds(model);
@@ -133,7 +133,7 @@ namespace PX.EditorTools
                 return material;
 
             material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(RanaImportSettings.Folder + "/Textures/RanaRigged_BaseColor.jpg"));
+            material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(RanaImportSettings.Folder + "/Textures/Rana_BaseColor.jpg"));
             material.SetFloat("_Smoothness", 0.3f);
             AssetDatabase.CreateAsset(material, MaterialPath);
             return material;

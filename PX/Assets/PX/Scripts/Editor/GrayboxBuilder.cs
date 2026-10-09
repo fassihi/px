@@ -293,7 +293,7 @@ namespace PX.EditorTools
             var visual = new GameObject("Visual").transform;
             visual.SetParent(root, false);
 
-            GameObject model = InstantiateModel($"{RanaImportSettings.Folder}/RanaRigged.fbx", visual);
+            GameObject model = InstantiateModel(RanaImportSettings.BodyPath, visual);
             Material skin = RanaViewerBuilder.LoadOrCreateMaterial();
             foreach (SkinnedMeshRenderer renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
                 renderer.sharedMaterial = skin;

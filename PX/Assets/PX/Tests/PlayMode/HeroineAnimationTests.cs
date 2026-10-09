@@ -93,6 +93,20 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator Idle_StandsUpright_NotLeaningBack()
+        {
+            // Clips from a different Tripo export than the body lean her backwards, so check the head sits over the hips.
+            yield return PlaceAt(OpenStretch);
+            yield return Frames(60);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            Vector3 headOverHips = Player.transform.InverseTransformVector(
+                body.GetBoneTransform(HumanBodyBones.Head).position - body.GetBoneTransform(HumanBodyBones.Hips).position);
+
+            Assert.That(Mathf.Abs(headOverHips.z) / headOverHips.y, Is.LessThan(0.2f),
+                $"Her head is {headOverHips.z:0.00} m in front of her hips while idle: she is leaning.");
+        }
+
+        [UnityTest]
         public IEnumerator EachComboStep_PlaysItsOwnClip()
         {
             yield return PlaceAt(85f);
