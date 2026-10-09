@@ -12,6 +12,8 @@ namespace PX
         [SerializeField] private Transform target;
         [SerializeField] private float distance = 3.5f;
         [SerializeField] private float autoSpinDegreesPerSecond = 20f;
+        [SerializeField, Tooltip("Fraction of the distance zoomed per unit of scroll. macOS reports small values.")]
+        private float zoomPerScroll = 0.08f;
 
         private float yaw = 180f;
         private float pitch = 8f;
@@ -30,7 +32,9 @@ namespace PX
                     dragged = true;
                 }
 
-                distance = Mathf.Clamp(distance - mouse.scroll.ReadValue().y * 0.002f, 0.8f, 10f);
+                // Proportional to the distance, so close-ups stay controllable; capped so a Windows-sized notch can't jump.
+                float zoom = Mathf.Clamp(mouse.scroll.ReadValue().y * zoomPerScroll, -0.5f, 0.5f);
+                distance = Mathf.Clamp(distance * (1f - zoom), 0.8f, 10f);
             }
 
             if (!dragged)
