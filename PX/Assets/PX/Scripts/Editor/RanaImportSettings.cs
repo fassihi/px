@@ -3,15 +3,15 @@ using UnityEditor;
 namespace PX.EditorTools
 {
     /// <summary>
-    /// Import settings for Rana's art. The model is a plain static mesh for now: no rig, no animation,
-    /// and the materials are built by <see cref="RanaViewerBuilder"/> rather than imported.
+    /// Import settings for Rana's art. RanaRigged.fbx is Tripo's auto-rigged model, imported as a humanoid so the
+    /// heroine's animation clips retarget onto it. The materials are built by <see cref="RanaViewerBuilder"/>.
     /// </summary>
     public sealed class RanaImportSettings : AssetPostprocessor
     {
         public const string Folder = "Assets/PX/Art/Rana";
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 1;
+        public override uint GetVersion() => 2;
 
         private void OnPreprocessModel()
         {
@@ -19,7 +19,9 @@ namespace PX.EditorTools
                 return;
 
             var importer = (ModelImporter)assetImporter;
-            importer.animationType = ModelImporterAnimationType.None;
+            bool isRigged = assetPath.EndsWith("RanaRigged.fbx");
+            importer.animationType = isRigged ? ModelImporterAnimationType.Human : ModelImporterAnimationType.None;
+            importer.avatarSetup = isRigged ? ModelImporterAvatarSetup.CreateFromThisModel : ModelImporterAvatarSetup.NoAvatar;
             importer.importAnimation = false;
             importer.materialImportMode = ModelImporterMaterialImportMode.None;
         }

@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -21,13 +22,18 @@ namespace PX.EditorTools
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(RanaImportSettings.Folder + "/Rana.fbx");
+            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(RanaImportSettings.Folder + "/RanaRigged.fbx");
             var model = (GameObject)PrefabUtility.InstantiatePrefab(modelAsset);
             model.name = "Rana";
 
             Material material = LoadOrCreateMaterial();
             foreach (Renderer renderer in model.GetComponentsInChildren<Renderer>())
                 renderer.sharedMaterial = material;
+
+            Animator animator = model.GetComponent<Animator>() ?? model.AddComponent<Animator>();
+            if (animator.avatar == null || !animator.avatar.isValid || !animator.avatar.isHuman)
+                Debug.LogError("RanaRigged.fbx did not import as a valid humanoid: check the Rig tab and the bone mapping.");
+            animator.applyRootMotion = false;
 
             Bounds bounds = MeasureBounds(model);
             float scale = bounds.size.y > 0.01f ? Height / bounds.size.y : 1f;
@@ -62,6 +68,19 @@ namespace PX.EditorTools
             camera.fieldOfView = 35f;
             cameraObject.AddComponent<AudioListener>();
 
+            var player = cameraObject.AddComponent<RanaClipPlayer>();
+            var playerSerialized = new SerializedObject(player);
+            playerSerialized.FindProperty("animator").objectReferenceValue = animator;
+            AnimationClip[] library = AssetDatabase.LoadAllAssetsAtPath("Assets/PX/Art/Heroine/Animations/UAL1_Standard.fbx")
+                .OfType<AnimationClip>().Where(clip => !clip.name.StartsWith("__preview__")).ToArray();
+            string[] wanted = { "Idle_Loop", "Jog_Fwd_Loop", "Jump_Loop", "Roll", "Sword_Attack" };
+            SerializedProperty clipList = playerSerialized.FindProperty("clips");
+            clipList.arraySize = wanted.Length;
+            for (int i = 0; i < wanted.Length; i++)
+                clipList.GetArrayElementAtIndex(i).objectReferenceValue =
+                    library.FirstOrDefault(clip => clip.name == wanted[i] || clip.name.EndsWith("|" + wanted[i]));
+            playerSerialized.ApplyModifiedPropertiesWithoutUndo();
+
             var focus = new GameObject("Focus").transform;
             focus.position = new Vector3(0f, Height * 0.55f, 0f);
             var orbit = cameraObject.AddComponent<RanaOrbitView>();
@@ -90,7 +109,7 @@ namespace PX.EditorTools
                 return material;
 
             material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(RanaImportSettings.Folder + "/Textures/Rana_BaseColor.jpg"));
+            material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(RanaImportSettings.Folder + "/Textures/RanaRigged_BaseColor.jpg"));
             material.SetFloat("_Smoothness", 0.3f);
             AssetDatabase.CreateAsset(material, MaterialPath);
             return material;
