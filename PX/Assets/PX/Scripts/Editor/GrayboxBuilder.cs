@@ -67,9 +67,9 @@ namespace PX.EditorTools
             BuildLevel(rail, palette);
             PlaceDummies(rail, dummyPrefab);
             CharacterMotor motor = PlacePlayer(rail, playerPrefab);
-            CreateCamera(rail, motor);
+            RailCamera railCamera = CreateCamera(rail, motor);
             CreateLighting();
-            CreateOverlay(motor);
+            CreateOverlay(motor, railCamera);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -353,7 +353,7 @@ namespace PX.EditorTools
 
         // ------------------------------------------------------- camera, light
 
-        private static void CreateCamera(Rail rail, CharacterMotor motor)
+        private static RailCamera CreateCamera(Rail rail, CharacterMotor motor)
         {
             var go = new GameObject("Main Camera") { tag = "MainCamera" };
             var camera = go.AddComponent<Camera>();
@@ -390,6 +390,7 @@ namespace PX.EditorTools
             });
 
             railCamera.Snap();
+            return railCamera;
         }
 
         private static void CreateLighting()
@@ -421,11 +422,12 @@ namespace PX.EditorTools
             }
         }
 
-        private static void CreateOverlay(CharacterMotor motor)
+        private static void CreateOverlay(CharacterMotor motor, RailCamera railCamera)
         {
             var overlay = new GameObject("Overlay").AddComponent<GrayboxOverlay>();
             Wire(overlay, "player", motor.GetComponent<PlayerController>());
             Wire(overlay, "motor", motor);
+            Wire(overlay, "railCamera", railCamera);
         }
 
         // -------------------------------------------------------------- assets

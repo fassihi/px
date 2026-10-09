@@ -74,7 +74,7 @@ namespace PX
             if (graph.IsValid())
                 graph.Destroy();
             graph = PlayableGraph.Create("Rana");
-            graph.SetTimeUpdateMode(DirectorUpdateMode.Manual); // time is set by hand in Update
+            graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime); // time is set by hand in Update, but the graph must still evaluate
             AnimationPlayableOutput output = AnimationPlayableOutput.Create(graph, "Rana", animator);
             playable = AnimationClipPlayable.Create(graph, clips[newIndex]);
             playable.SetSpeed(0.0);

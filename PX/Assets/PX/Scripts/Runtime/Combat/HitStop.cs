@@ -10,6 +10,9 @@ namespace PX
     {
         private static Runner runner;
 
+        /// <summary>The time scale the game runs at between hits. Only debug tools change it from 1.</summary>
+        public static float BaseTimeScale = 1f;
+
         public static bool IsActive => runner != null && runner.Remaining > 0f;
 
         public static void Trigger(float seconds)
@@ -40,13 +43,13 @@ namespace PX
                 // Under a fixed capture step (tests, video capture) real time means nothing, so count in steps.
                 Remaining -= Time.captureDeltaTime > 0f ? Time.captureDeltaTime : Time.unscaledDeltaTime;
                 if (Remaining <= 0f)
-                    Time.timeScale = 1f;
+                    Time.timeScale = BaseTimeScale;
             }
 
             private void OnDestroy()
             {
                 if (Remaining > 0f)
-                    Time.timeScale = 1f;
+                    Time.timeScale = BaseTimeScale;
             }
         }
     }

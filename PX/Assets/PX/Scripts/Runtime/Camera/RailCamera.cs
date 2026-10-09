@@ -27,6 +27,7 @@ namespace PX
         private float lead;
         private float leadVelocity;
         private bool initialized;
+        private float distanceScale = 1f;
 
         public CharacterMotor Target
         {
@@ -41,6 +42,13 @@ namespace PX
         }
 
         public List<CameraZone> Zones => zones;
+
+        /// <summary>Multiplies every view's distance: below 1 zooms in, above 1 zooms out. A debug aid, not a camera setting.</summary>
+        public float DistanceScale
+        {
+            get => distanceScale;
+            set => distanceScale = Mathf.Clamp(value, 0.2f, 4f);
+        }
 
         /// <summary>The view currently in effect, mid-blend included.</summary>
         public CameraView CurrentView => current;
@@ -115,7 +123,7 @@ namespace PX
             float pitch = current.pitch * Mathf.Deg2Rad;
             Vector3 offset = horizontal * Mathf.Cos(pitch) + Vector3.up * Mathf.Sin(pitch);
 
-            transform.position = focus + offset * current.distance;
+            transform.position = focus + offset * (current.distance * distanceScale);
             transform.rotation = Quaternion.LookRotation(-offset, Vector3.up);
             cam.fieldOfView = current.fieldOfView;
         }
