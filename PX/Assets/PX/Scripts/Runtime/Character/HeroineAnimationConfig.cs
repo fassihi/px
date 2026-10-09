@@ -17,6 +17,13 @@ namespace PX
         [Tooltip("Optional clip per combo step. A step without one (or past the end of the list) uses Attack.")]
         public AnimationClip[] comboAttacks = System.Array.Empty<AnimationClip>();
 
+        [Header("Dash")]
+        [Tooltip("On: the dash clip is squeezed to the length of the dash, which suits a one-shot move like a roll. " +
+                 "Off: it loops at Dash Clip Speed, which suits a fast run.")]
+        public bool stretchDashToDuration = true;
+
+        [Min(0.1f)] public float dashClipSpeed = 1.8f;
+
         [Header("Blending")]
         [Tooltip("Seconds to cross-fade between poses.")]
         public float fadeTime = 0.1f;

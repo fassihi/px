@@ -64,6 +64,28 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator Dashing_KeepsHerHipsAboveTheGround()
+        {
+            // A roll clip retargeted onto her dips her hips to the floor and buries her feet; the dash must not.
+            yield return PlaceAt(OpenStretch);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            Transform hips = body.GetBoneTransform(HumanBodyBones.Hips);
+
+            Input.Move = 1f;
+            Input.PressDash();
+            float lowest = float.MaxValue;
+            for (int i = 0; i < 12; i++)
+            {
+                yield return null;
+                if (Player.State == PlayerState.Dash)
+                    lowest = Mathf.Min(lowest, hips.position.y - Player.transform.position.y);
+            }
+
+            Assert.That(lowest, Is.Not.EqualTo(float.MaxValue), "She never dashed.");
+            Assert.That(lowest, Is.GreaterThan(0.6f), $"Her hips drop to {lowest:0.00} m above her feet during the dash.");
+        }
+
+        [UnityTest]
         public IEnumerator Attacking_PlaysAttack()
         {
             yield return PlaceAt(OpenStretch);

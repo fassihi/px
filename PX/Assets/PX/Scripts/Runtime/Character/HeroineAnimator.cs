@@ -176,9 +176,10 @@ namespace PX
                 && (lastState != PlayerState.Attack || player.ComboIndex != lastComboIndex);
         }
 
-        private static bool IsLooping(HeroinePose pose)
+        private bool IsLooping(HeroinePose pose)
         {
-            return pose == HeroinePose.Idle || pose == HeroinePose.Run || pose == HeroinePose.JumpLoop;
+            return pose == HeroinePose.Idle || pose == HeroinePose.Run || pose == HeroinePose.JumpLoop
+                || (pose == HeroinePose.Dash && !config.stretchDashToDuration);
         }
 
         private float ClipSpeed(HeroinePose pose)
@@ -192,7 +193,7 @@ namespace PX
                     return Mathf.Clamp(scale, config.runSpeedScaleRange.x, config.runSpeedScaleRange.y);
                 }
                 case HeroinePose.Dash:
-                    return StretchTo(clip, player.Move.dashDuration);
+                    return config.stretchDashToDuration ? StretchTo(clip, player.Move.dashDuration) : config.dashClipSpeed;
                 case HeroinePose.Attack:
                     return StretchTo(clip, player.Combo.steps[Mathf.Clamp(player.ComboIndex, 0, player.Combo.steps.Length - 1)].Total);
                 default:

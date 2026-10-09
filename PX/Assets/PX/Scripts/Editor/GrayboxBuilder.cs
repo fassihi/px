@@ -268,8 +268,8 @@ namespace PX.EditorTools
 
         private static void FillHeroineAnimation(HeroineAnimationConfig config)
         {
-            // Rana's own clips where she has them. She has no jump or dash yet, so those come from the
-            // Universal Animation Library (CC0); it is a humanoid rig too, so its clips retarget onto her.
+            // Rana's own clips where she has them. She has no jump yet, so that comes from the Universal
+            // Animation Library (CC0); it is a humanoid rig too, so its clips retarget onto her.
             AnimationClip[] rana = RanaViewerBuilder.LoadClips($"{RanaImportSettings.Folder}/Animations/RanaAnimations.fbx");
             AnimationClip[] library = RanaViewerBuilder.LoadClips($"{HeroineFolder}/Animations/UAL1_Standard.fbx");
 
@@ -284,7 +284,10 @@ namespace PX.EditorTools
             config.attack = config.comboAttacks[0];
             config.jumpStart = RanaViewerBuilder.FindClip(library, "Jump_Start");
             config.jumpLoop = RanaViewerBuilder.FindClip(library, "Jump_Loop");
-            config.dash = RanaViewerBuilder.FindClip(library, "Roll");
+            // The library's roll is crammed into the 0.16 s dash and sinks her hips through the floor, so the dash
+            // is her own run clip, played faster.
+            config.dash = config.run;
+            config.stretchDashToDuration = false;
         }
 
         /// <summary>Rana's rigged model, scaled to the character controller's height.</summary>

@@ -75,7 +75,7 @@ namespace PX.EditorTools
             AnimationClip[] rana = LoadClips(RanaImportSettings.Folder + "/Animations/RanaAnimations.fbx");
             AnimationClip[] library = LoadClips("Assets/PX/Art/Heroine/Animations/UAL1_Standard.fbx");
             var shown = rana.Select(clip => (clip, label: clip.name))
-                .Concat(new[] { "Jump_Start", "Jump_Loop", "Roll" }.Select(name => (clip: FindClip(library, name), label: name + " (stand-in)")))
+                .Concat(new[] { "Jump_Start", "Jump_Loop" }.Select(name => (clip: FindClip(library, name), label: name + " (stand-in)")))
                 .ToArray();
             SerializedProperty clipList = playerSerialized.FindProperty("clips");
             SerializedProperty labelList = playerSerialized.FindProperty("labels");
