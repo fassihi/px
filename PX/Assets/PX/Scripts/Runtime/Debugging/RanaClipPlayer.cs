@@ -8,6 +8,7 @@ namespace PX
     /// <summary>
     /// Graybox stand-in for the Rana viewer scene: lists her animations on screen so each one can be played to
     /// check the rig and skinning. Click a clip or press 1-9; Up/Down steps through them, Space pauses.
+    /// Playback speed follows Time.timeScale, set by <see cref="RanaOrbitView"/>.
     /// </summary>
     public sealed class RanaClipPlayer : MonoBehaviour
     {
@@ -22,7 +23,6 @@ namespace PX
         private double time;
         private bool loop = true;
         private bool paused;
-        private float speed = 1f;
 
         private void Start() => Play(0);
 
@@ -41,7 +41,7 @@ namespace PX
 
             double length = clips[index].length;
             if (!paused)
-                time += Time.deltaTime * speed;
+                time += Time.deltaTime; // follows Time.timeScale, which the panel on the right sets
             time = loop && length > 0.0 ? time % length : System.Math.Min(time, length);
             playable.SetTime(time);
         }
@@ -110,8 +110,6 @@ namespace PX
             GUILayout.Space(8f);
             loop = GUILayout.Toggle(loop, "Loop");
             paused = GUILayout.Toggle(paused, "Paused (Space)");
-            GUILayout.Label($"Speed {speed:0.00}x");
-            speed = GUILayout.HorizontalSlider(speed, 0.1f, 2f);
             if (index >= 0)
                 GUILayout.Label($"{time:0.00} / {clips[index].length:0.00} s");
             GUILayout.EndArea();
