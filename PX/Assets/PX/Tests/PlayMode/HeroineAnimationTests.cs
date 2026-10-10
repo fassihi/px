@@ -52,6 +52,50 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator JumpingWhileRunning_PlaysTheRunningJump_UntilSheLands()
+        {
+            yield return PlaceAt(OpenStretch);
+            Assume.That(Animator.Config.runJump, Is.Not.Null, "The animation config has no running jump.");
+
+            Input.Move = 1f;
+            yield return Frames(30);
+            Input.PressJump();
+            yield return Frames(3);
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.RunJump));
+
+            int airborne = 0;
+            for (int i = 0; i < 120 && !Motor.IsGrounded; i++, airborne++)
+            {
+                Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.RunJump), $"She left the running jump {i} frames into the air.");
+                yield return null;
+            }
+            Assert.That(airborne, Is.GreaterThan(10), "She was hardly in the air.");
+            yield return Frames(3);
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Run));
+        }
+
+        [UnityTest]
+        public IEnumerator ReversingWhileRunning_TurnsHerRound()
+        {
+            yield return PlaceAt(OpenStretch);
+            Assume.That(Animator.Config.runTurn, Is.Not.Null, "The animation config has no run turn.");
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            Transform leftHip = body.GetBoneTransform(HumanBodyBones.LeftUpperLeg), rightHip = body.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+            float Facing() => Vector3.Dot(Vector3.Cross(rightHip.position - leftHip.position, Vector3.up).normalized, Player.transform.forward);
+
+            Input.Move = 1f;
+            yield return Frames(30);
+            Input.Move = -1f;
+            yield return Frames(2);
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Turn));
+            Assert.That(Facing(), Is.LessThan(-0.5f), "At the start of the turn her body should still face the way she was running.");
+
+            yield return Frames(Mathf.CeilToInt(Animator.Config.turnDuration * 60f) + 5);
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Run));
+            Assert.That(Facing(), Is.GreaterThan(0.5f), "After the turn her body should face the new way.");
+        }
+
+        [UnityTest]
         public IEnumerator Dashing_PlaysDash()
         {
             yield return PlaceAt(OpenStretch);

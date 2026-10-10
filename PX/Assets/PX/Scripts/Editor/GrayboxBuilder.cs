@@ -49,6 +49,9 @@ namespace PX.EditorTools
         [MenuItem("PX/Graybox/Rebuild Scene")]
         public static void Build()
         {
+            // Retargeting needs every avatar in the same reference pose. New Mixamo clips are fixed up here.
+            AvatarPose.StraightenAll();
+
             EnsureFolder(Path.GetDirectoryName(ScenePath));
             EnsureFolder(ConfigFolder);
             EnsureFolder(MaterialFolder);
@@ -274,9 +277,10 @@ namespace PX.EditorTools
             AnimationClip[] library = RanaViewerBuilder.LoadClips($"{HeroineFolder}/Animations/UAL1_Standard.fbx");
 
             config.idle = RanaViewerBuilder.FindClip(rana, "idle");
-            // Her run is a Mixamo clip, retargeted onto her humanoid rig.
-            AnimationClip[] mixamoRun = RanaViewerBuilder.LoadClips($"{RanaImportSettings.MixamoFolder}/Running.fbx");
-            config.run = RanaViewerBuilder.FindClip(mixamoRun, "Running");
+            // Her run, turn and running jump are Mixamo clips, retargeted onto her humanoid rig.
+            config.run = MixamoClip("Running");
+            config.runTurn = MixamoClip("Running Turn 180");
+            config.runJump = MixamoClip("Unarmed Jump Running");
             config.comboAttacks = new[]
             {
                 RanaViewerBuilder.FindClip(rana, "box_01"),
@@ -290,6 +294,11 @@ namespace PX.EditorTools
             // is her own run clip, played faster.
             config.dash = config.run;
             config.stretchDashToDuration = false;
+        }
+
+        private static AnimationClip MixamoClip(string name)
+        {
+            return RanaViewerBuilder.FindClip(RanaViewerBuilder.LoadClips($"{RanaImportSettings.MixamoFolder}/{name}.fbx"), name);
         }
 
         /// <summary>Rana's rigged model, scaled to the character controller's height.</summary>

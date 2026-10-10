@@ -10,28 +10,40 @@ namespace PX.EditorTools
     {
         public const string Folder = "Assets/PX/Art/Rana";
 
+        // Clips downloaded from Mixamo, "without skin". Their avatars need straightening, see AvatarPose.
+        public const string MixamoFolder = Folder + "/Animations/Mixamo";
+
         // Rana's body is the model inside her animation file. Tripo's separate "rigged" export has a different bind
         // pose, and the same clips retargeted onto it lean her backwards. Clips and body must come from one export.
-        public const string MixamoFolder = Folder + "/Animations/Mixamo";
         public const string BodyPath = Folder + "/Animations/RanaAnimations.fbx";
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 6;
+        public override uint GetVersion() => 7;
 
         private void OnPreprocessAnimation()
         {
             var importer = (ModelImporter)assetImporter;
-            // Mixamo names every take "mixamo.com". Name the clip after its file, so it can be found, and loop it.
-            if (assetPath.StartsWith(MixamoFolder))
-            {
-                ModelImporterClipAnimation[] clips = importer.defaultClipAnimations;
-                if (clips.Length == 1)
-                {
-                    clips[0].name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
-                    clips[0].loopTime = true;
-                    importer.clipAnimations = clips;
-                }
-            }
+            // Mixamo names every take "mixamo.com". Name the clip after its file, so it can be found.
+            if (!assetPath.StartsWith(MixamoFolder))
+                return;
+            ModelImporterClipAnimation[] clips = importer.defaultClipAnimations;
+            if (clips.Length != 1)
+                return;
+
+            string name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+            bool jump = name.Contains("Jump");
+            bool turn = name.Contains("Turn");
+            ModelImporterClipAnimation clip = clips[0];
+            clip.name = name;
+            clip.loopTime = !jump && !turn;
+            // The game moves her, so clips play in place: travel along the ground is dropped, and so is the rise of a
+            // jump. A turn keeps its rotation, so she visibly spins round.
+            clip.lockRootPositionXZ = false;
+            clip.lockRootHeightY = !jump;
+            clip.keepOriginalPositionY = true;
+            clip.lockRootRotation = turn;
+            clip.keepOriginalOrientation = turn;
+            importer.clipAnimations = clips;
         }
 
         private void OnPreprocessModel()

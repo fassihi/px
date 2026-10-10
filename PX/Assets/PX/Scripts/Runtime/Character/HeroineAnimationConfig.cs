@@ -9,8 +9,12 @@ namespace PX
         [Header("Clips")]
         public AnimationClip idle;
         public AnimationClip run;
+        [Tooltip("Played when she reverses while running. Its rotation is kept: the clip must turn her by 180 degrees.")]
+        public AnimationClip runTurn;
         public AnimationClip jumpStart;
         public AnimationClip jumpLoop;
+        [Tooltip("A whole running jump, takeoff to landing, used instead of Jump Start and Jump Loop for a jump taken at speed.")]
+        public AnimationClip runJump;
         public AnimationClip dash;
         public AnimationClip attack;
 
@@ -23,6 +27,23 @@ namespace PX
         public bool stretchDashToDuration = true;
 
         [Min(0.1f)] public float dashClipSpeed = 1.8f;
+
+        [Header("Run turn")]
+        [Tooltip("She plays the turn when she reverses from at least this ground speed, in m/s.")]
+        [Min(0f)] public float turnMinSpeed = 3f;
+
+        [Tooltip("Seconds the turn takes. The clip is sped up or slowed down to fit.")]
+        [Min(0.05f)] public float turnDuration = 0.35f;
+
+        [Header("Running jump")]
+        [Tooltip("A jump taken at least this fast, in m/s, uses Run Jump.")]
+        [Min(0f)] public float runJumpMinSpeed = 3f;
+
+        [Tooltip("Seconds into Run Jump where her feet leave the ground. The clip starts here.")]
+        [Min(0f)] public float runJumpTakeoff = 0.36f;
+
+        [Tooltip("Seconds into Run Jump where her feet touch down. She holds this pose until she lands.")]
+        [Min(0f)] public float runJumpLanding = 1.0f;
 
         [Header("Blending")]
         [Tooltip("Seconds to cross-fade between poses.")]

@@ -14,8 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
   idle: {fileID: 8406360129791286164, guid: 974c520d54c614683a16c05520116e5d, type: 3}
   run: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
+  runTurn: {fileID: -203655887218126122, guid: 8130124ee15784ad3a4e67a246f7ccc7, type: 3}
   jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  runJump: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
   dash: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
   attack: {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}
   comboAttacks:
@@ -24,6 +26,11 @@ MonoBehaviour:
   - {fileID: 8613629562999782657, guid: 974c520d54c614683a16c05520116e5d, type: 3}
   stretchDashToDuration: 0
   dashClipSpeed: 1.8
+  turnMinSpeed: 3
+  turnDuration: 0.35
+  runJumpMinSpeed: 3
+  runJumpTakeoff: 0.36
+  runJumpLanding: 1
   fadeTime: 0.1
   runClipSpeed: 4.5
   runSpeedScaleRange: {x: 0.6, y: 1.6}

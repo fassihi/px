@@ -45,7 +45,7 @@ PX/                         Unity project
       Config/               Tuning assets: PlayerMove, PlayerLightCombo
       Prefabs/              Player, TrainingDummy
       Scenes/               Graybox.unity (generated, see below)
-      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo; after re-importing her model run PX > Rana > Straighten Avatar Pose so other rigs' clips retarget without a hunch) and the old stand-in heroine (Art/Heroine, now only the animation library for jump and dash)
+      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo; the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the animation library for jump and dash)
     Settings/               Render pipeline assets and volume profiles
   Packages/                 Package manifest
   ProjectSettings/

@@ -12,6 +12,8 @@ namespace PX
         JumpLoop,
         Dash,
         Attack,
+        Turn,
+        RunJump,
     }
 
     /// <summary>
@@ -21,7 +23,7 @@ namespace PX
     /// </summary>
     public sealed class HeroineAnimator : MonoBehaviour
     {
-        private const int PoseCount = 6;
+        private const int PoseCount = 8;
 
         [SerializeField] private PlayerController player;
         [SerializeField] private CharacterMotor motor;
@@ -38,6 +40,12 @@ namespace PX
         private float airTime;
         private PlayerState lastState;
         private int lastComboIndex;
+        private int lastFacing;
+        private float lastSpeed;
+        private float lastVelocityY;
+        private bool runningJump;
+        private bool restartPose;
+        private Quaternion modelRotation;
 
         public HeroinePose CurrentPose { get; private set; }
 
@@ -57,6 +65,10 @@ namespace PX
             clips[(int)HeroinePose.JumpLoop] = config.jumpLoop;
             clips[(int)HeroinePose.Dash] = config.dash;
             clips[(int)HeroinePose.Attack] = AttackClipFor(0);
+            clips[(int)HeroinePose.Turn] = config.runTurn;
+            clips[(int)HeroinePose.RunJump] = config.runJump;
+            modelRotation = animator.transform.localRotation;
+            lastFacing = motor != null ? motor.Facing : 1;
 
             graph = PlayableGraph.Create("Heroine");
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
@@ -96,11 +108,20 @@ namespace PX
             if (attackStarted)
                 UseAttackClip(AttackClipFor(player.ComboIndex));
 
-            if (pose != CurrentPose || attackStarted)
-                times[(int)pose] = 0.0;
+            if (pose != CurrentPose || attackStarted || restartPose)
+                times[(int)pose] = pose == HeroinePose.RunJump ? config.runJumpTakeoff : 0.0;
+
+            // The turn clip spins her round, so the body is turned back to face where she came from while it plays.
+            // That cannot be blended with other poses, so the turn cuts in and out.
+            bool cut = (pose == HeroinePose.Turn) != (CurrentPose == HeroinePose.Turn);
+            animator.transform.localRotation = pose == HeroinePose.Turn ? Quaternion.Euler(0f, 180f, 0f) * modelRotation : modelRotation;
+
             CurrentPose = pose;
             lastState = player.State;
             lastComboIndex = player.ComboIndex;
+            lastFacing = motor.Facing;
+            lastSpeed = Mathf.Abs(motor.Velocity.x);
+            lastVelocityY = motor.Velocity.y;
 
             float fade = config.fadeTime > 0f ? dt / config.fadeTime : 1f;
             for (int i = 0; i < PoseCount; i++)
@@ -108,7 +129,7 @@ namespace PX
                 if (clips[i] == null)
                     continue;
 
-                weights[i] = Mathf.MoveTowards(weights[i], i == (int)pose ? 1f : 0f, fade);
+                weights[i] = Mathf.MoveTowards(weights[i], i == (int)pose ? 1f : 0f, cut ? 1f : fade);
                 mixer.SetInputWeight(i, weights[i]);
 
                 if (weights[i] <= 0f && i != (int)pose)
@@ -116,6 +137,8 @@ namespace PX
 
                 times[i] += dt * ClipSpeed((HeroinePose)i);
                 double length = clips[i].length;
+                if (i == (int)HeroinePose.RunJump)
+                    length = System.Math.Min(length, config.runJumpLanding);
                 times[i] = IsLooping((HeroinePose)i) && length > 0.0 ? times[i] % length : System.Math.Min(times[i], length);
                 playables[i].SetTime(times[i]);
             }
@@ -123,6 +146,7 @@ namespace PX
 
         private HeroinePose ChoosePose(float dt)
         {
+            restartPose = false;
             switch (player.State)
             {
                 case PlayerState.Dash:
@@ -133,14 +157,43 @@ namespace PX
 
             if (!motor.IsGrounded)
             {
+                // A jump, from the ground or in the air, throws her upwards. One taken at speed is a running jump.
+                bool jumped = motor.Velocity.y > 0f && (airTime == 0f || motor.Velocity.y > lastVelocityY + 1f);
+                if (jumped)
+                {
+                    runningJump = clips[(int)HeroinePose.RunJump] != null && Mathf.Abs(motor.Velocity.x) >= config.runJumpMinSpeed;
+                    restartPose = airTime > 0f;
+                    airTime = 0f;
+                }
+                else if (airTime == 0f)
+                {
+                    runningJump = false; // walked off a ledge
+                }
+
                 airTime += dt;
+                if (runningJump)
+                    return HeroinePose.RunJump;
+
                 float startLength = clips[(int)HeroinePose.JumpStart] != null ? clips[(int)HeroinePose.JumpStart].length : 0f;
                 bool rising = motor.Velocity.y > 0f;
                 return rising && airTime < startLength ? HeroinePose.JumpStart : HeroinePose.JumpLoop;
             }
 
             airTime = 0f;
+            if (Turning())
+                return HeroinePose.Turn;
             return Mathf.Abs(motor.Velocity.x) > 0.3f ? HeroinePose.Run : HeroinePose.Idle;
+        }
+
+        /// <summary>Starts the turn when she reverses at speed, and keeps it until the clip ends or she turns back.</summary>
+        private bool Turning()
+        {
+            AnimationClip clip = clips[(int)HeroinePose.Turn];
+            if (clip == null || motor.Facing != lastFacing && CurrentPose == HeroinePose.Turn)
+                return false;
+            if (motor.Facing != lastFacing)
+                return lastSpeed >= config.turnMinSpeed;
+            return CurrentPose == HeroinePose.Turn && times[(int)HeroinePose.Turn] < clip.length;
         }
 
         private AnimationClip AttackClipFor(int comboIndex)
@@ -196,6 +249,8 @@ namespace PX
                     return config.stretchDashToDuration ? StretchTo(clip, player.Move.dashDuration) : config.dashClipSpeed;
                 case HeroinePose.Attack:
                     return StretchTo(clip, player.Combo.steps[Mathf.Clamp(player.ComboIndex, 0, player.Combo.steps.Length - 1)].Total);
+                case HeroinePose.Turn:
+                    return StretchTo(clip, config.turnDuration);
                 default:
                     return 1f;
             }
