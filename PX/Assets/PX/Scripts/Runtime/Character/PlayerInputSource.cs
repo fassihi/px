@@ -11,10 +11,15 @@ namespace PX
     {
         private const float StickDeadzone = 0.25f;
 
+        // The stick has to be pushed well down to crouch, so running with a sloppy stick does not.
+        private const float CrouchStickThreshold = 0.6f;
+
         private InputAction move;
         private InputAction jump;
         private InputAction dash;
         private InputAction attack;
+        private InputAction crouch;
+        private InputAction crouchStick;
 
         private void Awake()
         {
@@ -44,6 +49,14 @@ namespace PX
             attack.AddBinding("<Keyboard>/j");
             attack.AddBinding("<Mouse>/leftButton");
             attack.AddBinding("<Gamepad>/buttonWest");
+
+            crouch = new InputAction("Crouch", InputActionType.Button);
+            crouch.AddBinding("<Keyboard>/s");
+            crouch.AddBinding("<Keyboard>/downArrow");
+            crouch.AddBinding("<Gamepad>/dpad/down");
+
+            crouchStick = new InputAction("Crouch Stick", InputActionType.Value);
+            crouchStick.AddBinding("<Gamepad>/leftStick/y");
         }
 
         private void OnEnable()
@@ -52,6 +65,8 @@ namespace PX
             jump.Enable();
             dash.Enable();
             attack.Enable();
+            crouch.Enable();
+            crouchStick.Enable();
         }
 
         private void OnDisable()
@@ -60,6 +75,8 @@ namespace PX
             jump.Disable();
             dash.Disable();
             attack.Disable();
+            crouch.Disable();
+            crouchStick.Disable();
         }
 
         private void OnDestroy()
@@ -68,6 +85,8 @@ namespace PX
             jump.Dispose();
             dash.Dispose();
             attack.Dispose();
+            crouch.Dispose();
+            crouchStick.Dispose();
         }
 
         public InputFrame Read()
@@ -80,6 +99,7 @@ namespace PX
                 JumpHeld = jump.IsPressed(),
                 DashPressed = dash.WasPressedThisFrame(),
                 AttackPressed = attack.WasPressedThisFrame(),
+                CrouchHeld = crouch.IsPressed() || crouchStick.ReadValue<float>() < -CrouchStickThreshold,
             };
         }
     }

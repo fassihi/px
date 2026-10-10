@@ -17,8 +17,11 @@ namespace PX.EditorTools
         // pose, and the same clips retargeted onto it lean her backwards. Clips and body must come from one export.
         public const string BodyPath = Folder + "/Animations/RanaAnimations.fbx";
 
+        // Mixamo clips that loop. The rest play once.
+        private static readonly string[] LoopingClips = { "Running", "Crouch Idle", "Dash Ground Pose", "Dash Air Pose" };
+
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 7;
+        public override uint GetVersion() => 10;
 
         private void OnPreprocessAnimation()
         {
@@ -33,16 +36,20 @@ namespace PX.EditorTools
             string name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
             bool jump = name.Contains("Jump");
             bool turn = name.Contains("Turn");
+            // Strikes keep the orientation they were made with. Dropping their root rotation squares her body to the
+            // front and so turns a punch thrown from a bladed stance off to her side.
+            bool keepFacing = turn || name.StartsWith("Combo") || name.Contains("Sweep");
             ModelImporterClipAnimation clip = clips[0];
             clip.name = name;
-            clip.loopTime = !jump && !turn;
+            // Cycles and held poses loop; moves, landings and transitions play once.
+            clip.loopTime = System.Array.IndexOf(LoopingClips, name) >= 0;
             // The game moves her, so clips play in place: travel along the ground is dropped, and so is the rise of a
             // jump. A turn keeps its rotation, so she visibly spins round.
             clip.lockRootPositionXZ = false;
             clip.lockRootHeightY = !jump;
             clip.keepOriginalPositionY = true;
-            clip.lockRootRotation = turn;
-            clip.keepOriginalOrientation = turn;
+            clip.lockRootRotation = keepFacing;
+            clip.keepOriginalOrientation = keepFacing;
             importer.clipAnimations = clips;
         }
 

@@ -15,16 +15,26 @@ namespace PX
         Turn,
         RunJump,
         AirDash,
+        LandRun,
+        LandIdle,
+        CrouchDown,
+        CrouchIdle,
+        CrouchUp,
+        CrouchAttack,
     }
 
     /// <summary>
     /// Plays the heroine's animation from what <see cref="PlayerController"/> and <see cref="CharacterMotor"/> report.
     /// Gameplay never reads from here: animation follows the simulation, not the other way round.
-    /// Clip time is advanced by hand so attack and dash clips can be stretched to the length of the move.
+    /// Clip time is set by hand: strikes follow the attack's own timing, so the blow lands when the hitbox is live,
+    /// and landings and crouch transitions play a window of their clip over a set time.
     /// </summary>
     public sealed class HeroineAnimator : MonoBehaviour
     {
-        private const int PoseCount = 9;
+        private const int PoseCount = 15;
+
+        // Below this ground speed, in m/s, she counts as standing still.
+        private const float MovingSpeed = 0.3f;
 
         [SerializeField] private PlayerController player;
         [SerializeField] private CharacterMotor motor;
@@ -39,14 +49,20 @@ namespace PX
         private readonly double[] times = new double[PoseCount];
 
         private float airTime;
+        private float poseTime;
+        private float crouchTime;
         private PlayerState lastState;
         private int lastComboIndex;
+        private bool lastCrouchAttack;
         private int lastFacing;
         private float lastSpeed;
         private float lastVelocityY;
         private bool runningJump;
         private bool airDash;
         private bool restartPose;
+        private bool standingUp;
+        private HeroinePose? landing;
+        private ClipWindow attackWindow;
         private Quaternion modelRotation;
 
         public HeroinePose CurrentPose { get; private set; }
@@ -61,15 +77,22 @@ namespace PX
             if (animator == null || config == null)
                 return;
 
+            attackWindow = AttackWindowFor(0);
             clips[(int)HeroinePose.Idle] = config.idle;
             clips[(int)HeroinePose.Run] = config.run;
             clips[(int)HeroinePose.JumpStart] = config.jumpStart;
             clips[(int)HeroinePose.JumpLoop] = config.jumpLoop;
             clips[(int)HeroinePose.Dash] = config.dash;
-            clips[(int)HeroinePose.Attack] = AttackClipFor(0);
+            clips[(int)HeroinePose.Attack] = attackWindow.clip;
             clips[(int)HeroinePose.Turn] = config.runTurn;
             clips[(int)HeroinePose.RunJump] = config.runJump;
             clips[(int)HeroinePose.AirDash] = config.airDash;
+            clips[(int)HeroinePose.LandRun] = config.landRun.clip;
+            clips[(int)HeroinePose.LandIdle] = config.landIdle.clip;
+            clips[(int)HeroinePose.CrouchDown] = config.crouchDown.clip;
+            clips[(int)HeroinePose.CrouchIdle] = config.crouchIdle;
+            clips[(int)HeroinePose.CrouchUp] = config.crouchUp.clip;
+            clips[(int)HeroinePose.CrouchAttack] = config.crouchAttack.clip;
             modelRotation = animator.transform.localRotation;
             lastFacing = motor != null ? motor.Facing : 1;
 
@@ -108,11 +131,21 @@ namespace PX
             HeroinePose pose = ChoosePose(dt);
 
             bool attackStarted = NewAttackStarted();
-            if (attackStarted)
-                UseAttackClip(AttackClipFor(player.ComboIndex));
+            if (attackStarted && !player.IsCrouchAttack)
+            {
+                attackWindow = AttackWindowFor(player.ComboIndex);
+                UseAttackClip(attackWindow.clip);
+            }
 
             if (pose != CurrentPose || attackStarted || restartPose)
+            {
                 times[(int)pose] = pose == HeroinePose.RunJump ? config.runJumpTakeoff : 0.0;
+                poseTime = 0f;
+            }
+            else
+            {
+                poseTime += dt;
+            }
 
             // The turn clip spins her round, so the body is turned back to face where she came from while it plays.
             // That cannot be blended with other poses, so the turn cuts in and out.
@@ -122,6 +155,7 @@ namespace PX
             CurrentPose = pose;
             lastState = player.State;
             lastComboIndex = player.ComboIndex;
+            lastCrouchAttack = player.IsCrouchAttack;
             lastFacing = motor.Facing;
             lastSpeed = Mathf.Abs(motor.Velocity.x);
             lastVelocityY = motor.Velocity.y;
@@ -139,11 +173,20 @@ namespace PX
                 if (weights[i] <= 0f && i != (int)pose)
                     continue;
 
-                times[i] += dt * ClipSpeed((HeroinePose)i);
-                double length = clips[i].length;
-                if (i == (int)HeroinePose.RunJump)
-                    length = System.Math.Min(length, config.runJumpLanding);
-                times[i] = IsLooping((HeroinePose)i) && length > 0.0 ? times[i] % length : System.Math.Min(times[i], length);
+                if (IsWindowed((HeroinePose)i))
+                {
+                    // A windowed pose that is fading out holds its last frame.
+                    if (i == (int)pose)
+                        times[i] = WindowTime(pose);
+                }
+                else
+                {
+                    times[i] += dt * ClipSpeed((HeroinePose)i);
+                    double length = clips[i].length;
+                    if (i == (int)HeroinePose.RunJump)
+                        length = System.Math.Min(length, config.runJumpLanding);
+                    times[i] = IsLooping((HeroinePose)i) && length > 0.0 ? times[i] % length : System.Math.Min(times[i], length);
+                }
                 playables[i].SetTime(times[i]);
             }
         }
@@ -151,19 +194,44 @@ namespace PX
         private HeroinePose ChoosePose(float dt)
         {
             restartPose = false;
+
+            bool crouched = player.State == PlayerState.Crouch || (player.State == PlayerState.Attack && player.IsCrouchAttack);
+            if (crouched)
+            {
+                crouchTime += dt;
+            }
+            else
+            {
+                if (crouchTime > 0f)
+                    standingUp = true;
+                crouchTime = 0f;
+            }
+
             switch (player.State)
             {
                 case PlayerState.Dash:
+                    landing = null;
+                    standingUp = false;
                     // Ground or air is decided when the dash starts, so a ground dash off a ledge keeps its pose.
                     if (lastState != PlayerState.Dash)
                         airDash = !motor.IsGrounded && clips[(int)HeroinePose.AirDash] != null;
                     return airDash ? HeroinePose.AirDash : HeroinePose.Dash;
                 case PlayerState.Attack:
-                    return HeroinePose.Attack;
+                    landing = null;
+                    standingUp = false;
+                    return player.IsCrouchAttack && clips[(int)HeroinePose.CrouchAttack] != null ? HeroinePose.CrouchAttack : HeroinePose.Attack;
+                case PlayerState.Crouch:
+                    landing = null;
+                    if (crouchTime < config.crouchDownDuration && clips[(int)HeroinePose.CrouchDown] != null)
+                        return HeroinePose.CrouchDown;
+                    return clips[(int)HeroinePose.CrouchIdle] != null ? HeroinePose.CrouchIdle : HeroinePose.Idle;
             }
 
             if (!motor.IsGrounded)
             {
+                landing = null;
+                standingUp = false;
+
                 // A jump, from the ground or in the air, throws her upwards. One taken at speed is a running jump.
                 bool jumped = motor.Velocity.y > 0f && (airTime == 0f || motor.Velocity.y > lastVelocityY + 1f);
                 if (jumped)
@@ -186,10 +254,41 @@ namespace PX
                 return rising && airTime < startLength ? HeroinePose.JumpStart : HeroinePose.JumpLoop;
             }
 
+            bool landed = airTime >= config.landMinAirTime;
             airTime = 0f;
             if (Turning())
+            {
+                landing = null;
                 return HeroinePose.Turn;
-            return Mathf.Abs(motor.Velocity.x) > 0.3f ? HeroinePose.Run : HeroinePose.Idle;
+            }
+
+            bool moving = Mathf.Abs(motor.Velocity.x) > MovingSpeed;
+            if (landed)
+            {
+                HeroinePose land = moving ? HeroinePose.LandRun : HeroinePose.LandIdle;
+                landing = clips[(int)land] != null ? land : (HeroinePose?)null;
+            }
+
+            if (landing.HasValue)
+            {
+                // A landing at a run gives way to the run; one at a standstill gives way as soon as she moves.
+                bool runLanding = landing == HeroinePose.LandRun;
+                float duration = runLanding ? config.landRunDuration : config.landIdleDuration;
+                bool done = CurrentPose == landing && poseTime >= duration;
+                if (!done && moving == runLanding)
+                    return landing.Value;
+                landing = null;
+            }
+
+            if (standingUp)
+            {
+                bool done = CurrentPose == HeroinePose.CrouchUp && poseTime >= config.crouchUpDuration;
+                if (!done && !moving && clips[(int)HeroinePose.CrouchUp] != null)
+                    return HeroinePose.CrouchUp;
+                standingUp = false;
+            }
+
+            return moving ? HeroinePose.Run : HeroinePose.Idle;
         }
 
         /// <summary>Starts the turn when she reverses at speed, and keeps it until the clip ends or she turns back.</summary>
@@ -203,11 +302,11 @@ namespace PX
             return CurrentPose == HeroinePose.Turn && times[(int)HeroinePose.Turn] < clip.length;
         }
 
-        private AnimationClip AttackClipFor(int comboIndex)
+        private ClipWindow AttackWindowFor(int comboIndex)
         {
-            AnimationClip[] perStep = config.comboAttacks;
-            AnimationClip clip = perStep != null && perStep.Length > 0 ? perStep[Mathf.Clamp(comboIndex, 0, perStep.Length - 1)] : null;
-            return clip != null ? clip : config.attack;
+            ClipWindow[] perStep = config.comboAttacks;
+            ClipWindow window = perStep != null && perStep.Length > 0 ? perStep[Mathf.Clamp(comboIndex, 0, perStep.Length - 1)] : default;
+            return window.clip != null ? window : new ClipWindow { clip = config.attack };
         }
 
         /// <summary>Swaps the clip behind the attack pose, so each combo step can show its own animation.</summary>
@@ -233,13 +332,58 @@ namespace PX
         private bool NewAttackStarted()
         {
             return player.State == PlayerState.Attack
-                && (lastState != PlayerState.Attack || player.ComboIndex != lastComboIndex);
+                && (lastState != PlayerState.Attack || player.ComboIndex != lastComboIndex
+                    || player.IsCrouchAttack != lastCrouchAttack || player.StateTime <= Time.deltaTime * 1.001f);
+        }
+
+        private static bool IsWindowed(HeroinePose pose)
+        {
+            return pose == HeroinePose.Attack || pose == HeroinePose.CrouchAttack
+                || pose == HeroinePose.LandRun || pose == HeroinePose.LandIdle
+                || pose == HeroinePose.CrouchDown || pose == HeroinePose.CrouchUp;
+        }
+
+        /// <summary>Clip time for a windowed pose.</summary>
+        private float WindowTime(HeroinePose pose)
+        {
+            switch (pose)
+            {
+                case HeroinePose.Attack:
+                    return StrikeTime(attackWindow, player.CurrentStep, player.StateTime);
+                case HeroinePose.CrouchAttack:
+                    return StrikeTime(config.crouchAttack, player.CurrentStep, player.StateTime);
+                case HeroinePose.LandRun:
+                    return config.landRun.At(poseTime / config.landRunDuration);
+                case HeroinePose.LandIdle:
+                    return config.landIdle.At(poseTime / config.landIdleDuration);
+                case HeroinePose.CrouchDown:
+                    return config.crouchDown.At(poseTime / config.crouchDownDuration);
+                case HeroinePose.CrouchUp:
+                    return config.crouchUp.At(poseTime / config.crouchUpDuration);
+                default:
+                    return 0f;
+            }
+        }
+
+        /// <summary>
+        /// Plays a strike's window over the attack, with the blow landing in the middle of the hitbox's active time:
+        /// the wind-up is fitted to the attack's startup and the follow-through to the rest.
+        /// </summary>
+        private static float StrikeTime(ClipWindow window, AttackStep step, float t)
+        {
+            if (!window.HasImpact)
+                return window.At(t / Mathf.Max(0.01f, step.Total));
+
+            float hit = step.startup + step.active * 0.5f;
+            if (t < hit)
+                return Mathf.Lerp(window.from, window.impact, t / Mathf.Max(0.01f, hit));
+            return Mathf.Lerp(window.impact, window.End, (t - hit) / Mathf.Max(0.01f, step.Total - hit));
         }
 
         private bool IsLooping(HeroinePose pose)
         {
             return pose == HeroinePose.Idle || pose == HeroinePose.Run || pose == HeroinePose.JumpLoop
-                || (IsDash(pose) && !config.stretchDashToDuration);
+                || pose == HeroinePose.CrouchIdle || (IsDash(pose) && !config.stretchDashToDuration);
         }
 
         private static bool IsDash(HeroinePose pose) => pose == HeroinePose.Dash || pose == HeroinePose.AirDash;
@@ -257,8 +401,6 @@ namespace PX
                 case HeroinePose.Dash:
                 case HeroinePose.AirDash:
                     return config.stretchDashToDuration ? StretchTo(clip, player.Move.dashDuration) : config.dashClipSpeed;
-                case HeroinePose.Attack:
-                    return StretchTo(clip, player.Combo.steps[Mathf.Clamp(player.ComboIndex, 0, player.Combo.steps.Length - 1)].Total);
                 case HeroinePose.Turn:
                     return StretchTo(clip, config.turnDuration);
                 default:

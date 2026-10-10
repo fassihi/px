@@ -12,8 +12,11 @@ namespace PX
     {
         [SerializeField] private Rail rail;
 
+        private readonly Collider[] overlapBuffer = new Collider[8];
+
         private CharacterController controller;
         private int facing = 1;
+        private float standingHeight;
 
         public Rail Rail => rail;
 
@@ -27,6 +30,9 @@ namespace PX
 
         public bool HitCeiling { get; private set; }
 
+        /// <summary>True while the collider is lowered by <see cref="Crouch"/>.</summary>
+        public bool IsCrouched { get; private set; }
+
         /// <summary>+1 faces toward increasing rail distance, -1 the other way.</summary>
         public int Facing
         {
@@ -37,6 +43,41 @@ namespace PX
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
+            standingHeight = controller.height;
+        }
+
+        /// <summary>Lowers the collider to <paramref name="height"/>, keeping her feet where they are.</summary>
+        public void Crouch(float height)
+        {
+            SetHeight(Mathf.Min(height, standingHeight));
+            IsCrouched = true;
+        }
+
+        /// <summary>Raises the collider back to full height. Returns false, and stays crouched, under a low ceiling.</summary>
+        public bool TryStand()
+        {
+            if (!IsCrouched)
+                return true;
+
+            float radius = controller.radius;
+            Vector3 bottom = transform.position + Vector3.up * (radius + controller.skinWidth);
+            Vector3 top = transform.position + Vector3.up * (standingHeight - radius);
+            int count = Physics.OverlapCapsuleNonAlloc(bottom, top, radius, overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                if (overlapBuffer[i] != controller && !overlapBuffer[i].transform.IsChildOf(transform))
+                    return false;
+            }
+
+            SetHeight(standingHeight);
+            IsCrouched = false;
+            return true;
+        }
+
+        private void SetHeight(float height)
+        {
+            controller.height = height;
+            controller.center = new Vector3(controller.center.x, height * 0.5f, controller.center.z);
         }
 
         private void Start()

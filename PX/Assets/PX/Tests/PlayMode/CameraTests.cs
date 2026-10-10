@@ -99,6 +99,42 @@ namespace PX.Tests
             yield return Frames(5);
             yield return Capture(folder, "7-air-dash");
             Input.Move = 0f;
+
+            // Each combo strike at the moment it lands, in the side view.
+            yield return PlaceAt(16f);
+            int captured = 0;
+            for (int i = 0; i < 120 && captured < Player.Combo.steps.Length; i++)
+            {
+                if (i % 8 == 0)
+                    Input.PressAttack();
+                yield return null;
+                AttackStep step = Player.Combo.steps[Player.ComboIndex];
+                if (Player.State == PlayerState.Attack && Player.ComboIndex == captured
+                    && Player.StateTime >= step.startup + step.active * 0.5f)
+                {
+                    yield return Capture(folder, $"{8 + captured}-strike-{captured + 1}");
+                    captured++;
+                }
+            }
+
+            yield return PlaceAt(16f);
+            Input.CrouchHeld = true;
+            yield return Frames(40);
+            yield return Capture(folder, "11-crouch");
+            Input.PressAttack();
+            AttackStep sweep = Player.Combo.crouchAttack;
+            yield return Frames(Mathf.CeilToInt((sweep.startup + sweep.active * 0.5f) / FrameTime));
+            yield return Capture(folder, "12-sweep");
+            yield return Frames(40);
+            Input.CrouchHeld = false;
+            yield return Frames(30);
+
+            Input.PressJump();
+            yield return Frames(5);
+            for (int i = 0; i < 120 && !Motor.IsGrounded; i++)
+                yield return null;
+            yield return Frames(6);
+            yield return Capture(folder, "13-landing");
         }
 
         private IEnumerator Capture(string folder, string name)

@@ -20,11 +20,51 @@ MonoBehaviour:
   runJump: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
   dash: {fileID: -203655887218126122, guid: 12a63f228ceee4201878ceb5319a51d8, type: 3}
   airDash: {fileID: -203655887218126122, guid: 7400e9cebff9e4c37b8bf0ef7f197b87, type: 3}
-  attack: {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  attack: {fileID: -203655887218126122, guid: 50111faa34431451eb6935bce78a8053, type: 3}
   comboAttacks:
-  - {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}
-  - {fileID: -6539854730773136947, guid: 974c520d54c614683a16c05520116e5d, type: 3}
-  - {fileID: 8613629562999782657, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  - clip: {fileID: -203655887218126122, guid: 50111faa34431451eb6935bce78a8053, type: 3}
+    from: 0.1
+    impact: 0.4
+    to: 0.85
+  - clip: {fileID: -203655887218126122, guid: 6d3ad910bbc714e2ca78ee5bd53a4b8e, type: 3}
+    from: 0.75
+    impact: 1.13
+    to: 1.5
+  - clip: {fileID: -203655887218126122, guid: ce9138c3dcc5046fcb8b717eb0ab1ece, type: 3}
+    from: 0.15
+    impact: 0.63
+    to: 1.2
+  crouchDown:
+    clip: {fileID: -203655887218126122, guid: fe5aade7246564aed8c66940a0befefe, type: 3}
+    from: 0.25
+    impact: 0
+    to: 1
+  crouchIdle: {fileID: -203655887218126122, guid: e437e5d29ec6a413d9cc9b9fbbed50e4, type: 3}
+  crouchUp:
+    clip: {fileID: -203655887218126122, guid: 6bd097d4686224f468443ce5c1a9dbfb, type: 3}
+    from: 0
+    impact: 0
+    to: 0.75
+  crouchAttack:
+    clip: {fileID: -203655887218126122, guid: 31cf1b0e9fa0e44e4b726b4564fd565b, type: 3}
+    from: 0.4
+    impact: 0.87
+    to: 1.4
+  crouchDownDuration: 0.3
+  crouchUpDuration: 0.3
+  landRun:
+    clip: {fileID: -203655887218126122, guid: 1fb131e92d78748779df536cd1e2ab61, type: 3}
+    from: 0.33
+    impact: 0
+    to: 0.9
+  landIdle:
+    clip: {fileID: -203655887218126122, guid: 02554fc38f0ec4de8be7e076c6d45414, type: 3}
+    from: 0.3
+    impact: 0
+    to: 1.1
+  landRunDuration: 0.4
+  landIdleDuration: 0.5
+  landMinAirTime: 0.35
   stretchDashToDuration: 0
   dashClipSpeed: 1.8
   dashFadeTime: 0.04

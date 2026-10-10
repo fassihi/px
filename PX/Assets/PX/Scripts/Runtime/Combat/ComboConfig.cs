@@ -44,6 +44,14 @@ namespace PX
     {
         public AttackStep[] steps = Array.Empty<AttackStep>();
 
+        [Tooltip("The special attack from a crouch: a low sweep.")]
+        public AttackStep crouchAttack = new AttackStep
+        {
+            startup = 0.1f, active = 0.12f, recovery = 0.3f, cancelDelay = 0.1f,
+            damage = 14f, lunge = 1f, hitStop = 0.06f,
+            hitboxCenter = new Vector2(1.2f, 0.35f), hitboxSize = new Vector2(2.2f, 0.7f),
+        };
+
         [Tooltip("How long an attack press is remembered while the current swing finishes.")]
         [Min(0f)] public float bufferTime = 0.2f;
 

@@ -21,7 +21,9 @@ This repository holds the game project and its technical conventions.
 | Move | A / D or arrow keys | Left stick or d-pad |
 | Jump (press again in the air for a second jump) | Space | South button |
 | Dash | Left Shift or K | East button or right trigger |
-| Attack (press again to chain three swings) | J or left mouse | West button |
+| Attack (press again to chain jab, cross and side kick) | J or left mouse | West button |
+| Crouch (hold; she fits behind low cover, can turn but not walk) | S or down arrow | Stick or d-pad down |
+| Sweep (attack while crouched) | J or left mouse | West button |
 
 Run to the right to see the same gameplay through four camera angles: side view, a three-quarter view
 through the turn, a pulled-back view at the training dummies, and a view from behind near the end.
@@ -45,7 +47,7 @@ PX/                         Unity project
       Config/               Tuning assets: PlayerMove, PlayerLightCombo
       Prefabs/              Player, TrainingDummy
       Scenes/               Graybox.unity (generated, see below)
-      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo, downloaded as FBX without skin at 30 fps and named for their use (Dash Ground Pose is Mixamo's Female Locomotion Pose "Sprinting", Dash Air Pose its Male Dynamic Pose "Leaping Forward, Arms Extended Backwards"); the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the animation library for the standing jump)
+      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo, downloaded as FBX without skin at 30 fps and named for their use (Combo 1 Jab is Mixamo's Lead Jab, Combo 2 Cross its Cross Punch, Combo 3 Side Kick its Mma Kick (side kick), Crouch Sweep its Front Leg Sweep, and Land Run, Land Idle and the other Crouch clips come from its unarmed jump and crouch pack; Dash Ground Pose is Mixamo's Female Locomotion Pose "Sprinting", Dash Air Pose its Male Dynamic Pose "Leaping Forward, Arms Extended Backwards"); the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the animation library for the standing jump)
     Settings/               Render pipeline assets and volume profiles
   Packages/                 Package manifest
   ProjectSettings/

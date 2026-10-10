@@ -1,7 +1,34 @@
+using System;
 using UnityEngine;
 
 namespace PX
 {
+    /// <summary>
+    /// The part of a clip that plays for a move, so a long Mixamo take can be trimmed to its strike or its landing.
+    /// </summary>
+    [Serializable]
+    public struct ClipWindow
+    {
+        public AnimationClip clip;
+
+        [Tooltip("Seconds into the clip where the part that plays starts.")]
+        [Min(0f)] public float from;
+
+        [Tooltip("Strikes only: seconds into the clip where the blow lands. It is lined up with the middle of the " +
+                 "hitbox's active time. 0: the window is played evenly over the move.")]
+        [Min(0f)] public float impact;
+
+        [Tooltip("Seconds into the clip where the part that plays ends. 0: the end of the clip.")]
+        [Min(0f)] public float to;
+
+        public float End => to > from ? to : clip != null ? clip.length : 0f;
+
+        public bool HasImpact => impact > from && impact < End;
+
+        /// <summary>Clip time at a fraction (0 to 1) of the window.</summary>
+        public float At(float fraction) => Mathf.Lerp(from, End, Mathf.Clamp01(fraction));
+    }
+
     /// <summary>Which animation clips the heroine uses, and how they are blended. Swap clips here, not in code.</summary>
     [CreateAssetMenu(menuName = "PX/Heroine Animation", fileName = "HeroineAnimation")]
     public sealed class HeroineAnimationConfig : ScriptableObject
@@ -22,7 +49,31 @@ namespace PX
         public AnimationClip attack;
 
         [Tooltip("Optional clip per combo step. A step without one (or past the end of the list) uses Attack.")]
-        public AnimationClip[] comboAttacks = System.Array.Empty<AnimationClip>();
+        public ClipWindow[] comboAttacks = Array.Empty<ClipWindow>();
+
+        [Header("Crouch")]
+        public ClipWindow crouchDown;
+        public AnimationClip crouchIdle;
+        public ClipWindow crouchUp;
+        [Tooltip("The sweep from a crouch.")]
+        public ClipWindow crouchAttack;
+
+        [Tooltip("Seconds the crouch down and the stand up take on screen. Their windows are sped up to fit.")]
+        [Min(0.05f)] public float crouchDownDuration = 0.3f;
+        [Min(0.05f)] public float crouchUpDuration = 0.3f;
+
+        [Header("Landing")]
+        [Tooltip("Landing while running: a slight bend, then the run. Its window starts at touchdown.")]
+        public ClipWindow landRun;
+        [Tooltip("Landing without running on: a deeper bend that settles to idle. Its window starts at touchdown.")]
+        public ClipWindow landIdle;
+
+        [Tooltip("Seconds the landings take on screen. Moving cuts the idle landing short.")]
+        [Min(0.05f)] public float landRunDuration = 0.4f;
+        [Min(0.05f)] public float landIdleDuration = 0.5f;
+
+        [Tooltip("A fall shorter than this, in seconds, lands without a landing animation, so small steps do not bob.")]
+        [Min(0f)] public float landMinAirTime = 0.35f;
 
         [Header("Dash")]
         [Tooltip("On: the dash clip is squeezed to the length of the dash, which suits a one-shot move like a roll. " +

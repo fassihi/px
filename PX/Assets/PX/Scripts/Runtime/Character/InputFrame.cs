@@ -9,6 +9,8 @@ namespace PX
         public bool JumpHeld;
         public bool DashPressed;
         public bool AttackPressed;
+        /// <summary>Down is held: she crouches on the ground.</summary>
+        public bool CrouchHeld;
     }
 
     /// <summary>Anything that can drive a character: a device, a test script, later an AI.</summary>

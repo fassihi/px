@@ -39,6 +39,10 @@ namespace PX
         [Tooltip("How long a dash press is remembered while another action finishes.")]
         [Min(0f)] public float dashBufferTime = 0.1f;
 
+        [Header("Crouch")]
+        [Tooltip("Height of her collider while crouched, in metres. Cover lower than this hides her.")]
+        [Min(0.3f)] public float crouchHeight = 1.1f;
+
         public float Gravity => 2f * jumpHeight / (timeToApex * timeToApex);
 
         public float JumpVelocity => 2f * jumpHeight / timeToApex;

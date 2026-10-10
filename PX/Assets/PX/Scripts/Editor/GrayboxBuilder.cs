@@ -281,13 +281,22 @@ namespace PX.EditorTools
             config.run = MixamoClip("Running");
             config.runTurn = MixamoClip("Running Turn 180");
             config.runJump = MixamoClip("Unarmed Jump Running");
+            // The combo is a jab, a cross and a side kick from Mixamo, each trimmed to its strike. Times are seconds
+            // into the clip: where the part that plays starts, where the blow lands, and where it ends.
             config.comboAttacks = new[]
             {
-                RanaViewerBuilder.FindClip(rana, "box_01"),
-                RanaViewerBuilder.FindClip(rana, "box_02"),
-                RanaViewerBuilder.FindClip(rana, "front_kick_01"),
+                MixamoWindow("Combo 1 Jab", 0.1f, 0.4f, 0.85f),
+                MixamoWindow("Combo 2 Cross", 0.75f, 1.13f, 1.5f),
+                MixamoWindow("Combo 3 Side Kick", 0.15f, 0.63f, 1.2f),
             };
-            config.attack = config.comboAttacks[0];
+            config.attack = config.comboAttacks[0].clip;
+            config.crouchDown = MixamoWindow("Crouch Down", 0.25f, 0f, 1f);
+            config.crouchIdle = MixamoClip("Crouch Idle");
+            config.crouchUp = MixamoWindow("Crouch Up", 0f, 0f, 0.75f);
+            config.crouchAttack = MixamoWindow("Crouch Sweep", 0.4f, 0.87f, 1.4f);
+            // The landings start at touchdown.
+            config.landRun = MixamoWindow("Land Run", 0.33f, 0f, 0.9f);
+            config.landIdle = MixamoWindow("Land Idle", 0.3f, 0f, 1.1f);
             config.jumpStart = RanaViewerBuilder.FindClip(library, "Jump_Start");
             config.jumpLoop = RanaViewerBuilder.FindClip(library, "Jump_Loop");
             // The dash is too short for a whole move to read, so it holds a single Mixamo pose: a sprinting lunge on the
@@ -295,6 +304,11 @@ namespace PX.EditorTools
             config.dash = MixamoClip("Dash Ground Pose");
             config.airDash = MixamoClip("Dash Air Pose");
             config.stretchDashToDuration = false;
+        }
+
+        private static ClipWindow MixamoWindow(string name, float from, float impact, float to)
+        {
+            return new ClipWindow { clip = MixamoClip(name), from = from, impact = impact, to = to };
         }
 
         private static AnimationClip MixamoClip(string name)

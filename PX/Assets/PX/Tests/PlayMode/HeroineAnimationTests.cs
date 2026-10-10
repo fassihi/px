@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -71,6 +72,8 @@ namespace PX.Tests
             }
             Assert.That(airborne, Is.GreaterThan(10), "She was hardly in the air.");
             yield return Frames(3);
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.LandRun), "She lands at a run.");
+            yield return Frames(Mathf.CeilToInt(Animator.Config.landRunDuration / FrameTime) + 2);
             Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Run));
         }
 
@@ -258,7 +261,7 @@ namespace PX.Tests
         public IEnumerator EachComboStep_PlaysItsOwnClip()
         {
             yield return PlaceAt(85f);
-            AnimationClip[] perStep = Player.GetComponent<HeroineAnimator>().Config.comboAttacks;
+            ClipWindow[] perStep = Player.GetComponent<HeroineAnimator>().Config.comboAttacks;
             Assume.That(perStep.Length, Is.GreaterThan(1), "The animation config has no per-step attack clips.");
 
             var seen = new System.Collections.Generic.Dictionary<int, AnimationClip>();
@@ -273,8 +276,74 @@ namespace PX.Tests
 
             Assert.That(seen.Count, Is.GreaterThan(1), "The combo did not get past its first swing.");
             foreach (var step in seen)
-                Assert.That(step.Value, Is.EqualTo(perStep[Mathf.Min(step.Key, perStep.Length - 1)]), $"Combo step {step.Key} plays the wrong clip.");
+                Assert.That(step.Value, Is.EqualTo(perStep[Mathf.Min(step.Key, perStep.Length - 1)].clip), $"Combo step {step.Key} plays the wrong clip.");
             Assert.That(seen[1], Is.Not.EqualTo(seen[0]), "The first two swings play the same clip.");
+        }
+
+        [UnityTest]
+        public IEnumerator LandingFromAStandingJump_BendsThenStands()
+        {
+            yield return PlaceAt(OpenStretch);
+
+            Input.PressJump();
+            yield return Frames(5);
+            for (int i = 0; i < 120 && !Motor.IsGrounded; i++)
+                yield return null;
+            yield return Frames(2);
+
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.LandIdle));
+            yield return Frames(Mathf.CeilToInt(Animator.Config.landIdleDuration / FrameTime) + 2);
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Idle));
+        }
+
+        [UnityTest]
+        public IEnumerator LandingAtARun_BendsThenRunsOn()
+        {
+            yield return PlaceAt(OpenStretch - 10f);
+            Input.Move = 1f;
+            yield return Frames(30);
+
+            Input.PressJump();
+            yield return Frames(5);
+            for (int i = 0; i < 120 && !Motor.IsGrounded; i++)
+                yield return null;
+            yield return Frames(2);
+
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.LandRun));
+            yield return Frames(Mathf.CeilToInt(Animator.Config.landRunDuration / FrameTime) + 2);
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Run));
+        }
+
+        [UnityTest]
+        public IEnumerator EachComboStrike_LandsWhileItsHitboxIsLive()
+        {
+            // Each strike's clip is timed to the attack, so the fist or foot is furthest out when the hitbox is live.
+            yield return PlaceAt(OpenStretch);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            var limbs = new[] { HumanBodyBones.LeftHand, HumanBodyBones.RightHand, HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot }
+                .Select(body.GetBoneTransform).ToArray();
+            Transform hips = body.GetBoneTransform(HumanBodyBones.Hips);
+
+            var furthestAt = new System.Collections.Generic.Dictionary<int, (float reach, float time)>();
+            for (int i = 0; i < 120; i++)
+            {
+                if (i % 8 == 0)
+                    Input.PressAttack();
+                yield return null;
+                if (Player.State != PlayerState.Attack)
+                    continue;
+                float reach = limbs.Max(l => Vector3.Dot(l.position - hips.position, Player.transform.forward));
+                if (!furthestAt.TryGetValue(Player.ComboIndex, out var best) || reach > best.reach)
+                    furthestAt[Player.ComboIndex] = (reach, Player.StateTime);
+            }
+
+            Assert.That(furthestAt.Count, Is.EqualTo(Player.Combo.steps.Length), "The combo did not reach its last strike.");
+            foreach (var strike in furthestAt)
+            {
+                AttackStep step = Player.Combo.steps[strike.Key];
+                Assert.That(strike.Value.time, Is.InRange(step.startup - 2f * FrameTime, step.ActiveEnd + 3f * FrameTime),
+                    $"Strike {strike.Key + 1} reaches furthest at {strike.Value.time:0.00} s, outside its hitbox time.");
+            }
         }
 
         private static Transform FindBone(Transform root, string boneName)

@@ -48,7 +48,7 @@ namespace PX
                 bool show = player.State == PlayerState.Attack && player.IsHitboxActive;
                 if (show)
                 {
-                    player.GetHitbox(player.Combo.steps[player.ComboIndex], out Vector3 center, out Vector3 halfExtents);
+                    player.GetHitbox(player.CurrentStep, out Vector3 center, out Vector3 halfExtents);
                     hitboxVisual.SetPositionAndRotation(center, player.transform.rotation);
                     // Drawn thin across the rail: reach and height are what matter when tuning from the side.
                     hitboxVisual.localScale = new Vector3(0.08f, halfExtents.y * 2f, halfExtents.z * 2f);

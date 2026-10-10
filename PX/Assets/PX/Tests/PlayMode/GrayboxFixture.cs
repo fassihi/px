@@ -11,6 +11,7 @@ namespace PX.Tests
     {
         public float Move;
         public bool JumpHeld;
+        public bool CrouchHeld;
 
         private bool jumpPressed;
         private bool dashPressed;
@@ -35,6 +36,7 @@ namespace PX.Tests
                 JumpPressed = jumpPressed,
                 DashPressed = dashPressed,
                 AttackPressed = attackPressed,
+                CrouchHeld = CrouchHeld,
             };
             jumpPressed = dashPressed = attackPressed = false;
             return frame;
