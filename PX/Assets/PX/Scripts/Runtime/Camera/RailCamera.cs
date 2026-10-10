@@ -71,7 +71,12 @@ namespace PX
 
             float dt = Time.deltaTime;
             if (dt <= 0f)
+            {
+                // Hit-stop freezes the follow, but the shake that comes with it still shows.
+                if (CameraShake.IsActive)
+                    Apply();
                 return;
+            }
 
             current = CameraView.Lerp(current, ViewAt(target.Distance), 1f - Mathf.Exp(-3f * dt / viewBlendTime));
             lead = Mathf.SmoothDamp(lead, target.Facing * current.lookAhead, ref leadVelocity, lookAheadSmoothTime);
@@ -123,8 +128,10 @@ namespace PX
             float pitch = current.pitch * Mathf.Deg2Rad;
             Vector3 offset = horizontal * Mathf.Cos(pitch) + Vector3.up * Mathf.Sin(pitch);
 
-            transform.position = focus + offset * (current.distance * distanceScale);
             transform.rotation = Quaternion.LookRotation(-offset, Vector3.up);
+            Vector2 shake = CameraShake.Sample();
+            transform.position = focus + offset * (current.distance * distanceScale)
+                + transform.right * shake.x + transform.up * shake.y;
             cam.fieldOfView = current.fieldOfView;
         }
     }

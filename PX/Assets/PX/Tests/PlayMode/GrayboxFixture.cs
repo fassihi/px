@@ -82,6 +82,7 @@ namespace PX.Tests
         {
             Time.captureDeltaTime = 0f;
             Time.timeScale = 1f;
+            CameraShake.Clear();
         }
 
         protected static IEnumerator Frames(int count)

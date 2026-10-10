@@ -21,7 +21,8 @@ MonoBehaviour:
     lunge: 3
     hitboxCenter: {x: 1.1, y: 1}
     hitboxSize: {x: 1.8, y: 1.4}
-    hitStop: 0.05
+    hitStop: 0.07
+    shake: 0.04
   - startup: 0.07
     active: 0.08
     recovery: 0.24
@@ -30,15 +31,18 @@ MonoBehaviour:
     lunge: 3.5
     hitboxCenter: {x: 1.2, y: 1.1}
     hitboxSize: {x: 2, y: 1.6}
-    hitStop: 0.05
+    hitStop: 0.07
+    shake: 0.05
   - startup: 0.12
     active: 0.1
     recovery: 0.38
     cancelDelay: 0.14
     damage: 22
-    lunge: 6
+    lunge: 2.5
     hitboxCenter: {x: 1.4, y: 1.1}
     hitboxSize: {x: 2.6, y: 2}
-    hitStop: 0.09
+    hitStop: 0.13
+    shake: 0.12
   bufferTime: 0.2
+  shakeTime: 0.22
   hitboxDepth: 1.5

@@ -12,8 +12,8 @@ namespace PX
         [Header("Run")]
         [Tooltip("Top ground speed in m/s. The run animation speeds up to match, so it can be tuned live in play mode.")]
         [Min(0f)] public float runSpeed = 6f;
-        [Min(0f)] public float groundAcceleration = 90f;
-        [Min(0f)] public float groundDeceleration = 110f;
+        [Min(0f)] public float groundAcceleration = 60f;
+        [Min(0f)] public float groundDeceleration = 70f;
         [Min(0f)] public float airAcceleration = 55f;
         [Min(0f)] public float airDeceleration = 25f;
 
@@ -21,7 +21,7 @@ namespace PX
         [Min(0.1f)] public float jumpHeight = 3.2f;
         [Min(0.05f)] public float timeToApex = 0.48f;
         [Tooltip("Gravity multiplier while falling. Above 1 makes the fall snappier than the rise.")]
-        [Min(1f)] public float fallGravityMultiplier = 1.4f;
+        [Min(1f)] public float fallGravityMultiplier = 1.7f;
         [Tooltip("Gravity multiplier while rising with the jump button released. This is what makes a tap a short hop.")]
         [Min(1f)] public float releasedGravityMultiplier = 3f;
         [Min(0f)] public float maxFallSpeed = 30f;
@@ -30,6 +30,13 @@ namespace PX
         [Tooltip("How long a jump press is remembered before landing.")]
         [Min(0f)] public float jumpBufferTime = 0.12f;
         [Min(0)] public int airJumps = 1;
+
+        [Header("Landing")]
+        [Tooltip("A landing at least this fast, in m/s, shakes the camera. A full jump lands at about 16.")]
+        [Min(0f)] public float hardLandingSpeed = 13f;
+        [Tooltip("How hard a hard landing shakes the camera, in metres.")]
+        [Min(0f)] public float landingShake = 0.05f;
+        [Min(0.01f)] public float landingShakeTime = 0.2f;
 
         [Header("Dash")]
         [Min(0f)] public float dashSpeed = 16f;

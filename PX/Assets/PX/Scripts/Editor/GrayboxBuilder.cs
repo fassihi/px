@@ -518,19 +518,19 @@ namespace PX.EditorTools
                 new AttackStep
                 {
                     startup = 0.06f, active = 0.08f, recovery = 0.22f, cancelDelay = 0.04f,
-                    damage = 10f, lunge = 3f, hitStop = 0.05f,
+                    damage = 10f, lunge = 3f, hitStop = 0.07f, shake = 0.04f,
                     hitboxCenter = new Vector2(1.1f, 1f), hitboxSize = new Vector2(1.8f, 1.4f),
                 },
                 new AttackStep
                 {
                     startup = 0.07f, active = 0.08f, recovery = 0.24f, cancelDelay = 0.05f,
-                    damage = 12f, lunge = 3.5f, hitStop = 0.05f,
+                    damage = 12f, lunge = 3.5f, hitStop = 0.07f, shake = 0.05f,
                     hitboxCenter = new Vector2(1.2f, 1.1f), hitboxSize = new Vector2(2f, 1.6f),
                 },
                 new AttackStep
                 {
                     startup = 0.12f, active = 0.1f, recovery = 0.38f, cancelDelay = 0.14f,
-                    damage = 22f, lunge = 6f, hitStop = 0.09f,
+                    damage = 22f, lunge = 2.5f, hitStop = 0.13f, shake = 0.12f,
                     hitboxCenter = new Vector2(1.4f, 1.1f), hitboxSize = new Vector2(2.6f, 2f),
                 },
             };

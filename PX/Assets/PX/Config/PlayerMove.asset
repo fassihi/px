@@ -13,18 +13,21 @@ MonoBehaviour:
   m_Name: PlayerMove
   m_EditorClassIdentifier: PX.Runtime::PX.MoveConfig
   runSpeed: 6
-  groundAcceleration: 90
-  groundDeceleration: 110
+  groundAcceleration: 60
+  groundDeceleration: 70
   airAcceleration: 55
   airDeceleration: 25
   jumpHeight: 3.2
   timeToApex: 0.48
-  fallGravityMultiplier: 1.4
+  fallGravityMultiplier: 1.7
   releasedGravityMultiplier: 3
   maxFallSpeed: 30
   coyoteTime: 0.1
   jumpBufferTime: 0.12
   airJumps: 1
+  hardLandingSpeed: 13
+  landingShake: 0.05
+  landingShakeTime: 0.2
   dashSpeed: 16
   dashDuration: 0.25
   dashCooldown: 0.3

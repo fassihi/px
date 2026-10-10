@@ -11,6 +11,30 @@ namespace PX.Tests
         private const float OpenStretch = 80f;
 
         [UnityTest]
+        public IEnumerator AFullJump_LandsHard_AndShakesTheCamera_ButAHopDoesNot()
+        {
+            yield return PlaceAt(OpenStretch);
+            Input.PressJump(hold: false);
+            yield return Frames(3);
+            for (int i = 0; i < 120 && !Motor.IsGrounded; i++)
+            {
+                yield return null;
+                Assert.That(CameraShake.IsActive, Is.False, "a short hop shook the camera");
+            }
+            yield return Frames(20);
+
+            bool shook = false;
+            Input.PressJump();
+            yield return Frames(3);
+            for (int i = 0; i < 150 && !shook; i++)
+            {
+                yield return null;
+                shook = CameraShake.IsActive;
+            }
+            Assert.That(shook, Is.True);
+        }
+
+        [UnityTest]
         public IEnumerator AtStart_SheStandsOnTheFloorOnTheRail()
         {
             yield return null;

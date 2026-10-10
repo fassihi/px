@@ -111,7 +111,11 @@ namespace PX
                     break;
             }
 
+            float fallSpeed = -velocity.y;
+            bool wasGrounded = motor.IsGrounded;
             motor.Move(velocity, dt);
+            if (!wasGrounded && motor.IsGrounded && fallSpeed >= move.hardLandingSpeed)
+                CameraShake.Trigger(move.landingShake, move.landingShakeTime);
 
             if (motor.HitCeiling && velocity.y > 0f)
                 velocity.y = 0f;
@@ -344,7 +348,10 @@ namespace PX
             }
 
             if (landed)
+            {
                 HitStop.Trigger(step.hitStop);
+                CameraShake.Trigger(step.shake, combo.shakeTime);
+            }
         }
 
         /// <summary>The current swing's hitbox in world space. The box is oriented by this transform's rotation.</summary>

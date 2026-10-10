@@ -36,6 +36,41 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator RunningAtTopSpeed_PlantedFeetDoNotSlide()
+        {
+            yield return PlaceAt(OpenStretch + 2f);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            Transform[] toes = { body.GetBoneTransform(HumanBodyBones.LeftToes), body.GetBoneTransform(HumanBodyBones.RightToes) };
+
+            Input.Move = 1f;
+            yield return Frames(40);
+
+            // A foot counts as planted while its toes are on the floor; then it should stay put along the run.
+            var last = new Vector3?[2];
+            float slid = 0f, plantedTime = 0f;
+            for (int i = 0; i < 90; i++)
+            {
+                yield return null;
+                float floor = Player.transform.position.y;
+                for (int f = 0; f < 2; f++)
+                {
+                    Vector3 p = toes[f].position;
+                    bool planted = p.y < floor + 0.02f;
+                    if (planted && last[f].HasValue)
+                    {
+                        // Along her run only: the foot rolling on its toes swings them a little sideways.
+                        slid += Mathf.Abs(Vector3.Dot(p - last[f].Value, Player.transform.forward));
+                        plantedTime += FrameTime;
+                    }
+                    last[f] = planted ? p : (Vector3?)null;
+                }
+            }
+
+            Assert.That(plantedTime, Is.GreaterThan(0.3f), "Her feet never touched the floor.");
+            Assert.That(slid / plantedTime, Is.LessThan(0.6f), "Average slide of a planted foot, in m/s.");
+        }
+
+        [UnityTest]
         public IEnumerator Jumping_PlaysJumpPoses()
         {
             yield return PlaceAt(OpenStretch);

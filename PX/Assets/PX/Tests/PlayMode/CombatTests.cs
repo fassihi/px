@@ -35,6 +35,28 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator AHitThatLands_ShakesTheCamera_AndAMissDoesNot()
+        {
+            yield return PlaceAt(85f);
+            Input.PressAttack();
+            for (int i = 0; i < 30; i++)
+            {
+                yield return null;
+                Assert.That(CameraShake.IsActive, Is.False, "a swing at nothing shook the camera");
+            }
+
+            yield return PlaceAt(60.6f);
+            bool shook = false;
+            Input.PressAttack();
+            for (int i = 0; i < 30 && !shook; i++)
+            {
+                yield return null;
+                shook = CameraShake.IsActive;
+            }
+            Assert.That(shook, Is.True);
+        }
+
+        [UnityTest]
         public IEnumerator Attack_FacingAway_Misses()
         {
             yield return PlaceAt(60.6f);

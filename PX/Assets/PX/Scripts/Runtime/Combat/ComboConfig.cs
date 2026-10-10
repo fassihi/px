@@ -31,6 +31,9 @@ namespace PX
         [Tooltip("How long the world freezes when this swing connects.")]
         [Min(0f)] public float hitStop = 0.05f;
 
+        [Tooltip("How hard the camera shakes when this swing connects, in metres.")]
+        [Min(0f)] public float shake = 0.05f;
+
         public float ActiveEnd => startup + active;
 
         public float CancelFrom => startup + active + Mathf.Min(cancelDelay, recovery);
@@ -48,12 +51,15 @@ namespace PX
         public AttackStep crouchAttack = new AttackStep
         {
             startup = 0.1f, active = 0.12f, recovery = 0.3f, cancelDelay = 0.1f,
-            damage = 14f, lunge = 1f, hitStop = 0.06f,
+            damage = 14f, lunge = 0f, hitStop = 0.09f, shake = 0.08f,
             hitboxCenter = new Vector2(1.2f, 0.35f), hitboxSize = new Vector2(2.2f, 0.7f),
         };
 
         [Tooltip("How long an attack press is remembered while the current swing finishes.")]
         [Min(0f)] public float bufferTime = 0.2f;
+
+        [Tooltip("Seconds a hit's camera shake takes to die away.")]
+        [Min(0.01f)] public float shakeTime = 0.22f;
 
         [Tooltip("How far the hitbox extends to each side of the rail.")]
         [Min(0.1f)] public float hitboxDepth = 1.5f;
