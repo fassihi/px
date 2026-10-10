@@ -53,16 +53,16 @@ MonoBehaviour:
   crouchDownDuration: 0.3
   crouchUpDuration: 0.3
   landRun:
-    clip: {fileID: -203655887218126122, guid: 1fb131e92d78748779df536cd1e2ab61, type: 3}
-    from: 0.33
+    clip: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
+    from: 1.04
     impact: 0
-    to: 0.9
+    to: 1.4
   landIdle:
     clip: {fileID: -203655887218126122, guid: 02554fc38f0ec4de8be7e076c6d45414, type: 3}
     from: 0.3
     impact: 0
     to: 1.1
-  landRunDuration: 0.4
+  landRunDuration: 0.36
   landIdleDuration: 0.5
   landMinAirTime: 0.35
   stretchDashToDuration: 0

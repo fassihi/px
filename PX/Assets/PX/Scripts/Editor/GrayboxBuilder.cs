@@ -294,8 +294,9 @@ namespace PX.EditorTools
             config.crouchIdle = MixamoClip("Crouch Idle");
             config.crouchUp = MixamoWindow("Crouch Up", 0f, 0f, 0.75f);
             config.crouchAttack = MixamoWindow("Crouch Sweep", 0.4f, 0.87f, 1.4f);
-            // The landings start at touchdown.
-            config.landRun = MixamoWindow("Land Run", 0.33f, 0f, 0.9f);
+            // The landings start at touchdown. Landing at a run plays the end of the running jump: it follows on from the
+            // jump's pose, and its arms end where the run's begin. (Mixamo's Land Run holds one arm out in front.)
+            config.landRun = MixamoWindow("Unarmed Jump Running", 1.04f, 0f, 1.4f);
             config.landIdle = MixamoWindow("Land Idle", 0.3f, 0f, 1.1f);
             config.jumpStart = RanaViewerBuilder.FindClip(library, "Jump_Start");
             config.jumpLoop = RanaViewerBuilder.FindClip(library, "Jump_Loop");

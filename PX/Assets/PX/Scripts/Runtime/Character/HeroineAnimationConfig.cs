@@ -69,7 +69,7 @@ namespace PX
         public ClipWindow landIdle;
 
         [Tooltip("Seconds the landings take on screen. Moving cuts the idle landing short.")]
-        [Min(0.05f)] public float landRunDuration = 0.4f;
+        [Min(0.05f)] public float landRunDuration = 0.36f;
         [Min(0.05f)] public float landIdleDuration = 0.5f;
 
         [Tooltip("A fall shorter than this, in seconds, lands without a landing animation, so small steps do not bob.")]
