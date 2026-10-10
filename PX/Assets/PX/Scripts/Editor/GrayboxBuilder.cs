@@ -274,7 +274,9 @@ namespace PX.EditorTools
             AnimationClip[] library = RanaViewerBuilder.LoadClips($"{HeroineFolder}/Animations/UAL1_Standard.fbx");
 
             config.idle = RanaViewerBuilder.FindClip(rana, "idle");
-            config.run = RanaViewerBuilder.FindClip(rana, "run");
+            // Her run is a Mixamo clip, retargeted onto her humanoid rig.
+            AnimationClip[] mixamoRun = RanaViewerBuilder.LoadClips($"{RanaImportSettings.MixamoFolder}/Running.fbx");
+            config.run = RanaViewerBuilder.FindClip(mixamoRun, "Running");
             config.comboAttacks = new[]
             {
                 RanaViewerBuilder.FindClip(rana, "box_01"),

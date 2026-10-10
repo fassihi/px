@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: HeroineAnimation
   m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
   idle: {fileID: 8406360129791286164, guid: 974c520d54c614683a16c05520116e5d, type: 3}
-  run: {fileID: 6144204302869600065, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  run: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
   jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
-  dash: {fileID: 6144204302869600065, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  dash: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
   attack: {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}
   comboAttacks:
   - {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}

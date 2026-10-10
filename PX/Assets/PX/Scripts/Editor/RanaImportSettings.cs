@@ -12,10 +12,27 @@ namespace PX.EditorTools
 
         // Rana's body is the model inside her animation file. Tripo's separate "rigged" export has a different bind
         // pose, and the same clips retargeted onto it lean her backwards. Clips and body must come from one export.
+        public const string MixamoFolder = Folder + "/Animations/Mixamo";
         public const string BodyPath = Folder + "/Animations/RanaAnimations.fbx";
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 4;
+        public override uint GetVersion() => 6;
+
+        private void OnPreprocessAnimation()
+        {
+            var importer = (ModelImporter)assetImporter;
+            // Mixamo names every take "mixamo.com". Name the clip after its file, so it can be found, and loop it.
+            if (assetPath.StartsWith(MixamoFolder))
+            {
+                ModelImporterClipAnimation[] clips = importer.defaultClipAnimations;
+                if (clips.Length == 1)
+                {
+                    clips[0].name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+                    clips[0].loopTime = true;
+                    importer.clipAnimations = clips;
+                }
+            }
+        }
 
         private void OnPreprocessModel()
         {
