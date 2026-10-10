@@ -55,10 +55,13 @@ namespace PX
         [Tooltip("Seconds to cross-fade between poses.")]
         public float fadeTime = 0.1f;
 
-        [Tooltip("Ground speed in m/s at which the run clip plays at normal speed.")]
-        public float runClipSpeed = 4.5f;
+        [Tooltip("Ground speed in m/s at which the run clip plays at normal speed: how fast her planted foot sweeps " +
+                 "backwards in it. 3.8 for the Mixamo Running clip at her size. Measure again when the run clip or her " +
+                 "height changes, or her feet slide.")]
+        public float runClipSpeed = 3.8f;
 
-        [Tooltip("The run clip is sped up or slowed down by at most this factor to match ground speed.")]
-        public Vector2 runSpeedScaleRange = new Vector2(0.6f, 1.6f);
+        [Tooltip("The run clip is sped up or slowed down by at most this factor to match ground speed. Past either end " +
+                 "her feet slide, so keep the top above Run Speed / Run Clip Speed.")]
+        public Vector2 runSpeedScaleRange = new Vector2(0.5f, 3f);
     }
 }

@@ -394,7 +394,7 @@ namespace PX.EditorTools
                 name = "Arena: pulled back for the fight",
                 from = 58f,
                 to = 72f,
-                view = new CameraView { yaw = 0f, pitch = 10f, distance = 18f, fieldOfView = 35f, focusHeight = 1.8f, lookAhead = 1f },
+                view = new CameraView { yaw = 0f, pitch = 5f, distance = 16f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1f },
             });
             railCamera.Zones.Add(new CameraZone
             {

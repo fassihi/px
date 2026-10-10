@@ -143,7 +143,8 @@ namespace PX.Tests
 
             Input.Move = 1f;
             float worst = 0f;
-            for (int i = 0; i < 150; i++)
+            int frames = Mathf.CeilToInt((57f - 37f) / Player.Move.runSpeed / FrameTime) + 30;
+            for (int i = 0; i < frames; i++)
             {
                 yield return null;
                 worst = Mathf.Max(worst, OffRail());

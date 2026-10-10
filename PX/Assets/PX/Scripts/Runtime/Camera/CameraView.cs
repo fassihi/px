@@ -28,10 +28,10 @@ namespace PX
         public static CameraView Side => new CameraView
         {
             yaw = 0f,
-            pitch = 8f,
-            distance = 14f,
+            pitch = 3f,
+            distance = 12f,
             fieldOfView = 35f,
-            focusHeight = 1.6f,
+            focusHeight = 1.4f,
             lookAhead = 2f,
         };
 

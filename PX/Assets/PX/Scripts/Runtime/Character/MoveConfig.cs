@@ -10,7 +10,8 @@ namespace PX
     public sealed class MoveConfig : ScriptableObject
     {
         [Header("Run")]
-        [Min(0f)] public float runSpeed = 9f;
+        [Tooltip("Top ground speed in m/s. The run animation speeds up to match, so it can be tuned live in play mode.")]
+        [Min(0f)] public float runSpeed = 6f;
         [Min(0f)] public float groundAcceleration = 90f;
         [Min(0f)] public float groundDeceleration = 110f;
         [Min(0f)] public float airAcceleration = 55f;

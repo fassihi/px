@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ad6ce82a327854ee5a9985324a88008d, type: 3}
   m_Name: PlayerMove
   m_EditorClassIdentifier: PX.Runtime::PX.MoveConfig
-  runSpeed: 9
+  runSpeed: 6
   groundAcceleration: 90
   groundDeceleration: 110
   airAcceleration: 55

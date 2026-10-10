@@ -128,6 +128,43 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator Running_HerPlantedFootDoesNotSlide()
+        {
+            // The run clip plays at ground speed / Run Clip Speed, so the foot on the ground stays put in the world.
+            yield return PlaceAt(OpenStretch);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            // The ball of the foot, not the ankle: the ankle rolls forward over a planted foot.
+            Transform left = body.GetBoneTransform(HumanBodyBones.LeftToes), right = body.GetBoneTransform(HumanBodyBones.RightToes);
+
+            Input.Move = 1f;
+            yield return Frames(40);
+            // Only frames where a toe is on the ground count: each foot is down about a quarter of the stride.
+            var slides = new System.Collections.Generic.List<float>();
+            Vector3 lastLeft = left.position, lastRight = right.position;
+            for (int i = 0; i < 90; i++)
+            {
+                yield return null;
+                // Along the rail only: a planted foot also pivots a little sideways on its ball, which is not a slide.
+                float ground = Player.transform.position.y + 0.03f;
+                Vector3 along = Rail.Evaluate(Motor.Distance).Tangent;
+                foreach (var (toe, last) in new[] { (left, lastLeft), (right, lastRight) })
+                {
+                    if (toe.position.y < ground && last.y < ground)
+                        slides.Add(Mathf.Abs(Vector3.Dot(toe.position - last, along)) / FrameTime);
+                }
+                lastLeft = left.position;
+                lastRight = right.position;
+            }
+
+            Assume.That(Motor.Velocity.x, Is.EqualTo(Player.Move.runSpeed).Within(0.3f));
+            Assert.That(slides.Count, Is.GreaterThan(10), "Her toes hardly touch the ground while she runs.");
+            slides.Sort();
+            float typical = slides[slides.Count / 2];
+            Assert.That(typical, Is.LessThan(0.15f * Player.Move.runSpeed),
+                $"Her planted foot slides at {typical:0.0} m/s while she runs at {Player.Move.runSpeed:0.0} m/s.");
+        }
+
+        [UnityTest]
         public IEnumerator Running_SheLooksWhereSheRuns()
         {
             // Her head bone points out of her face. A twisted avatar reference pose turned it to her side in every
