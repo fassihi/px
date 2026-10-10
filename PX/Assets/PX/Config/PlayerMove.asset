@@ -18,15 +18,15 @@ MonoBehaviour:
   airAcceleration: 55
   airDeceleration: 25
   jumpHeight: 3.2
-  timeToApex: 0.36
-  fallGravityMultiplier: 1.6
+  timeToApex: 0.48
+  fallGravityMultiplier: 1.4
   releasedGravityMultiplier: 3
   maxFallSpeed: 30
   coyoteTime: 0.1
   jumpBufferTime: 0.12
   airJumps: 1
-  dashSpeed: 26
-  dashDuration: 0.16
+  dashSpeed: 16
+  dashDuration: 0.25
   dashCooldown: 0.3
   airDashes: 1
   dashBufferTime: 0.1

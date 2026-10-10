@@ -299,7 +299,7 @@ namespace PX.Tests
         [UnityTest]
         public IEnumerator LandingAtARun_BendsThenRunsOn()
         {
-            yield return PlaceAt(OpenStretch - 10f);
+            yield return PlaceAt(OpenStretch + 2f);
             Input.Move = 1f;
             yield return Frames(30);
 

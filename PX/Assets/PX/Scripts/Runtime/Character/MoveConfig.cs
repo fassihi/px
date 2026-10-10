@@ -19,9 +19,9 @@ namespace PX
 
         [Header("Jump")]
         [Min(0.1f)] public float jumpHeight = 3.2f;
-        [Min(0.05f)] public float timeToApex = 0.36f;
+        [Min(0.05f)] public float timeToApex = 0.48f;
         [Tooltip("Gravity multiplier while falling. Above 1 makes the fall snappier than the rise.")]
-        [Min(1f)] public float fallGravityMultiplier = 1.6f;
+        [Min(1f)] public float fallGravityMultiplier = 1.4f;
         [Tooltip("Gravity multiplier while rising with the jump button released. This is what makes a tap a short hop.")]
         [Min(1f)] public float releasedGravityMultiplier = 3f;
         [Min(0f)] public float maxFallSpeed = 30f;
@@ -32,8 +32,8 @@ namespace PX
         [Min(0)] public int airJumps = 1;
 
         [Header("Dash")]
-        [Min(0f)] public float dashSpeed = 26f;
-        [Min(0.01f)] public float dashDuration = 0.16f;
+        [Min(0f)] public float dashSpeed = 16f;
+        [Min(0.01f)] public float dashDuration = 0.25f;
         [Min(0f)] public float dashCooldown = 0.3f;
         [Min(0)] public int airDashes = 1;
         [Tooltip("How long a dash press is remembered while another action finishes.")]
