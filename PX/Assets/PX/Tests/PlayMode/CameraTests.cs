@@ -84,6 +84,21 @@ namespace PX.Tests
 
             yield return PlaceAt(88f);
             yield return Capture(folder, "4-into-depth");
+
+            yield return PlaceAt(14f);
+            Input.Move = 1f;
+            yield return Frames(30);
+            yield return Capture(folder, "5-run");
+            Input.PressDash();
+            yield return Frames(5);
+            yield return Capture(folder, "6-ground-dash");
+            yield return Frames(30);
+            Input.PressJump();
+            yield return Frames(12);
+            Input.PressDash();
+            yield return Frames(5);
+            yield return Capture(folder, "7-air-dash");
+            Input.Move = 0f;
         }
 
         private IEnumerator Capture(string folder, string name)

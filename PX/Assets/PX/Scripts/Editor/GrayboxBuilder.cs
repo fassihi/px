@@ -290,9 +290,10 @@ namespace PX.EditorTools
             config.attack = config.comboAttacks[0];
             config.jumpStart = RanaViewerBuilder.FindClip(library, "Jump_Start");
             config.jumpLoop = RanaViewerBuilder.FindClip(library, "Jump_Loop");
-            // The library's roll is crammed into the 0.16 s dash and sinks her hips through the floor, so the dash
-            // is her own run clip, played faster.
-            config.dash = config.run;
+            // The dash is too short for a whole move to read, so it holds a single Mixamo pose: a sprinting lunge on the
+            // ground, a forward leap with the arms swept back in the air.
+            config.dash = MixamoClip("Dash Ground Pose");
+            config.airDash = MixamoClip("Dash Air Pose");
             config.stretchDashToDuration = false;
         }
 

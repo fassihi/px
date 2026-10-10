@@ -14,6 +14,7 @@ namespace PX
         Attack,
         Turn,
         RunJump,
+        AirDash,
     }
 
     /// <summary>
@@ -23,7 +24,7 @@ namespace PX
     /// </summary>
     public sealed class HeroineAnimator : MonoBehaviour
     {
-        private const int PoseCount = 8;
+        private const int PoseCount = 9;
 
         [SerializeField] private PlayerController player;
         [SerializeField] private CharacterMotor motor;
@@ -44,6 +45,7 @@ namespace PX
         private float lastSpeed;
         private float lastVelocityY;
         private bool runningJump;
+        private bool airDash;
         private bool restartPose;
         private Quaternion modelRotation;
 
@@ -67,6 +69,7 @@ namespace PX
             clips[(int)HeroinePose.Attack] = AttackClipFor(0);
             clips[(int)HeroinePose.Turn] = config.runTurn;
             clips[(int)HeroinePose.RunJump] = config.runJump;
+            clips[(int)HeroinePose.AirDash] = config.airDash;
             modelRotation = animator.transform.localRotation;
             lastFacing = motor != null ? motor.Facing : 1;
 
@@ -123,7 +126,8 @@ namespace PX
             lastSpeed = Mathf.Abs(motor.Velocity.x);
             lastVelocityY = motor.Velocity.y;
 
-            float fade = config.fadeTime > 0f ? dt / config.fadeTime : 1f;
+            float fadeTime = IsDash(pose) ? config.dashFadeTime : config.fadeTime;
+            float fade = fadeTime > 0f ? dt / fadeTime : 1f;
             for (int i = 0; i < PoseCount; i++)
             {
                 if (clips[i] == null)
@@ -150,7 +154,10 @@ namespace PX
             switch (player.State)
             {
                 case PlayerState.Dash:
-                    return HeroinePose.Dash;
+                    // Ground or air is decided when the dash starts, so a ground dash off a ledge keeps its pose.
+                    if (lastState != PlayerState.Dash)
+                        airDash = !motor.IsGrounded && clips[(int)HeroinePose.AirDash] != null;
+                    return airDash ? HeroinePose.AirDash : HeroinePose.Dash;
                 case PlayerState.Attack:
                     return HeroinePose.Attack;
             }
@@ -232,8 +239,10 @@ namespace PX
         private bool IsLooping(HeroinePose pose)
         {
             return pose == HeroinePose.Idle || pose == HeroinePose.Run || pose == HeroinePose.JumpLoop
-                || (pose == HeroinePose.Dash && !config.stretchDashToDuration);
+                || (IsDash(pose) && !config.stretchDashToDuration);
         }
+
+        private static bool IsDash(HeroinePose pose) => pose == HeroinePose.Dash || pose == HeroinePose.AirDash;
 
         private float ClipSpeed(HeroinePose pose)
         {
@@ -246,6 +255,7 @@ namespace PX
                     return Mathf.Clamp(scale, config.runSpeedScaleRange.x, config.runSpeedScaleRange.y);
                 }
                 case HeroinePose.Dash:
+                case HeroinePose.AirDash:
                     return config.stretchDashToDuration ? StretchTo(clip, player.Move.dashDuration) : config.dashClipSpeed;
                 case HeroinePose.Attack:
                     return StretchTo(clip, player.Combo.steps[Mathf.Clamp(player.ComboIndex, 0, player.Combo.steps.Length - 1)].Total);

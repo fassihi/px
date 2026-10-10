@@ -18,7 +18,8 @@ MonoBehaviour:
   jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   runJump: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
-  dash: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
+  dash: {fileID: -203655887218126122, guid: 12a63f228ceee4201878ceb5319a51d8, type: 3}
+  airDash: {fileID: -203655887218126122, guid: 7400e9cebff9e4c37b8bf0ef7f197b87, type: 3}
   attack: {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}
   comboAttacks:
   - {fileID: -3031707975350760606, guid: 974c520d54c614683a16c05520116e5d, type: 3}
@@ -26,6 +27,7 @@ MonoBehaviour:
   - {fileID: 8613629562999782657, guid: 974c520d54c614683a16c05520116e5d, type: 3}
   stretchDashToDuration: 0
   dashClipSpeed: 1.8
+  dashFadeTime: 0.04
   turnMinSpeed: 3
   turnDuration: 0.35
   runJumpMinSpeed: 3

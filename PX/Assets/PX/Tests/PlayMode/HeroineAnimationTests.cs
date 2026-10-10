@@ -108,6 +108,51 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator DashingInTheAir_PlaysTheAirDash_UntilTheDashEnds()
+        {
+            yield return PlaceAt(OpenStretch);
+
+            Input.PressJump();
+            yield return Frames(10);
+            Assume.That(Motor.IsGrounded, Is.False);
+            Input.PressDash();
+            yield return Frames(3);
+
+            Assert.That(Player.State, Is.EqualTo(PlayerState.Dash));
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.AirDash));
+
+            for (int i = 0; i < 60 && Player.State == PlayerState.Dash; i++)
+                yield return null;
+            yield return Frames(2);
+            Assert.That(Animator.CurrentPose, Is.Not.EqualTo(HeroinePose.AirDash), "The air dash pose outlasts the dash.");
+        }
+
+        [UnityTest]
+        public IEnumerator Running_SheLooksWhereSheRuns()
+        {
+            // Her head bone points out of her face. A twisted avatar reference pose turned it to her side in every
+            // retargeted Mixamo clip, while her own idle looked fine.
+            yield return PlaceAt(OpenStretch);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            Transform head = body.GetBoneTransform(HumanBodyBones.Head);
+
+            Input.Move = 1f;
+            float worst = 0f;
+            for (int i = 0; i < 60; i++)
+            {
+                yield return null;
+                if (i < 20)
+                    continue;
+                Vector3 face = Vector3.ProjectOnPlane(head.up, Vector3.up);
+                Vector3 ahead = Vector3.ProjectOnPlane(body.transform.forward, Vector3.up);
+                worst = Mathf.Max(worst, Vector3.Angle(face, ahead));
+            }
+
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Run));
+            Assert.That(worst, Is.LessThan(35f), $"Her face turns {worst:0} degrees away from where she runs.");
+        }
+
+        [UnityTest]
         public IEnumerator Dashing_KeepsHerHipsAboveTheGround()
         {
             // A roll clip retargeted onto her dips her hips to the floor and buries her feet; the dash must not.

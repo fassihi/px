@@ -45,7 +45,7 @@ PX/                         Unity project
       Config/               Tuning assets: PlayerMove, PlayerLightCombo
       Prefabs/              Player, TrainingDummy
       Scenes/               Graybox.unity (generated, see below)
-      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo; the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the animation library for jump and dash)
+      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo, downloaded as FBX without skin at 30 fps and named for their use (Dash Ground Pose is Mixamo's Female Locomotion Pose "Sprinting", Dash Air Pose its Male Dynamic Pose "Leaping Forward, Arms Extended Backwards"); the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the animation library for the standing jump)
     Settings/               Render pipeline assets and volume profiles
   Packages/                 Package manifest
   ProjectSettings/

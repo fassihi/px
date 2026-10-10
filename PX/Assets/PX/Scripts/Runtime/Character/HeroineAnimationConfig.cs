@@ -15,7 +15,10 @@ namespace PX
         public AnimationClip jumpLoop;
         [Tooltip("A whole running jump, takeoff to landing, used instead of Jump Start and Jump Loop for a jump taken at speed.")]
         public AnimationClip runJump;
+        [Tooltip("The dash on the ground. A single held pose suits a dash this short.")]
         public AnimationClip dash;
+        [Tooltip("The dash in the air. Empty: the air dash uses Dash.")]
+        public AnimationClip airDash;
         public AnimationClip attack;
 
         [Tooltip("Optional clip per combo step. A step without one (or past the end of the list) uses Attack.")]
@@ -27,6 +30,9 @@ namespace PX
         public bool stretchDashToDuration = true;
 
         [Min(0.1f)] public float dashClipSpeed = 1.8f;
+
+        [Tooltip("Seconds to blend into the dash pose. Shorter than Fade Time, so the pose shows in a dash this short.")]
+        [Min(0f)] public float dashFadeTime = 0.04f;
 
         [Header("Run turn")]
         [Tooltip("She plays the turn when she reverses from at least this ground speed, in m/s.")]

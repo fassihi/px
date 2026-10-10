@@ -141,7 +141,7 @@ namespace PX.EditorTools
                     Vector3 lifted = Quaternion.AngleAxis(-HeadPitch, Vector3.Cross(Vector3.up, facing)) * facing;
                     head.rotation = Quaternion.FromToRotation(head.up, lifted) * head.rotation;
                 }
-                Turn(head, Face(head, bone), Vector3.forward);
+                Turn(head, Face(head, top != null, bone), Vector3.forward);
             }
 
             foreach (var (name, child, side) in Arms)
@@ -168,13 +168,18 @@ namespace PX.EditorTools
             }
         }
 
-        /// <summary>Which way the face points: between the eyes when there are eye bones, else the head's forward axis.</summary>
-        private static Vector3 Face(Transform head, System.Func<string, Transform> bone)
+        /// <summary>
+        /// Which way the face points: between the eyes when there are eye bones. Else a head with an end bone on top
+        /// (Mixamo) faces along its forward axis, and one without (Rana) along the bone itself, out of her face.
+        /// Squaring Rana's by her forward axis left her face turned about 120 degrees, and every retargeted clip
+        /// looked off to her side.
+        /// </summary>
+        private static Vector3 Face(Transform head, bool hasTop, System.Func<string, Transform> bone)
         {
             Transform left = bone("LeftEye"), right = bone("RightEye");
             if (left != null && right != null)
                 return Vector3.Cross(right.position - left.position, Vector3.up);
-            return head.forward;
+            return hasTop ? head.forward : head.up;
         }
 
         /// <summary>Rotates <paramref name="bone"/> so that its child lies in <paramref name="direction"/>.</summary>
