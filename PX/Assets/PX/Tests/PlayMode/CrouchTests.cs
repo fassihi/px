@@ -96,6 +96,35 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheSweep_KeepsHerAtCrouchHeight_WithHerFeetOnTheFloor()
+        {
+            yield return PlaceAt(OpenStretch);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            Transform hips = body.GetBoneTransform(HumanBodyBones.Hips);
+            Transform[] feet = { body.GetBoneTransform(HumanBodyBones.LeftFoot), body.GetBoneTransform(HumanBodyBones.RightFoot) };
+
+            Input.CrouchHeld = true;
+            yield return Frames(40);
+            float floor = Player.transform.position.y;
+            float crouched = hips.position.y - floor;
+
+            Input.PressAttack();
+            float highest = 0f, lowestFoot = float.MaxValue;
+            for (int i = 0; i < 40; i++)
+            {
+                yield return null;
+                if (Animator.CurrentPose != HeroinePose.CrouchAttack)
+                    continue;
+                highest = Mathf.Max(highest, hips.position.y - floor);
+                lowestFoot = Mathf.Min(lowestFoot, Mathf.Min(feet[0].position.y, feet[1].position.y) - floor);
+            }
+
+            Assert.That(highest, Is.GreaterThan(0f), "The sweep never played.");
+            Assert.That(highest, Is.LessThan(crouched * 1.2f), $"She rose from {crouched:0.00} m to {highest:0.00} m.");
+            Assert.That(lowestFoot, Is.GreaterThan(-0.05f), "A foot went through the floor.");
+        }
+
+        [UnityTest]
         public IEnumerator TheSweep_HitsTheDummy()
         {
             // The first dummy stands at 62 m.

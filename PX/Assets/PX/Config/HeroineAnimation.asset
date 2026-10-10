@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac21e649ebdb74d36bcfe1eea1384554, type: 3}
   m_Name: HeroineAnimation
   m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
-  idle: {fileID: 8406360129791286164, guid: 974c520d54c614683a16c05520116e5d, type: 3}
+  idle: {fileID: -203655887218126122, guid: 1dff0204b56da40a4a1d1ab42ea0eee2, type: 3}
   run: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
   runTurn: {fileID: -203655887218126122, guid: 8130124ee15784ad3a4e67a246f7ccc7, type: 3}
   jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
@@ -50,6 +50,7 @@ MonoBehaviour:
     from: 0.4
     impact: 0.87
     to: 1.4
+  crouchAttackRise: 0.1
   crouchDownDuration: 0.3
   crouchUpDuration: 0.3
   landRun:
@@ -74,5 +75,5 @@ MonoBehaviour:
   runJumpTakeoff: 0.36
   runJumpLanding: 1
   fadeTime: 0.1
-  runClipSpeed: 3.8
+  runClipSpeed: 3.1
   runSpeedScaleRange: {x: 0.5, y: 3}

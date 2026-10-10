@@ -288,8 +288,9 @@ namespace PX.Tests
             Vector3 headOverHips = Player.transform.InverseTransformVector(
                 body.GetBoneTransform(HumanBodyBones.Head).position - body.GetBoneTransform(HumanBodyBones.Hips).position);
 
-            Assert.That(Mathf.Abs(headOverHips.z) / headOverHips.y, Is.LessThan(0.2f),
-                $"Her head is {headOverHips.z:0.00} m in front of her hips while idle: she is leaning.");
+            // Only backwards: her idle is a fighting stance, which leans forward on purpose.
+            Assert.That(headOverHips.z / headOverHips.y, Is.GreaterThan(-0.2f),
+                $"Her head is {-headOverHips.z:0.00} m behind her hips while idle: she is leaning back.");
         }
 
         [UnityTest]

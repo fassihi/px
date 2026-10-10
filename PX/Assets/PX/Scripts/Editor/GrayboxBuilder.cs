@@ -271,13 +271,13 @@ namespace PX.EditorTools
 
         private static void FillHeroineAnimation(HeroineAnimationConfig config)
         {
-            // Rana's own clips where she has them. She has no jump yet, so that comes from the Universal
-            // Animation Library (CC0); it is a humanoid rig too, so its clips retarget onto her.
-            AnimationClip[] rana = RanaViewerBuilder.LoadClips($"{RanaImportSettings.Folder}/Animations/RanaAnimations.fbx");
+            // Most of her clips come from Mixamo. The standing jump comes from the Universal Animation Library (CC0);
+            // it is a humanoid rig too, so its clips retarget onto her.
             AnimationClip[] library = RanaViewerBuilder.LoadClips($"{HeroineFolder}/Animations/UAL1_Standard.fbx");
 
-            config.idle = RanaViewerBuilder.FindClip(rana, "idle");
-            // Her run, turn and running jump are Mixamo clips, retargeted onto her humanoid rig.
+            // Her idle is Mixamo's Female Ninja Idle: a ready stance suits a fighter better than her own relaxed one.
+            config.idle = MixamoClip("Idle");
+            // Her run (from Mixamo's Female Locomotion Pack), turn and running jump, retargeted onto her humanoid rig.
             config.run = MixamoClip("Running");
             config.runTurn = MixamoClip("Running Turn 180");
             config.runJump = MixamoClip("Unarmed Jump Running");

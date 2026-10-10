@@ -1,3 +1,4 @@
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
@@ -43,6 +44,8 @@ namespace PX
 
         private PlayableGraph graph;
         private AnimationMixerPlayable mixer;
+        private AnimationScriptPlayable bodyCap;
+        private NativeArray<float> measuredBody;
         private readonly AnimationClipPlayable[] playables = new AnimationClipPlayable[PoseCount];
         private readonly AnimationClip[] clips = new AnimationClip[PoseCount];
         private readonly float[] weights = new float[PoseCount];
@@ -109,17 +112,45 @@ namespace PX
                 mixer.SetInputWeight(i, 0f);
             }
 
-            AnimationPlayableOutput.Create(graph, "Heroine", animator).SetSourcePlayable(mixer);
+            // The sweep is held down to her crouch, so the pose goes through a body-height cap after the mixer.
+            measuredBody = new NativeArray<float>(1, Allocator.Persistent);
+            bodyCap = AnimationScriptPlayable.Create(graph, new BodyHeightJob { measured = measuredBody }, 1);
+            graph.Connect(mixer, 0, bodyCap, 0);
+            bodyCap.SetInputWeight(0, 1f);
+
+            AnimationPlayableOutput.Create(graph, "Heroine", animator).SetSourcePlayable(bodyCap);
             graph.Play();
 
             CurrentPose = HeroinePose.Idle;
             weights[(int)HeroinePose.Idle] = 1f;
+            MeasureCrouch();
+            mixer.SetInputWeight((int)HeroinePose.Idle, 1f);
         }
 
         private void OnDisable()
         {
             if (graph.IsValid())
                 graph.Destroy();
+            if (measuredBody.IsCreated)
+                measuredBody.Dispose();
+        }
+
+        /// <summary>The highest her body may be during the sweep, in the animation stream's body space.</summary>
+        public float CrouchAttackCeiling { get; private set; } = float.MaxValue;
+
+        /// <summary>Poses her in the crouch idle once, to learn how high her body is there.</summary>
+        private void MeasureCrouch()
+        {
+            const int slot = (int)HeroinePose.CrouchIdle;
+            if (clips[slot] == null)
+                return;
+
+            mixer.SetInputWeight(slot, 1f);
+            bodyCap.SetJobData(new BodyHeightJob { measure = true, measured = measuredBody });
+            graph.Evaluate(0f);
+            mixer.SetInputWeight(slot, 0f);
+            CrouchAttackCeiling = measuredBody[0] * (1f + config.crouchAttackRise);
+            bodyCap.SetJobData(new BodyHeightJob { ceiling = CrouchAttackCeiling, measured = measuredBody });
         }
 
         private void LateUpdate()
@@ -189,6 +220,11 @@ namespace PX
                 }
                 playables[i].SetTime(times[i]);
             }
+
+            bodyCap.SetJobData(new BodyHeightJob
+            {
+                weight = weights[(int)HeroinePose.CrouchAttack], ceiling = CrouchAttackCeiling, measured = measuredBody,
+            });
         }
 
         private HeroinePose ChoosePose(float dt)

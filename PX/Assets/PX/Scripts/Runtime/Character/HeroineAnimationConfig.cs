@@ -58,6 +58,10 @@ namespace PX
         [Tooltip("The sweep from a crouch.")]
         public ClipWindow crouchAttack;
 
+        [Tooltip("How far above her crouch the sweep may lift her body, as a fraction of its height in the crouch idle. " +
+                 "Her feet stay put and her legs bend, so a sweep made from a higher stance still plays from the crouch.")]
+        [Min(0f)] public float crouchAttackRise = 0.1f;
+
         [Tooltip("Seconds the crouch down and the stand up take on screen. Their windows are sped up to fit.")]
         [Min(0.05f)] public float crouchDownDuration = 0.3f;
         [Min(0.05f)] public float crouchUpDuration = 0.3f;
@@ -107,9 +111,9 @@ namespace PX
         public float fadeTime = 0.1f;
 
         [Tooltip("Ground speed in m/s at which the run clip plays at normal speed: how fast her planted foot sweeps " +
-                 "backwards in it. 3.8 for the Mixamo Running clip at her size. Measure again when the run clip or her " +
+                 "backwards in it. 3.1 for the Mixamo Running clip (Female Locomotion Pack) at her size. Measure again when the run clip or her " +
                  "height changes, or her feet slide.")]
-        public float runClipSpeed = 3.8f;
+        public float runClipSpeed = 3.1f;
 
         [Tooltip("The run clip is sped up or slowed down by at most this factor to match ground speed. Past either end " +
                  "her feet slide, so keep the top above Run Speed / Run Clip Speed.")]

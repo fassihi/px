@@ -65,6 +65,12 @@ UNITY="/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity
 - Every gameplay behaviour gets a play mode test in `Assets/PX/Tests/PlayMode` using `GrayboxFixture`.
   Tests run at a fixed 60 steps per second.
 - Components under `Scripts/Runtime/Debugging` are graybox stand-ins and are expected to be deleted.
+- To replace a Mixamo FBX with a new download, delete its `.meta` too (or give the new file a new name). The old
+  `.meta` keeps the old take's avatar, and the new clip retargets badly. A reset `HumanDescription` from script also
+  loses `skeletonHasParents` and the twist and stretch defaults.
+- To check a pose by eye in edit mode, play the clip through a `PlayableGraph` onto the Player prefab and render it.
+  `AnimationClip.SampleAnimation` does not retarget humanoid clips and shows wrong poses. Render at 512 px or more:
+  side views at small sizes make a side-on stance look like a lean.
 
 ## Git
 

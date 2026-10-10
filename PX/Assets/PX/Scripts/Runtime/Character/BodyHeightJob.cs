@@ -1,0 +1,66 @@
+using Unity.Collections;
+using UnityEngine;
+using UnityEngine.Animations;
+
+namespace PX
+{
+    /// <summary>
+    /// Holds her body down to a ceiling while keeping her feet where the clip put them: the legs bend to make up the
+    /// difference. Used so a move made from a higher stance, like a Mixamo sweep, still plays from her crouch.
+    /// Runs on the pose after the mixer. Heights are in the stream's own body space, so the ceiling is measured
+    /// from a pose (see <see cref="measure"/>) rather than given in metres.
+    /// </summary>
+    public struct BodyHeightJob : IAnimationJob
+    {
+        /// <summary>How much of the cap applies, 0 to 1. Faded with the pose that needs it.</summary>
+        public float weight;
+
+        /// <summary>The highest the body may be.</summary>
+        public float ceiling;
+
+        /// <summary>When true, the job writes this frame's body height to <see cref="measured"/> and changes nothing.</summary>
+        public bool measure;
+
+        public NativeArray<float> measured;
+
+        public void ProcessRootMotion(AnimationStream stream)
+        {
+        }
+
+        public void ProcessAnimation(AnimationStream stream)
+        {
+            if (!stream.isHumanStream)
+                return;
+
+            AnimationHumanStream human = stream.AsHuman();
+            Vector3 body = human.bodyPosition;
+            if (measure)
+            {
+                measured[0] = body.y;
+                return;
+            }
+
+            float drop = (body.y - ceiling) * Mathf.Clamp01(weight);
+            if (drop <= 0f)
+                return;
+
+            // Pin the feet first, then lower the body and let the legs bend to reach them.
+            Vector3 leftFoot = human.GetGoalPosition(AvatarIKGoal.LeftFoot);
+            Quaternion leftFootRotation = human.GetGoalRotation(AvatarIKGoal.LeftFoot);
+            Vector3 rightFoot = human.GetGoalPosition(AvatarIKGoal.RightFoot);
+            Quaternion rightFootRotation = human.GetGoalRotation(AvatarIKGoal.RightFoot);
+
+            human.bodyPosition = body - new Vector3(0f, drop, 0f);
+
+            human.SetGoalPosition(AvatarIKGoal.LeftFoot, leftFoot);
+            human.SetGoalRotation(AvatarIKGoal.LeftFoot, leftFootRotation);
+            human.SetGoalWeightPosition(AvatarIKGoal.LeftFoot, 1f);
+            human.SetGoalWeightRotation(AvatarIKGoal.LeftFoot, 1f);
+            human.SetGoalPosition(AvatarIKGoal.RightFoot, rightFoot);
+            human.SetGoalRotation(AvatarIKGoal.RightFoot, rightFootRotation);
+            human.SetGoalWeightPosition(AvatarIKGoal.RightFoot, 1f);
+            human.SetGoalWeightRotation(AvatarIKGoal.RightFoot, 1f);
+            human.SolveIK();
+        }
+    }
+}
