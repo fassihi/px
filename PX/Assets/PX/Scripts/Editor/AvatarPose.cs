@@ -40,10 +40,11 @@ namespace PX.EditorTools
             ("RightShoulder", "RightUpperArm", 1f), ("RightUpperArm", "RightLowerArm", 1f), ("RightLowerArm", "RightHand", 1f),
         };
 
-        /// <summary>Rana's body and every Mixamo clip.</summary>
+        /// <summary>Rana's body, every Mixamo clip, and the enemies' bodies (Tripo rigs like hers).</summary>
         public static IEnumerable<string> Models()
         {
             yield return RanaImportSettings.BodyPath;
+            yield return EnemyImportSettings.EnemyABodyPath;
             if (!AssetDatabase.IsValidFolder(RanaImportSettings.MixamoFolder))
                 yield break;
             foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { RanaImportSettings.MixamoFolder }))

@@ -29,6 +29,12 @@ namespace PX.EditorTools
         private const string PrefabFolder = "Assets/PX/Prefabs";
         private const string HeroineFolder = HeroineImportSettings.Folder;
         private const float HeroineHeight = 1.75f;
+
+        // Enemy A, the armoured knight, stands a head taller than her.
+        private const float EnemyAHeight = 2.0f;
+
+        // Where Enemy A waits: near the end of the level, on the last straight.
+        private const float EnemyADistance = 110f;
         private const string VolumeProfilePath = "Assets/Settings/SceneVolumeProfile.asset";
 
         private const float FloorDepth = 8f;
@@ -64,6 +70,8 @@ namespace PX.EditorTools
             HeroineAnimationConfig heroineAnimation = LoadOrCreateAsset<HeroineAnimationConfig>($"{ConfigFolder}/HeroineAnimation.asset", FillHeroineAnimation);
             GameObject playerPrefab = LoadOrCreatePrefab($"{PrefabFolder}/Player.prefab", () => CreatePlayer(move, combo, heroineAnimation, palette));
             GameObject dummyPrefab = LoadOrCreatePrefab($"{PrefabFolder}/TrainingDummy.prefab", () => CreateDummy(palette));
+            EnemyConfig enemyA = LoadOrCreateAsset<EnemyConfig>($"{ConfigFolder}/EnemyA.asset", FillEnemyA);
+            GameObject enemyAPrefab = LoadOrCreatePrefab($"{PrefabFolder}/EnemyA.prefab", () => CreateEnemyA(enemyA));
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -71,6 +79,7 @@ namespace PX.EditorTools
             BuildLevel(rail, palette);
             PlaceDummies(rail, dummyPrefab);
             CharacterMotor motor = PlacePlayer(rail, playerPrefab);
+            PlaceEnemy(rail, enemyAPrefab, EnemyADistance, motor);
             RailCamera railCamera = CreateCamera(rail, motor);
             CreateLighting();
             CreateOverlay(motor, railCamera);
@@ -346,6 +355,7 @@ namespace PX.EditorTools
             // jump's pose, and its arms end where the run's begin. (Mixamo's Land Run holds one arm out in front.)
             config.landRun = MixamoWindow("Unarmed Jump Running", 1.04f, 0f, 1.4f);
             config.landIdle = MixamoWindow("Land Idle", 0.3f, 0f, 1.1f);
+            config.hurt = new ClipWindow { clip = RanaViewerBuilder.FindClip(library, "Hit_Chest") };
             config.jumpStart = RanaViewerBuilder.FindClip(library, "Jump_Start");
             config.jumpLoop = RanaViewerBuilder.FindClip(library, "Jump_Loop");
             // The dash is too short for a whole move to read, so it holds a single Mixamo pose: a sprinting lunge on the
@@ -407,6 +417,88 @@ namespace PX.EditorTools
             foreach (Renderer renderer in renderers)
                 bounds.Encapsulate(renderer.bounds);
             return bounds.size.y;
+        }
+
+        // ------------------------------------------------------------ enemies
+
+        /// <summary>
+        /// Enemy A is a Tripo knight, rigged as a humanoid like Rana. Its clips come from the Universal Animation
+        /// Library: a sword idle, a walk, a sword swing, a hit to the chest and a death.
+        /// </summary>
+        private static void FillEnemyA(EnemyConfig config)
+        {
+            AnimationClip[] library = RanaViewerBuilder.LoadClips($"{HeroineFolder}/Animations/UAL1_Standard.fbx");
+            config.idle = RanaViewerBuilder.FindClip(library, "Sword_Idle");
+            config.walk = RanaViewerBuilder.FindClip(library, "Walk_Loop");
+            config.attackClip = new ClipWindow { clip = RanaViewerBuilder.FindClip(library, "Sword_Attack"), from = 0.1f, impact = 0.62f, to = 1.3f };
+            config.hurt = new ClipWindow { clip = RanaViewerBuilder.FindClip(library, "Hit_Chest") };
+            config.death = RanaViewerBuilder.FindClip(library, "Death01");
+        }
+
+        private static GameObject CreateEnemyA(EnemyConfig config)
+        {
+            var root = new GameObject("EnemyA");
+
+            var controller = root.AddComponent<CharacterController>();
+            controller.height = EnemyAHeight;
+            controller.radius = 0.45f;
+            controller.center = new Vector3(0f, EnemyAHeight * 0.5f, 0f);
+            controller.stepOffset = 0.3f;
+            controller.skinWidth = 0.03f;
+            controller.minMoveDistance = 0f;
+
+            root.AddComponent<CharacterMotor>();
+            var health = root.AddComponent<Health>();
+            var serializedHealth = new SerializedObject(health);
+            serializedHealth.FindProperty("max").floatValue = 80f;
+            serializedHealth.ApplyModifiedPropertiesWithoutUndo();
+            var enemy = root.AddComponent<EnemyController>();
+            var brain = root.AddComponent<EnemyBrain>();
+            var enemyAnimator = root.AddComponent<EnemyAnimator>();
+
+            var visual = new GameObject("Visual").transform;
+            visual.SetParent(root.transform, false);
+            GameObject model = InstantiateModel(EnemyImportSettings.EnemyABodyPath, visual);
+            Material skin = LoadOrCreateTexturedMaterial("EnemyA", EnemyImportSettings.EnemyATexturePath);
+            foreach (SkinnedMeshRenderer renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
+                renderer.sharedMaterial = skin;
+            float height = MeasureHeight(model);
+            if (height > 0.01f)
+                visual.localScale = Vector3.one * (EnemyAHeight / height);
+
+            Animator animator = model.GetComponent<Animator>() ?? model.AddComponent<Animator>();
+            animator.applyRootMotion = false;
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
+            Wire(enemy, "config", config);
+            Wire(brain, "body", enemy);
+            Wire(enemyAnimator, "enemy", enemy);
+            Wire(enemyAnimator, "animator", animator);
+            return root;
+        }
+
+        private static void PlaceEnemy(Rail rail, GameObject prefab, float distance, CharacterMotor target)
+        {
+            var enemy = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            var motor = enemy.GetComponent<CharacterMotor>();
+            Wire(motor, "rail", rail);
+            motor.Teleport(rail, distance, 0.05f);
+            motor.Facing = -1;
+            Wire(enemy.GetComponent<EnemyBrain>(), "target", target);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(enemy.transform);
+        }
+
+        private static Material LoadOrCreateTexturedMaterial(string name, string texturePath)
+        {
+            string path = $"{Path.GetDirectoryName(texturePath).Replace("/Textures", "")}/{name}.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material != null)
+                return material;
+            material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath));
+            material.SetFloat("_Smoothness", 0.3f);
+            AssetDatabase.CreateAsset(material, path);
+            return material;
         }
 
         private static GameObject CreateDummy(Palette palette)

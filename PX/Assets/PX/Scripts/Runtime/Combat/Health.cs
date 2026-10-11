@@ -39,6 +39,9 @@ namespace PX
 
         public event Action Died;
 
+        /// <summary>While true, hits are ignored: no damage, no events. Set briefly after taking a hit.</summary>
+        public bool Invulnerable { get; set; }
+
         private void Awake()
         {
             Current = max;
@@ -46,7 +49,7 @@ namespace PX
 
         public void TakeHit(Hit hit)
         {
-            if (IsDead)
+            if (IsDead || Invulnerable)
                 return;
 
             Current = Mathf.Max(0f, Current - hit.Damage);

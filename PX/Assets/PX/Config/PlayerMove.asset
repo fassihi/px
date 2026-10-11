@@ -40,3 +40,6 @@ MonoBehaviour:
   airDashes: 1
   dashJumpCancel: 0.18
   dashBufferTime: 0.15
+  hurtStun: 0.4
+  hurtHop: 4
+  hurtInvulnerability: 1

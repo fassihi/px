@@ -34,6 +34,11 @@ MonoBehaviour:
     from: 0.15
     impact: 0.63
     to: 1.2
+  hurt:
+    clip: {fileID: -245273357908900549, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+    from: 0
+    impact: 0
+    to: 0
   crouchDown:
     clip: {fileID: -203655887218126122, guid: fe5aade7246564aed8c66940a0befefe, type: 3}
     from: 0.25

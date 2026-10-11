@@ -22,6 +22,7 @@ namespace PX
         CrouchIdle,
         CrouchUp,
         CrouchAttack,
+        Hurt,
     }
 
     /// <summary>
@@ -32,7 +33,7 @@ namespace PX
     /// </summary>
     public sealed class HeroineAnimator : MonoBehaviour
     {
-        private const int PoseCount = 15;
+        private const int PoseCount = 16;
 
         // Below this ground speed, in m/s, she counts as standing still.
         private const float MovingSpeed = 0.3f;
@@ -98,6 +99,7 @@ namespace PX
             clips[(int)HeroinePose.CrouchIdle] = config.crouchIdle;
             clips[(int)HeroinePose.CrouchUp] = config.crouchUp.clip;
             clips[(int)HeroinePose.CrouchAttack] = config.crouchAttack.clip;
+            clips[(int)HeroinePose.Hurt] = config.hurt.clip;
             modelRotation = animator.transform.localRotation;
 
             graph = PlayableGraph.Create("Heroine");
@@ -191,6 +193,7 @@ namespace PX
                     return config.dashFadeTime;
                 case HeroinePose.Attack:
                 case HeroinePose.CrouchAttack:
+                case HeroinePose.Hurt:
                     return config.attackFadeTime;
                 case HeroinePose.LandRun:
                 case HeroinePose.LandIdle:
@@ -304,6 +307,10 @@ namespace PX
 
             switch (player.State)
             {
+                case PlayerState.Hurt:
+                    landing = null;
+                    standingUp = false;
+                    return clips[(int)HeroinePose.Hurt] != null ? HeroinePose.Hurt : HeroinePose.JumpLoop;
                 case PlayerState.Dash:
                     landing = null;
                     standingUp = false;
@@ -436,7 +443,7 @@ namespace PX
         {
             return pose == HeroinePose.Attack || pose == HeroinePose.CrouchAttack
                 || pose == HeroinePose.LandRun || pose == HeroinePose.LandIdle
-                || pose == HeroinePose.CrouchDown || pose == HeroinePose.CrouchUp;
+                || pose == HeroinePose.CrouchDown || pose == HeroinePose.CrouchUp || pose == HeroinePose.Hurt;
         }
 
         /// <summary>Clip time for a windowed pose.</summary>
@@ -456,6 +463,8 @@ namespace PX
                     return config.crouchDown.At(poseTime / config.crouchDownDuration);
                 case HeroinePose.CrouchUp:
                     return config.crouchUp.At(poseTime / config.crouchUpDuration);
+                case HeroinePose.Hurt:
+                    return config.hurt.At(player.StateTime / Mathf.Max(0.01f, player.Move.hurtStun));
                 default:
                     return 0f;
             }

@@ -62,6 +62,14 @@ namespace PX
         [Tooltip("How long a dash press is remembered while another action finishes.")]
         [Min(0f)] public float dashBufferTime = 0.15f;
 
+        [Header("Hurt")]
+        [Tooltip("Seconds a hit staggers her. She cannot act until it ends; presses are buffered.")]
+        [Min(0f)] public float hurtStun = 0.4f;
+        [Tooltip("Upward speed a hit knocks her into, in m/s, so the knockback reads.")]
+        [Min(0f)] public float hurtHop = 4f;
+        [Tooltip("Seconds after a hit during which further hits are ignored.")]
+        [Min(0f)] public float hurtInvulnerability = 1f;
+
         [Header("Crouch")]
         [Tooltip("Height of her collider while crouched, in metres. Cover lower than this hides her.")]
         [Min(0.3f)] public float crouchHeight = 1.1f;

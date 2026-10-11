@@ -202,13 +202,63 @@ namespace PX.Tests
         }
 
         /// <summary>Renders her from a camera close beside her on the rail's camera side, framed on her whole body.</summary>
-        private IEnumerator CaptureCloseUp(string folder, string name)
+        /// <summary>
+        /// The fight with Enemy A, framed on the two of them: the knight idle and walking in, its swing winding up and
+        /// landing, her staggered, then it staggered by her combo and dead. Only runs when PX_SCREENSHOT_DIR is set.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EnemyScreenshots()
+        {
+            string folder = System.Environment.GetEnvironmentVariable("PX_SCREENSHOT_DIR");
+            if (string.IsNullOrEmpty(folder))
+                Assert.Ignore("Set PX_SCREENSHOT_DIR to capture screenshots.");
+            folder = Path.Combine(folder, "enemy");
+            Directory.CreateDirectory(folder);
+            var enemy = Object.FindFirstObjectByType<EnemyController>();
+
+            yield return PlaceAt(enemy.Motor.Distance - 10f);
+            yield return Frames(20);
+            yield return CaptureCloseUp(folder, "1-idle", enemy.transform);
+            yield return PlaceAt(enemy.Motor.Distance - 5f);
+            yield return Frames(30);
+            yield return CaptureCloseUp(folder, "2-walk", enemy.transform);
+
+            for (int i = 0; i < 240 && !(enemy.State == EnemyState.Attack && enemy.StateTime > enemy.Config.attack.startup * 0.6f); i++)
+                yield return null;
+            yield return CaptureCloseUp(folder, "3-wind-up", enemy.transform);
+            for (int i = 0; i < 60 && !enemy.IsHitboxActive; i++)
+                yield return null;
+            yield return CaptureCloseUp(folder, "4-swing", enemy.transform);
+            for (int i = 0; i < 10 && !Player.IsHurt; i++)
+                yield return null;
+            yield return Frames(4);
+            yield return CaptureCloseUp(folder, "5-she-is-hit", enemy.transform);
+
+            yield return PlaceAt(enemy.Motor.Distance - 1.4f);
+            for (int i = 0; i < 40 && enemy.State != EnemyState.Hurt; i++)
+            {
+                if (i % 6 == 0)
+                    Input.PressAttack();
+                yield return null;
+            }
+            yield return Frames(3);
+            yield return CaptureCloseUp(folder, "6-it-is-hit", enemy.transform);
+
+            for (int i = 0; i < 20 && !enemy.Health.IsDead; i++)
+                enemy.Health.TakeHit(new Hit(10f, Player.transform.forward, Player.gameObject, 4f));
+            yield return Frames(90);
+            yield return CaptureCloseUp(folder, "7-dead", enemy.transform);
+        }
+
+        private IEnumerator CaptureCloseUp(string folder, string name, Transform also = null)
         {
             yield return null;
             // Two views side by side: from the side, as the game shows her, and from the front three-quarter, where
             // a foot or knee turned the wrong way shows.
             RailPoint point = Rail.Evaluate(Motor.Distance);
             Vector3 center = Player.transform.position + Vector3.up * 0.8f;
+            if (also != null)
+                center = (center + also.position + Vector3.up * 0.9f) * 0.5f;
             Vector3 front = (point.Tangent * Motor.Facing * 0.8f + point.Side * 0.6f).normalized;
             var image = new Texture2D(1440, 720, TextureFormat.RGB24, false);
             RenderView(image, 0, center, point.Side);

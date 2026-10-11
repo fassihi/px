@@ -37,17 +37,18 @@ PX/                         Unity project
       Scripts/Runtime/      Game code (assembly PX.Runtime)
         Rails/              The path the game is played on
         Character/          Motor, player control, input, movement tuning
-        Combat/             Health, combo data, hit-stop, training dummy
+        Combat/             Health, combo data, hit-stop, hit sparks, training dummy
+        Enemies/            Enemy config, controller (idle, walk, attack, hurt, dead), AI brain (an IInputSource) and animator
         Camera/             Rail-relative camera and camera zones
         Debugging/          Graybox stand-ins for animation and UI
         (Character/ also has HeroineAnimator, which plays the clips named in Config/HeroineAnimation, one attack clip per combo step)
       Scripts/Editor/       Editor tools (assembly PX.Editor)
       Tests/EditMode/       Fast tests that need no scene
       Tests/PlayMode/       Tests that play the graybox scene
-      Config/               Tuning assets: PlayerMove, PlayerLightCombo
-      Prefabs/              Player, TrainingDummy
+      Config/               Tuning assets: PlayerMove, PlayerLightCombo, HeroineAnimation, EnemyA
+      Prefabs/              Player, TrainingDummy, EnemyA
       Scenes/               Graybox.unity (generated, see below)
-      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo, downloaded as FBX without skin at 30 fps and named for their use (Combo 1 Jab is Mixamo's Lead Jab, Combo 2 Cross its Cross Punch, Combo 3 Side Kick its Mma Kick (side kick), Crouch Sweep its Front Leg Sweep (held down to her crouch by BodyHeightJob, since Mixamo plays it from a higher stance), Running the running from its Female Locomotion Pack, Crouch Idle its Low Crouching Idle, and Land Idle, Crouch Down and Crouch Up come from its unarmed jump and crouch pack; landing at a run plays the end of Unarmed Jump Running, since Land Run holds an arm out; Dash Ground Pose is Mixamo's Female Locomotion Pose "Sprinting", Dash Air Pose its Male Dynamic Pose "Leaping Forward, Arms Extended Backwards"); the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the Universal Animation Library: her idle and standing jump)
+      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo, downloaded as FBX without skin at 30 fps and named for their use (Combo 1 Jab is Mixamo's Lead Jab, Combo 2 Cross its Cross Punch, Combo 3 Side Kick its Mma Kick (side kick), Crouch Sweep its Front Leg Sweep (held down to her crouch by BodyHeightJob, since Mixamo plays it from a higher stance), Running the running from its Female Locomotion Pack, Crouch Idle its Low Crouching Idle, and Land Idle, Crouch Down and Crouch Up come from its unarmed jump and crouch pack; landing at a run plays the end of Unarmed Jump Running, since Land Run holds an arm out; Dash Ground Pose is Mixamo's Female Locomotion Pose "Sprinting", Dash Air Pose its Male Dynamic Pose "Leaping Forward, Arms Extended Backwards"); the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the Universal Animation Library: her idle, standing jump and hit reaction, and all of Enemy A's clips). Enemy A (Art/EnemyA) is Soheil's Tripo knight, auto-rigged as a humanoid; it waits near the end of the level
     Settings/               Render pipeline assets and volume profiles
   Packages/                 Package manifest
   ProjectSettings/

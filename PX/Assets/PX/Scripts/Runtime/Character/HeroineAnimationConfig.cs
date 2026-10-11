@@ -51,6 +51,9 @@ namespace PX
         [Tooltip("Optional clip per combo step. A step without one (or past the end of the list) uses Attack.")]
         public ClipWindow[] comboAttacks = Array.Empty<ClipWindow>();
 
+        [Tooltip("Her reaction to being hit, played over the stun.")]
+        public ClipWindow hurt;
+
         [Header("Crouch")]
         public ClipWindow crouchDown;
         public AnimationClip crouchIdle;

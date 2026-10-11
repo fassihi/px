@@ -12,7 +12,30 @@ namespace PX.EditorTools
         public const string Folder = "Assets/PX/Art/Heroine";
 
         // Bump when the settings below change, so Unity re-imports the heroine's files.
-        public override uint GetVersion() => 1;
+        public override uint GetVersion() => 2;
+
+        private void OnPreprocessAnimation()
+        {
+            if (!assetPath.StartsWith(Folder) || !assetPath.Contains("/Animations/"))
+                return;
+
+            // Characters are moved by gameplay, so clips play in place and their root motion is dropped. A death is
+            // the exception: the body has to reach the floor, so its root motion is baked into the pose.
+            var importer = (ModelImporter)assetImporter;
+            ModelImporterClipAnimation[] clips = importer.defaultClipAnimations;
+            foreach (ModelImporterClipAnimation clip in clips)
+            {
+                if (!clip.name.Contains("Death"))
+                    continue;
+                clip.lockRootHeightY = true;
+                clip.keepOriginalPositionY = true;
+                clip.lockRootPositionXZ = true;
+                clip.keepOriginalPositionXZ = true;
+                clip.lockRootRotation = true;
+                clip.keepOriginalOrientation = true;
+            }
+            importer.clipAnimations = clips;
+        }
 
         private void OnPreprocessModel()
         {

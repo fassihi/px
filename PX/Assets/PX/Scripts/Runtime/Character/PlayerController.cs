@@ -10,6 +10,7 @@ namespace PX
         Dash,
         Attack,
         Crouch,
+        Hurt,
     }
 
     /// <summary>
@@ -45,6 +46,7 @@ namespace PX
         private float turnTime = float.MaxValue;
         private float landingRecovery;
         private bool swingConnected;
+        private float invulnerable;
 
         /// <summary>Where input comes from. Defaults to an <see cref="IInputSource"/> on the same object.</summary>
         public IInputSource InputSource { get; set; }
@@ -89,6 +91,41 @@ namespace PX
             InputSource ??= GetComponent<IInputSource>();
         }
 
+        private void OnEnable()
+        {
+            if (ownHealth != null)
+                ownHealth.Damaged += OnHurt;
+        }
+
+        private void OnDisable()
+        {
+            if (ownHealth != null)
+                ownHealth.Damaged -= OnHurt;
+        }
+
+        /// <summary>
+        /// A hit staggers her: knocked back along the rail the way the blow travels, a short hop, no control until
+        /// the stun ends, and a moment of invulnerability after. Whatever she was doing is interrupted.
+        /// </summary>
+        private void OnHurt(Hit hit)
+        {
+            Vector3 along = motor.Rail != null ? motor.Rail.Evaluate(motor.Distance).Tangent : Vector3.right;
+            float direction = Mathf.Sign(Vector3.Dot(hit.Direction, along));
+            velocity = new Vector2(direction * hit.Knockback, move.hurtHop);
+            motor.Facing = -(int)direction;
+            motor.TryStand();
+            turnTime = float.MaxValue;
+            invulnerable = move.hurtInvulnerability;
+            ownHealth.Invulnerable = true;
+            // There is no game over yet: at zero health she simply gets it all back.
+            if (ownHealth.IsDead)
+                ownHealth.Restore();
+            EnterState(PlayerState.Hurt);
+        }
+
+        /// <summary>True during the stagger after a hit.</summary>
+        public bool IsHurt => State == PlayerState.Hurt;
+
         private void Update()
         {
             InputFrame input = InputSource != null ? InputSource.Read() : default;
@@ -123,6 +160,9 @@ namespace PX
                 case PlayerState.Crouch:
                     TickCrouch(input, dt);
                     break;
+                case PlayerState.Hurt:
+                    TickHurt(input, dt);
+                    break;
             }
 
             float fallSpeed = -velocity.y;
@@ -141,6 +181,12 @@ namespace PX
             attackBuffer -= dt;
             dashCooldown -= dt;
             landingRecovery -= dt;
+            if (invulnerable > 0f)
+            {
+                invulnerable -= dt;
+                if (invulnerable <= 0f && ownHealth != null)
+                    ownHealth.Invulnerable = false;
+            }
             if (turnTime < float.MaxValue)
                 turnTime += dt;
         }
@@ -203,6 +249,15 @@ namespace PX
         private bool CanAct(float turnCancel)
         {
             return !(IsTurning && turnTime < turnCancel) && landingRecovery <= 0f;
+        }
+
+        private void TickHurt(InputFrame input, float dt)
+        {
+            float rate = motor.IsGrounded ? move.groundDeceleration * 0.5f : move.airDeceleration;
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, rate * dt);
+            ApplyGravity(false, dt);
+            if (stateTime >= move.hurtStun)
+                EnterState(PlayerState.Locomotion);
         }
 
         private void TickCrouch(InputFrame input, float dt)
