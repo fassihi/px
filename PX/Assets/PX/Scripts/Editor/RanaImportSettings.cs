@@ -18,7 +18,7 @@ namespace PX.EditorTools
         public const string BodyPath = Folder + "/Animations/RanaAnimations.fbx";
 
         // Mixamo clips that loop. The rest play once.
-        private static readonly string[] LoopingClips = { "Idle", "Running", "Crouch Idle", "Dash Ground Pose", "Dash Air Pose" };
+        private static readonly string[] LoopingClips = { "Running", "Crouch Idle", "Dash Ground Pose", "Dash Air Pose" };
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
         public override uint GetVersion() => 13;

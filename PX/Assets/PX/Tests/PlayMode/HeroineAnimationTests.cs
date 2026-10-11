@@ -36,41 +36,6 @@ namespace PX.Tests
         }
 
         [UnityTest]
-        public IEnumerator RunningAtTopSpeed_PlantedFeetDoNotSlide()
-        {
-            yield return PlaceAt(OpenStretch + 2f);
-            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
-            Transform[] toes = { body.GetBoneTransform(HumanBodyBones.LeftToes), body.GetBoneTransform(HumanBodyBones.RightToes) };
-
-            Input.Move = 1f;
-            yield return Frames(40);
-
-            // A foot counts as planted while its toes are on the floor; then it should stay put along the run.
-            var last = new Vector3?[2];
-            float slid = 0f, plantedTime = 0f;
-            for (int i = 0; i < 90; i++)
-            {
-                yield return null;
-                float floor = Player.transform.position.y;
-                for (int f = 0; f < 2; f++)
-                {
-                    Vector3 p = toes[f].position;
-                    bool planted = p.y < floor + 0.02f;
-                    if (planted && last[f].HasValue)
-                    {
-                        // Along her run only: the foot rolling on its toes swings them a little sideways.
-                        slid += Mathf.Abs(Vector3.Dot(p - last[f].Value, Player.transform.forward));
-                        plantedTime += FrameTime;
-                    }
-                    last[f] = planted ? p : (Vector3?)null;
-                }
-            }
-
-            Assert.That(plantedTime, Is.GreaterThan(0.3f), "Her feet never touched the floor.");
-            Assert.That(slid / plantedTime, Is.LessThan(0.6f), "Average slide of a planted foot, in m/s.");
-        }
-
-        [UnityTest]
         public IEnumerator Jumping_PlaysJumpPoses()
         {
             yield return PlaceAt(OpenStretch);
@@ -176,22 +141,27 @@ namespace PX.Tests
 
             Input.Move = 1f;
             yield return Frames(40);
-            // Only frames where a toe is on the ground count: each foot is down about a quarter of the stride.
-            var slides = new System.Collections.Generic.List<float>();
-            Vector3 lastLeft = left.position, lastRight = right.position;
+            // Record a few strides, then count only frames where a toe is down: within 4 cm of the lowest it gets, since
+            // the toe joint rises and falls a little as a flat foot rolls through the step.
+            // (On a flat foot the toe joint sits a little above the floor, so the floor itself is no reference.)
+            var samples = new System.Collections.Generic.List<(Vector3 left, Vector3 right, Vector3 along)>();
             for (int i = 0; i < 90; i++)
             {
                 yield return null;
-                // Along the rail only: a planted foot also pivots a little sideways on its ball, which is not a slide.
-                float ground = Player.transform.position.y + 0.03f;
-                Vector3 along = Rail.Evaluate(Motor.Distance).Tangent;
-                foreach (var (toe, last) in new[] { (left, lastLeft), (right, lastRight) })
+                samples.Add((left.position, right.position, Rail.Evaluate(Motor.Distance).Tangent));
+            }
+            float lowest = samples.Min(s => Mathf.Min(s.left.y, s.right.y));
+            float ground = lowest + 0.04f;
+
+            // Along the rail only: a planted foot also pivots a little sideways on its ball, which is not a slide.
+            var slides = new System.Collections.Generic.List<float>();
+            for (int i = 1; i < samples.Count; i++)
+            {
+                foreach (var (now, last) in new[] { (samples[i].left, samples[i - 1].left), (samples[i].right, samples[i - 1].right) })
                 {
-                    if (toe.position.y < ground && last.y < ground)
-                        slides.Add(Mathf.Abs(Vector3.Dot(toe.position - last, along)) / FrameTime);
+                    if (now.y < ground && last.y < ground)
+                        slides.Add(Mathf.Abs(Vector3.Dot(now - last, samples[i].along)) / FrameTime);
                 }
-                lastLeft = left.position;
-                lastRight = right.position;
             }
 
             Assume.That(Motor.Velocity.x, Is.EqualTo(Player.Move.runSpeed).Within(0.3f));

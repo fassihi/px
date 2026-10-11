@@ -323,8 +323,8 @@ namespace PX.EditorTools
             // it is a humanoid rig too, so its clips retarget onto her.
             AnimationClip[] library = RanaViewerBuilder.LoadClips($"{HeroineFolder}/Animations/UAL1_Standard.fbx");
 
-            // Her idle is Mixamo's Female Ninja Idle: a ready stance suits a fighter better than her own relaxed one.
-            config.idle = MixamoClip("Idle");
+            // Her idle is the library's plain standing idle.
+            config.idle = RanaViewerBuilder.FindClip(library, "Idle_Loop");
             // Her run (from Mixamo's Female Locomotion Pack), turn and running jump, retargeted onto her humanoid rig.
             config.run = MixamoClip("Running");
             config.runTurn = MixamoClip("Running Turn 180");

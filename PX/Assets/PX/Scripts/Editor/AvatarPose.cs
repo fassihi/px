@@ -89,7 +89,7 @@ namespace PX.EditorTools
 
                 // Squaring the chest and aiming the shoulders nudge each other, so settle them over a few passes.
                 for (int pass = 0; pass < 8; pass++)
-                    Pose(Bone, path.StartsWith(RanaImportSettings.MixamoFolder) ? MixamoFootPitch : RanaFootPitch);
+                    Pose(Bone, path.StartsWith(RanaImportSettings.MixamoFolder));
 
                 for (int i = 0; i < description.skeleton.Length; i++)
                 {
@@ -119,7 +119,7 @@ namespace PX.EditorTools
             return true;
         }
 
-        private static void Pose(System.Func<string, Transform> bone, float footPitch)
+        private static void Pose(System.Func<string, Transform> bone, bool mixamo)
         {
             Transform hips = bone("Hips"), chest = bone("UpperChest") ?? bone("Chest"), head = bone("Head");
 
@@ -163,9 +163,23 @@ namespace PX.EditorTools
                 if (foot == null || toes == null)
                     continue;
 
-                // Spin the whole leg about its length so the knee and foot point forward.
-                Turn(upper, toes.position - foot.position, Vector3.forward);
-                Aim(foot, toes, Quaternion.AngleAxis(footPitch, Vector3.right) * Vector3.forward);
+                if (mixamo)
+                {
+                    // A Mixamo clip has no bind pose, so its reference is the first frame, with the ankle turned
+                    // however the clip starts. Squaring the leg by where the foot points then gave every clip its own
+                    // knee direction, and feet came out twisted. The rig itself says how the leg bends: thigh, shin and
+                    // a flat foot all face along their local +z. Square each by that.
+                    Roll(upper, lower, Vector3.forward, Vector3.forward);
+                    Roll(lower, foot, Vector3.forward, Vector3.forward);
+                    Aim(foot, toes, Quaternion.AngleAxis(MixamoFootPitch, Vector3.right) * Vector3.forward);
+                    Roll(foot, toes, Vector3.forward, Vector3.up);
+                }
+                else
+                {
+                    // Rana's reference is her bind pose: spin the whole leg about its length so the foot points forward.
+                    Turn(upper, toes.position - foot.position, Vector3.forward);
+                    Aim(foot, toes, Quaternion.AngleAxis(RanaFootPitch, Vector3.right) * Vector3.forward);
+                }
                 if (toes.childCount > 0)
                     Aim(toes, toes.GetChild(0), Vector3.forward);
             }
@@ -208,6 +222,22 @@ namespace PX.EditorTools
             if (bone == null || flat == Vector3.zero)
                 return;
             bone.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(flat, to, Vector3.up), Vector3.up) * bone.rotation;
+        }
+
+        /// <summary>
+        /// Spins <paramref name="bone"/> about its own length (towards <paramref name="child"/>) so that its local
+        /// <paramref name="localAxis"/> points as nearly as it can along <paramref name="worldTarget"/>.
+        /// </summary>
+        private static void Roll(Transform bone, Transform child, Vector3 localAxis, Vector3 worldTarget)
+        {
+            if (bone == null || child == null)
+                return;
+            Vector3 length = (child.position - bone.position).normalized;
+            Vector3 current = Vector3.ProjectOnPlane(bone.TransformDirection(localAxis), length);
+            Vector3 target = Vector3.ProjectOnPlane(worldTarget, length);
+            if (current.sqrMagnitude < 1e-6f || target.sqrMagnitude < 1e-6f)
+                return;
+            bone.rotation = Quaternion.AngleAxis(Vector3.SignedAngle(current, target, length), length) * bone.rotation;
         }
 
         private static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z).normalized;

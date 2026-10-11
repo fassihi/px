@@ -166,6 +166,13 @@ namespace PX.Tests
             Input.Move = 0f;
             yield return Frames(40);
 
+            Input.PressJump();
+            yield return Frames(12);
+            Input.PressDash();
+            yield return Frames(4);
+            yield return CaptureCloseUp(folder, "air-dash");
+            yield return Frames(60);
+
             Input.CrouchHeld = true;
             yield return Frames(40);
             yield return CaptureCloseUp(folder, "crouch");
@@ -198,12 +205,24 @@ namespace PX.Tests
         private IEnumerator CaptureCloseUp(string folder, string name)
         {
             yield return null;
-            Vector3 side = Rail.Evaluate(Motor.Distance).Side;
+            // Two views side by side: from the side, as the game shows her, and from the front three-quarter, where
+            // a foot or knee turned the wrong way shows.
+            RailPoint point = Rail.Evaluate(Motor.Distance);
             Vector3 center = Player.transform.position + Vector3.up * 0.8f;
+            Vector3 front = (point.Tangent * Motor.Facing * 0.8f + point.Side * 0.6f).normalized;
+            var image = new Texture2D(1440, 720, TextureFormat.RGB24, false);
+            RenderView(image, 0, center, point.Side);
+            RenderView(image, 720, center, front);
+            File.WriteAllBytes(Path.Combine(folder, name + ".png"), image.EncodeToPNG());
+            Object.Destroy(image);
+        }
+
+        private static void RenderView(Texture2D image, int x, Vector3 center, Vector3 direction)
+        {
             var go = new GameObject("CloseUpCamera");
             var camera = go.AddComponent<Camera>();
             camera.fieldOfView = 35f;
-            go.transform.position = center + side * 3.6f + Vector3.up * 0.3f;
+            go.transform.position = center + direction * 3.6f + Vector3.up * 0.3f;
             go.transform.LookAt(center);
 
             var target = new RenderTexture(720, 720, 24);
@@ -211,12 +230,9 @@ namespace PX.Tests
             camera.Render();
             RenderTexture previous = RenderTexture.active;
             RenderTexture.active = target;
-            var image = new Texture2D(target.width, target.height, TextureFormat.RGB24, false);
-            image.ReadPixels(new Rect(0, 0, target.width, target.height), 0, 0);
+            image.ReadPixels(new Rect(0, 0, target.width, target.height), x, 0);
             image.Apply();
             RenderTexture.active = previous;
-            File.WriteAllBytes(Path.Combine(folder, name + ".png"), image.EncodeToPNG());
-            Object.Destroy(image);
             camera.targetTexture = null;
             target.Release();
             Object.Destroy(target);
