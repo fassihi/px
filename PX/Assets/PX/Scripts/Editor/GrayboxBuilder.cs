@@ -422,17 +422,19 @@ namespace PX.EditorTools
         // ------------------------------------------------------------ enemies
 
         /// <summary>
-        /// Enemy A is a Tripo knight, rigged as a humanoid like Rana. Its clips come from the Universal Animation
-        /// Library: a sword idle, a walk, a sword swing, a hit to the chest and a death.
+        /// Enemy A is a Tripo knight, rigged as a humanoid like Rana. Its clips are Mixamo's Great Sword set: idle,
+        /// walk, downward slash, unblocked impact, and the two-handed sword death falling back.
         /// </summary>
         private static void FillEnemyA(EnemyConfig config)
         {
-            AnimationClip[] library = RanaViewerBuilder.LoadClips($"{HeroineFolder}/Animations/UAL1_Standard.fbx");
-            config.idle = RanaViewerBuilder.FindClip(library, "Sword_Idle");
-            config.walk = RanaViewerBuilder.FindClip(library, "Walk_Loop");
-            config.attackClip = new ClipWindow { clip = RanaViewerBuilder.FindClip(library, "Sword_Attack"), from = 0.1f, impact = 0.62f, to = 1.3f };
-            config.hurt = new ClipWindow { clip = RanaViewerBuilder.FindClip(library, "Hit_Chest") };
-            config.death = RanaViewerBuilder.FindClip(library, "Death01");
+            AnimationClip Clip(string name) => RanaViewerBuilder.FindClip(
+                RanaViewerBuilder.LoadClips($"{EnemyImportSettings.EnemyAMixamoFolder}/{name}.fbx"), name);
+            config.idle = Clip("Idle");
+            config.walk = Clip("Walk");
+            // The chop is furthest out 0.64 s into the clip; that is lined up with the live hitbox (EnemyTests checks it).
+            config.attackClip = new ClipWindow { clip = Clip("Attack"), impact = 0.64f };
+            config.hurt = new ClipWindow { clip = Clip("Hit") };
+            config.death = Clip("Death");
         }
 
         private static GameObject CreateEnemyA(EnemyConfig config)

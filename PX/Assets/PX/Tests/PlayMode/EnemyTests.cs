@@ -141,7 +141,7 @@ namespace PX.Tests
 
             AttackStep step = enemy.Config.attack;
             Assert.That(at, Is.GreaterThanOrEqualTo(0f), "it never swung");
-            Assert.That(at, Is.InRange(step.startup - 0.1f, step.ActiveEnd + 0.1f),
+            Assert.That(at, Is.InRange(step.startup - 0.06f, step.ActiveEnd + 0.06f),
                 $"Its hand is furthest out {at:0.00} s into the swing; the hitbox is live from {step.startup:0.00} to {step.ActiveEnd:0.00} s.");
         }
     }

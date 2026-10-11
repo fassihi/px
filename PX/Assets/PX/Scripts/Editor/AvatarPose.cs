@@ -49,6 +49,11 @@ namespace PX.EditorTools
                 yield break;
             foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { RanaImportSettings.MixamoFolder }))
                 yield return AssetDatabase.GUIDToAssetPath(guid);
+            if (AssetDatabase.IsValidFolder(EnemyImportSettings.EnemyAMixamoFolder))
+            {
+                foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { EnemyImportSettings.EnemyAMixamoFolder }))
+                    yield return AssetDatabase.GUIDToAssetPath(guid);
+            }
         }
 
         [MenuItem("PX/Rana/Straighten Avatar Poses")]
@@ -90,7 +95,7 @@ namespace PX.EditorTools
 
                 // Squaring the chest and aiming the shoulders nudge each other, so settle them over a few passes.
                 for (int pass = 0; pass < 8; pass++)
-                    Pose(Bone, path.StartsWith(RanaImportSettings.MixamoFolder));
+                    Pose(Bone, path.Contains("/Mixamo/"));
 
                 for (int i = 0; i < description.skeleton.Length; i++)
                 {

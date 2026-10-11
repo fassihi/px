@@ -13,8 +13,14 @@ namespace PX.EditorTools
         public const string EnemyABodyPath = EnemyAFolder + "/EnemyA.fbx";
         public const string EnemyATexturePath = EnemyAFolder + "/Textures/EnemyA_BaseColor.jpg";
 
+        // Enemy A's clips, downloaded from Mixamo as FBX without skin at 30 fps and named for their use.
+        public const string EnemyAMixamoFolder = EnemyAFolder + "/Animations/Mixamo";
+
+        // Clips that loop. The rest play once.
+        private static readonly string[] LoopingClips = { "Idle", "Walk" };
+
         // Bump when the settings below change, so Unity re-imports the enemies' files.
-        public override uint GetVersion() => 5;
+        public override uint GetVersion() => 6;
 
         private void OnPreprocessModel()
         {
@@ -24,13 +30,39 @@ namespace PX.EditorTools
             var importer = (ModelImporter)assetImporter;
             importer.animationType = ModelImporterAnimationType.Human;
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
-            importer.importAnimation = false;
+            importer.importAnimation = assetPath.StartsWith(EnemyAMixamoFolder);
             importer.materialImportMode = ModelImporterMaterialImportMode.None;
+        }
+
+        private void OnPreprocessAnimation()
+        {
+            if (!assetPath.StartsWith(EnemyAMixamoFolder))
+                return;
+            var importer = (ModelImporter)assetImporter;
+            ModelImporterClipAnimation[] clips = importer.defaultClipAnimations;
+            if (clips.Length != 1)
+                return;
+
+            // As for Rana's Mixamo clips: named after the file, played in place (the game moves it), with the height
+            // baked in so a fall reaches the floor. A swing keeps the facing it was made with. A death keeps its
+            // travel too, so the body falls back rather than in place.
+            string name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+            bool death = name == "Death";
+            ModelImporterClipAnimation clip = clips[0];
+            clip.name = name;
+            clip.loopTime = System.Array.IndexOf(LoopingClips, name) >= 0;
+            clip.lockRootPositionXZ = death;
+            clip.keepOriginalPositionXZ = death;
+            clip.lockRootHeightY = true;
+            clip.keepOriginalPositionY = true;
+            clip.lockRootRotation = name == "Attack" || death;
+            clip.keepOriginalOrientation = name == "Attack" || death;
+            importer.clipAnimations = clips;
         }
 
         private void OnPostprocessModel(GameObject model)
         {
-            if (!assetPath.StartsWith(EnemyAFolder))
+            if (assetPath != EnemyABodyPath)
                 return;
 
             // The knight's coat, straps and tassels are skinned to its arms by the auto-rig; hang them from the torso instead.
