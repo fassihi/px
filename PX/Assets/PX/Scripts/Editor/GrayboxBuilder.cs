@@ -555,8 +555,15 @@ namespace PX.EditorTools
             {
                 name = "Into depth: behind her, looking down the rail",
                 from = 82f,
-                to = rail.Length,
+                to = EnemyADistance - 10f,
                 view = new CameraView { yaw = 72f, pitch = 18f, distance = 11f, fieldOfView = 50f, focusHeight = 1.6f, lookAhead = 3f },
+            });
+            railCamera.Zones.Add(new CameraZone
+            {
+                name = "Enemy A: back to the side view for the fight",
+                from = EnemyADistance - 10f,
+                to = rail.Length,
+                view = new CameraView { yaw = 0f, pitch = 5f, distance = 14f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1.5f },
             });
 
             railCamera.Snap();

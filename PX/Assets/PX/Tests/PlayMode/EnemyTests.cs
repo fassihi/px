@@ -24,6 +24,19 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator ReachingTheEnemy_TheCameraTurnsBackToASideView()
+        {
+            EnemyController enemy = Enemy;
+            yield return PlaceAt(enemy.Motor.Distance - 20f);
+            yield return Frames(90);
+            Assume.That(RailCamera.CurrentView.yaw, Is.GreaterThan(45f), "before the fight it looks down the rail");
+
+            yield return PlaceAt(enemy.Motor.Distance - 6f);
+            yield return Frames(120);
+            Assert.That(RailCamera.CurrentView.yaw, Is.EqualTo(0f).Within(3f), "the fight is seen from the side");
+        }
+
+        [UnityTest]
         public IEnumerator WhenSheComesNear_ItWalksToHer()
         {
             EnemyController enemy = Enemy;

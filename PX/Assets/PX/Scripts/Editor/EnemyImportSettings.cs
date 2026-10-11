@@ -1,4 +1,5 @@
 using UnityEditor;
+using UnityEngine;
 
 namespace PX.EditorTools
 {
@@ -13,7 +14,7 @@ namespace PX.EditorTools
         public const string EnemyATexturePath = EnemyAFolder + "/Textures/EnemyA_BaseColor.jpg";
 
         // Bump when the settings below change, so Unity re-imports the enemies' files.
-        public override uint GetVersion() => 1;
+        public override uint GetVersion() => 5;
 
         private void OnPreprocessModel()
         {
@@ -25,6 +26,16 @@ namespace PX.EditorTools
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             importer.importAnimation = false;
             importer.materialImportMode = ModelImporterMaterialImportMode.None;
+        }
+
+        private void OnPostprocessModel(GameObject model)
+        {
+            if (!assetPath.StartsWith(EnemyAFolder))
+                return;
+
+            // The knight's coat, straps and tassels are skinned to its arms by the auto-rig; hang them from the torso instead.
+            int moved = CoatWeights.Fix(model);
+            Debug.Log($"{System.IO.Path.GetFileName(assetPath)}: moved {moved} cloth vertices from the arms to the torso.");
         }
 
         private void OnPreprocessTexture()
