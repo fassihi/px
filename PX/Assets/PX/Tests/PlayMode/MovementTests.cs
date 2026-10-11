@@ -11,6 +11,93 @@ namespace PX.Tests
         private const float OpenStretch = 80f;
 
         [UnityTest]
+        public IEnumerator ReversingAtSpeed_CommitsToASkidTurn_AndTurningBackWaitsUntilItEnds()
+        {
+            yield return PlaceAt(OpenStretch);
+            Input.Move = 1f;
+            yield return Frames(30);
+
+            Input.Move = -1f;
+            yield return Frames(2);
+            Assert.That(Player.IsTurning, Is.True, "reversing at a run is a skid turn");
+            Assert.That(Motor.Facing, Is.EqualTo(-1));
+
+            // Pushing back the first way during the turn does nothing yet...
+            Input.Move = 1f;
+            yield return Frames(5);
+            Assert.That(Motor.Facing, Is.EqualTo(-1), "she cannot turn back mid-turn");
+
+            // ...and is carried out once the turn ends.
+            yield return Frames(Mathf.CeilToInt(Player.Move.turnDuration / FrameTime));
+            Assert.That(Motor.Facing, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator AJumpPressedAtTheStartOfATurn_IsBuffered_UntilTheTurnCanBeCancelled()
+        {
+            yield return PlaceAt(OpenStretch);
+            Input.Move = 1f;
+            yield return Frames(30);
+            Input.Move = -1f;
+            yield return Frames(1);
+            Assume.That(Player.IsTurning, Is.True);
+
+            Input.PressJump();
+            float pressedAt = Player.TurnTime;
+            float jumpedAt = -1f;
+            for (int i = 0; i < 30 && jumpedAt < 0f; i++)
+            {
+                float turnTime = Player.TurnTime;
+                yield return null;
+                if (Motor.Velocity.y > Player.Move.JumpVelocity * 0.5f)
+                    jumpedAt = turnTime;
+            }
+
+            Assert.That(jumpedAt, Is.GreaterThanOrEqualTo(Player.Move.turnJumpCancel - FrameTime * 1.5f), "the jump waited for the cancel window");
+            Assert.That(jumpedAt - pressedAt, Is.LessThan(Player.Move.jumpBufferTime + FrameTime), "and was not dropped");
+        }
+
+        [UnityTest]
+        public IEnumerator AHardLanding_CostsSpeed_AndADashPressedOnTouchdownComesAfterTheRecovery()
+        {
+            yield return PlaceAt(OpenStretch);
+            Input.Move = 1f;
+            yield return Frames(20);
+            Input.PressJump();
+            yield return Frames(5);
+            for (int i = 0; i < 150 && !Motor.IsGrounded; i++)
+                yield return null;
+
+            Assert.That(Player.IsRecoveringFromLanding, Is.True, "a full jump lands hard");
+            yield return null;
+            Assert.That(Mathf.Abs(Motor.Velocity.x), Is.LessThan(Player.Move.runSpeed * 0.8f), "and loses speed to it");
+
+            Input.PressDash();
+            yield return null;
+            Assert.That(Player.State, Is.Not.EqualTo(PlayerState.Dash), "no dash during the recovery");
+            yield return Frames(Mathf.CeilToInt(Player.Move.hardLandingRecovery / FrameTime) + 1);
+            Assert.That(Player.State, Is.EqualTo(PlayerState.Dash), "the buffered dash comes out after it");
+        }
+
+        [UnityTest]
+        public IEnumerator AJumpDuringADash_CutsItShort_OnlyLateInTheDash()
+        {
+            yield return PlaceAt(OpenStretch);
+            Input.PressDash();
+            yield return Frames(2);
+            Assume.That(Player.State, Is.EqualTo(PlayerState.Dash));
+
+            Input.PressJump();
+            yield return Frames(2);
+            Assert.That(Player.State, Is.EqualTo(PlayerState.Dash), "too early to cancel");
+
+            yield return Frames(Mathf.CeilToInt(Player.Move.dashJumpCancel / FrameTime));
+            Assert.That(Player.State, Is.EqualTo(PlayerState.Locomotion));
+            Assert.That(Motor.Velocity.y, Is.GreaterThan(0f), "the buffered jump cut the dash short");
+            Assert.That(Player.StateTime + Player.Move.dashJumpCancel, Is.LessThan(Player.Move.dashDuration + 0.1f));
+        }
+
+        [UnityTest]
         public IEnumerator AFullJump_LandsHard_AndShakesTheCamera_ButAHopDoesNot()
         {
             yield return PlaceAt(OpenStretch);

@@ -44,6 +44,7 @@ namespace PX.EditorTools
             public Material PlayerAccent;
             public Material Dummy;
             public Material Slash;
+            public Material HitSpark;
         }
 
         [MenuItem("PX/Graybox/Rebuild Scene")]
@@ -264,7 +265,54 @@ namespace PX.EditorTools
             Wire(heroineAnimator, "motor", root.GetComponent<CharacterMotor>());
             Wire(heroineAnimator, "animator", animator);
             Wire(heroineAnimator, "config", animation);
+
+            var sparks = root.AddComponent<HitSparks>();
+            Wire(sparks, "player", player);
+            Wire(sparks, "sparks", CreateHitSparks(root.transform, palette));
             return root;
+        }
+
+        /// <summary>
+        /// The burst of sparks where a blow lands. Short streaks thrown forward in a cone, on real time so they still
+        /// fly during hit-stop. Emitted by <see cref="HitSparks"/>, never played on its own.
+        /// </summary>
+        private static ParticleSystem CreateHitSparks(Transform parent, Palette palette)
+        {
+            var go = new GameObject("HitSparks");
+            go.transform.SetParent(parent, false);
+            var system = go.AddComponent<ParticleSystem>();
+            system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            ParticleSystem.MainModule main = system.main;
+            main.playOnAwake = false;
+            main.loop = false;
+            main.useUnscaledTime = true;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.12f, 0.28f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(6f, 14f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.07f);
+            main.gravityModifier = 1.5f;
+            main.maxParticles = 200;
+
+            ParticleSystem.EmissionModule emission = system.emission;
+            emission.rateOverTime = 0f;
+
+            ParticleSystem.ShapeModule shape = system.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 40f;
+            shape.radius = 0.05f;
+
+            ParticleSystem.SizeOverLifetimeModule size = system.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 0f));
+
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = 0.04f;
+            renderer.lengthScale = 2f;
+            renderer.sharedMaterial = palette.HitSpark;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return system;
         }
 
         // ------------------------------------------------------------ heroine
@@ -474,6 +522,7 @@ namespace PX.EditorTools
                 PlayerAccent = LoadOrCreateMaterial("PlayerAccent", new Color(0.95f, 0.75f, 0.2f), lit: true),
                 Dummy = LoadOrCreateMaterial("Dummy", new Color(0.72f, 0.33f, 0.2f), lit: true),
                 Slash = LoadOrCreateMaterial("Slash", new Color(1f, 0.87f, 0.45f, 0.4f), lit: false),
+                HitSpark = LoadOrCreateMaterial("HitSpark", new Color(1f, 0.85f, 0.4f), lit: false),
             };
         }
 
@@ -519,19 +568,19 @@ namespace PX.EditorTools
                 new AttackStep
                 {
                     startup = 0.06f, active = 0.08f, recovery = 0.22f, cancelDelay = 0.04f,
-                    damage = 10f, lunge = 3f, hitStop = 0.07f, shake = 0.04f,
+                    damage = 10f, lunge = 3f, hitStop = 0.08f, shake = 0.06f, knockback = 2.5f,
                     hitboxCenter = new Vector2(1.1f, 1f), hitboxSize = new Vector2(1.8f, 1.4f),
                 },
                 new AttackStep
                 {
                     startup = 0.07f, active = 0.08f, recovery = 0.24f, cancelDelay = 0.05f,
-                    damage = 12f, lunge = 3.5f, hitStop = 0.07f, shake = 0.05f,
+                    damage = 12f, lunge = 3.5f, hitStop = 0.09f, shake = 0.07f, knockback = 3f,
                     hitboxCenter = new Vector2(1.2f, 1.1f), hitboxSize = new Vector2(2f, 1.6f),
                 },
                 new AttackStep
                 {
                     startup = 0.12f, active = 0.1f, recovery = 0.38f, cancelDelay = 0.14f,
-                    damage = 22f, lunge = 2.5f, hitStop = 0.13f, shake = 0.12f,
+                    damage = 22f, lunge = 2.5f, hitStop = 0.16f, shake = 0.16f, knockback = 7f,
                     hitboxCenter = new Vector2(1.4f, 1.1f), hitboxSize = new Vector2(2.6f, 2f),
                 },
             };

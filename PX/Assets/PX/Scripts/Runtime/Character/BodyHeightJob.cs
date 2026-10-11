@@ -5,8 +5,9 @@ using UnityEngine.Animations;
 namespace PX
 {
     /// <summary>
-    /// Holds her body down to a ceiling while keeping her feet where the clip put them: the legs bend to make up the
-    /// difference. Used so a move made from a higher stance, like a Mixamo sweep, still plays from her crouch.
+    /// Lowers her body while keeping her feet where the clip put them: the legs bend to make up the difference.
+    /// It holds her down to a ceiling, so a move made from a higher stance, like a Mixamo sweep, still plays from her
+    /// crouch, and it adds a dip on top of any pose, as for a landing: an additive layer done procedurally.
     /// Runs on the pose after the mixer. Heights are in the stream's own body space, so the ceiling is measured
     /// from a pose (see <see cref="measure"/>) rather than given in metres.
     /// </summary>
@@ -17,6 +18,9 @@ namespace PX
 
         /// <summary>The highest the body may be.</summary>
         public float ceiling;
+
+        /// <summary>How far to lower the body regardless of the ceiling, as for a landing. Stream units.</summary>
+        public float dip;
 
         /// <summary>When true, the job writes this frame's body height to <see cref="measured"/> and changes nothing.</summary>
         public bool measure;
@@ -40,7 +44,7 @@ namespace PX
                 return;
             }
 
-            float drop = (body.y - ceiling) * Mathf.Clamp01(weight);
+            float drop = Mathf.Max((body.y - ceiling) * Mathf.Clamp01(weight), dip);
             if (drop <= 0f)
                 return;
 

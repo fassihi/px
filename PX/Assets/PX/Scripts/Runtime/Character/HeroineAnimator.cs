@@ -49,6 +49,7 @@ namespace PX
         private readonly AnimationClipPlayable[] playables = new AnimationClipPlayable[PoseCount];
         private readonly AnimationClip[] clips = new AnimationClip[PoseCount];
         private readonly float[] weights = new float[PoseCount];
+        private readonly float[] applied = new float[PoseCount];
         private readonly double[] times = new double[PoseCount];
 
         private float airTime;
@@ -57,8 +58,6 @@ namespace PX
         private PlayerState lastState;
         private int lastComboIndex;
         private bool lastCrouchAttack;
-        private int lastFacing;
-        private float lastSpeed;
         private float lastVelocityY;
         private bool runningJump;
         private bool airDash;
@@ -67,6 +66,9 @@ namespace PX
         private HeroinePose? landing;
         private ClipWindow attackWindow;
         private Quaternion modelRotation;
+        private float standingBody;
+        private float landDipTime = float.MaxValue;
+        private float landDipStrength;
 
         public HeroinePose CurrentPose { get; private set; }
 
@@ -97,7 +99,6 @@ namespace PX
             clips[(int)HeroinePose.CrouchUp] = config.crouchUp.clip;
             clips[(int)HeroinePose.CrouchAttack] = config.crouchAttack.clip;
             modelRotation = animator.transform.localRotation;
-            lastFacing = motor != null ? motor.Facing : 1;
 
             graph = PlayableGraph.Create("Heroine");
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
@@ -123,7 +124,7 @@ namespace PX
 
             CurrentPose = HeroinePose.Idle;
             weights[(int)HeroinePose.Idle] = 1f;
-            MeasureCrouch();
+            MeasureBody();
             mixer.SetInputWeight((int)HeroinePose.Idle, 1f);
         }
 
@@ -138,19 +139,65 @@ namespace PX
         /// <summary>The highest her body may be during the sweep, in the animation stream's body space.</summary>
         public float CrouchAttackCeiling { get; private set; } = float.MaxValue;
 
-        /// <summary>Poses her in the crouch idle once, to learn how high her body is there.</summary>
-        private void MeasureCrouch()
+        /// <summary>How far her body is lowered by the landing dip right now, in the stream's body space.</summary>
+        public float LandDip { get; private set; }
+
+        /// <summary>
+        /// Poses her once standing and once in the crouch idle, to learn how high her body is in each: the landing dip
+        /// is a share of the first, and the sweep's ceiling is just above the second.
+        /// </summary>
+        private void MeasureBody()
         {
-            const int slot = (int)HeroinePose.CrouchIdle;
+            standingBody = MeasureBodyIn(HeroinePose.Idle);
+            float crouched = MeasureBodyIn(HeroinePose.CrouchIdle);
+            if (crouched > 0f)
+                CrouchAttackCeiling = crouched * (1f + config.crouchAttackRise);
+            bodyCap.SetJobData(new BodyHeightJob { ceiling = CrouchAttackCeiling, measured = measuredBody });
+        }
+
+        private float MeasureBodyIn(HeroinePose pose)
+        {
+            int slot = (int)pose;
             if (clips[slot] == null)
-                return;
+                return 0f;
 
             mixer.SetInputWeight(slot, 1f);
             bodyCap.SetJobData(new BodyHeightJob { measure = true, measured = measuredBody });
             graph.Evaluate(0f);
             mixer.SetInputWeight(slot, 0f);
-            CrouchAttackCeiling = measuredBody[0] * (1f + config.crouchAttackRise);
-            bodyCap.SetJobData(new BodyHeightJob { ceiling = CrouchAttackCeiling, measured = measuredBody });
+            return measuredBody[0];
+        }
+
+        /// <summary>
+        /// The landing dip, added on top of whatever she plays: a quick sink and a slower rise, as deep as the landing
+        /// was hard. It is what makes a landing that runs straight on read as a landing.
+        /// </summary>
+        private float DipAt(float t)
+        {
+            if (t >= config.landDipDown + config.landDipUp)
+                return 0f;
+            float shape = t < config.landDipDown
+                ? Mathf.SmoothStep(0f, 1f, t / config.landDipDown)
+                : 1f - Mathf.SmoothStep(0f, 1f, (t - config.landDipDown) / config.landDipUp);
+            return shape * landDipStrength * config.landDip * standingBody;
+        }
+
+        private float FadeTimeInto(HeroinePose pose)
+        {
+            switch (pose)
+            {
+                case HeroinePose.Dash:
+                case HeroinePose.AirDash:
+                    return config.dashFadeTime;
+                case HeroinePose.Attack:
+                case HeroinePose.CrouchAttack:
+                    return config.attackFadeTime;
+                case HeroinePose.LandRun:
+                case HeroinePose.LandIdle:
+                    return config.landFadeTime;
+                default:
+                    return config.fadeTime;
+            }
         }
 
         private void LateUpdate()
@@ -187,19 +234,28 @@ namespace PX
             lastState = player.State;
             lastComboIndex = player.ComboIndex;
             lastCrouchAttack = player.IsCrouchAttack;
-            lastFacing = motor.Facing;
-            lastSpeed = Mathf.Abs(motor.Velocity.x);
             lastVelocityY = motor.Velocity.y;
 
-            float fadeTime = IsDash(pose) ? config.dashFadeTime : config.fadeTime;
+            // Cross-fade: each weight moves linearly, and is eased on the way into the mixer, so blends start and
+            // end softly instead of with a kink. Weights are normalised so the pose never loses or gains strength.
+            float fadeTime = FadeTimeInto(pose);
             float fade = fadeTime > 0f ? dt / fadeTime : 1f;
+            float total = 0f;
+            for (int i = 0; i < PoseCount; i++)
+            {
+                if (clips[i] == null)
+                    continue;
+                weights[i] = Mathf.MoveTowards(weights[i], i == (int)pose ? 1f : 0f, cut ? 1f : fade);
+                applied[i] = Mathf.SmoothStep(0f, 1f, weights[i]);
+                total += applied[i];
+            }
+
             for (int i = 0; i < PoseCount; i++)
             {
                 if (clips[i] == null)
                     continue;
 
-                weights[i] = Mathf.MoveTowards(weights[i], i == (int)pose ? 1f : 0f, cut ? 1f : fade);
-                mixer.SetInputWeight(i, weights[i]);
+                mixer.SetInputWeight(i, total > 0f ? applied[i] / total : 0f);
 
                 if (weights[i] <= 0f && i != (int)pose)
                     continue;
@@ -221,9 +277,12 @@ namespace PX
                 playables[i].SetTime(times[i]);
             }
 
+            landDipTime += dt;
+            LandDip = DipAt(landDipTime);
             bodyCap.SetJobData(new BodyHeightJob
             {
-                weight = weights[(int)HeroinePose.CrouchAttack], ceiling = CrouchAttackCeiling, measured = measuredBody,
+                weight = weights[(int)HeroinePose.CrouchAttack], ceiling = CrouchAttackCeiling, dip = LandDip,
+                measured = measuredBody,
             });
         }
 
@@ -292,6 +351,12 @@ namespace PX
 
             bool landed = airTime >= config.landMinAirTime;
             airTime = 0f;
+            if (landed)
+            {
+                Vector2 range = config.landDipSpeedRange;
+                landDipStrength = Mathf.Clamp01((-lastVelocityY - range.x) / Mathf.Max(0.01f, range.y - range.x));
+                landDipTime = 0f;
+            }
             if (Turning())
             {
                 landing = null;
@@ -327,15 +392,10 @@ namespace PX
             return moving ? HeroinePose.Run : HeroinePose.Idle;
         }
 
-        /// <summary>Starts the turn when she reverses at speed, and keeps it until the clip ends or she turns back.</summary>
+        /// <summary>The turn plays while the controller is in a skid turn; gameplay decides when one starts and ends.</summary>
         private bool Turning()
         {
-            AnimationClip clip = clips[(int)HeroinePose.Turn];
-            if (clip == null || motor.Facing != lastFacing && CurrentPose == HeroinePose.Turn)
-                return false;
-            if (motor.Facing != lastFacing)
-                return lastSpeed >= config.turnMinSpeed;
-            return CurrentPose == HeroinePose.Turn && times[(int)HeroinePose.Turn] < clip.length;
+            return clips[(int)HeroinePose.Turn] != null && player.IsTurning;
         }
 
         private ClipWindow AttackWindowFor(int comboIndex)
@@ -438,7 +498,7 @@ namespace PX
                 case HeroinePose.AirDash:
                     return config.stretchDashToDuration ? StretchTo(clip, player.Move.dashDuration) : config.dashClipSpeed;
                 case HeroinePose.Turn:
-                    return StretchTo(clip, config.turnDuration);
+                    return StretchTo(clip, player.Move.turnDuration);
                 default:
                     return 1f;
             }

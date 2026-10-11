@@ -89,13 +89,6 @@ namespace PX
         [Tooltip("Seconds to blend into the dash pose. Shorter than Fade Time, so the pose shows in a dash this short.")]
         [Min(0f)] public float dashFadeTime = 0.04f;
 
-        [Header("Run turn")]
-        [Tooltip("She plays the turn when she reverses from at least this ground speed, in m/s.")]
-        [Min(0f)] public float turnMinSpeed = 3f;
-
-        [Tooltip("Seconds the turn takes. The clip is sped up or slowed down to fit.")]
-        [Min(0.05f)] public float turnDuration = 0.35f;
-
         [Header("Running jump")]
         [Tooltip("A jump taken at least this fast, in m/s, uses Run Jump.")]
         [Min(0f)] public float runJumpMinSpeed = 3f;
@@ -107,8 +100,26 @@ namespace PX
         [Min(0f)] public float runJumpLanding = 1.0f;
 
         [Header("Blending")]
-        [Tooltip("Seconds to cross-fade between poses.")]
-        public float fadeTime = 0.1f;
+        [Tooltip("Seconds to cross-fade between poses. Weights ease in and out, so a fade starts and ends softly.")]
+        public float fadeTime = 0.12f;
+
+        [Tooltip("Seconds to blend into a strike. Short, so the wind-up shows.")]
+        [Min(0f)] public float attackFadeTime = 0.05f;
+
+        [Tooltip("Seconds to blend into a landing. Short, so the touchdown reads as a contact.")]
+        [Min(0f)] public float landFadeTime = 0.06f;
+
+        [Header("Landing dip")]
+        [Tooltip("How far her body drops on a landing, added on top of whatever she is playing, as a fraction of her " +
+                 "standing body height. Her feet stay planted, so her knees take it.")]
+        [Range(0f, 0.5f)] public float landDip = 0.14f;
+
+        [Tooltip("Landing speed in m/s below which she does not dip, and at which the dip is full.")]
+        public Vector2 landDipSpeedRange = new Vector2(4f, 15f);
+
+        [Tooltip("Seconds to sink into the dip, and to rise back out of it.")]
+        [Min(0.01f)] public float landDipDown = 0.06f;
+        [Min(0.01f)] public float landDipUp = 0.3f;
 
         [Tooltip("Ground speed in m/s at which the run clip plays at normal speed: how fast her planted foot sweeps " +
                  "backwards in it. 3.1 for the Mixamo Running clip (Female Locomotion Pack) at her size. Measure again when the run clip or her " +

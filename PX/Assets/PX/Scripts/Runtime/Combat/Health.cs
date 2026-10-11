@@ -12,11 +12,15 @@ namespace PX
         public readonly Vector3 Direction;
         public readonly GameObject Source;
 
-        public Hit(float damage, Vector3 direction, GameObject source)
+        /// <summary>How hard the blow pushes the target along <see cref="Direction"/>, in m/s.</summary>
+        public readonly float Knockback;
+
+        public Hit(float damage, Vector3 direction, GameObject source, float knockback = 0f)
         {
             Damage = damage;
             Direction = direction;
             Source = source;
+            Knockback = knockback;
         }
     }
 

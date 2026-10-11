@@ -57,6 +57,65 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheNextStrike_ComesEarlierOnAHit_ThanOnAWhiff()
+        {
+            // On a whiff the next strike waits for the cancel point; on a hit it can follow as soon as the hitbox closes.
+            AttackStep first = Player.Combo.steps[0];
+            yield return PlaceAt(85f);
+            float whiff = 0f;
+            yield return MashUntilSecondStrike(t => whiff = t);
+
+            yield return PlaceAt(60.6f);
+            float hit = 0f;
+            yield return MashUntilSecondStrike(t => hit = t);
+
+            Assert.That(whiff, Is.GreaterThanOrEqualTo(first.CancelFrom - 0.001f));
+            Assert.That(hit, Is.LessThan(first.CancelFrom - 0.001f));
+            Assert.That(hit, Is.GreaterThanOrEqualTo(first.ActiveEnd - 0.001f));
+        }
+
+        private IEnumerator MashUntilSecondStrike(System.Action<float> startedAt)
+        {
+            float last = 0f;
+            for (int i = 0; i < 60; i++)
+            {
+                Input.PressAttack();
+                if (Player.State == PlayerState.Attack && Player.ComboIndex == 0)
+                    last = Player.StateTime;
+                yield return null;
+                if (Player.State == PlayerState.Attack && Player.ComboIndex == 1)
+                {
+                    startedAt(last + FrameTime);
+                    break;
+                }
+            }
+            yield return Frames(60);
+        }
+
+        [UnityTest]
+        public IEnumerator AHit_KnocksTheDummyBack_AndThrowsSparks()
+        {
+            yield return PlaceAt(60.6f);
+            Health dummy = NearestDummy();
+            Vector3 before = dummy.transform.position;
+            var sparks = Player.GetComponentInChildren<ParticleSystem>();
+            Assert.That(sparks, Is.Not.Null, "The player has no hit sparks. Delete Player.prefab and rebuild the scene.");
+
+            Input.PressAttack();
+            int most = 0;
+            float pushed = 0f;
+            for (int i = 0; i < 30; i++)
+            {
+                yield return null;
+                most = Mathf.Max(most, sparks.particleCount);
+                pushed = Mathf.Max(pushed, Vector3.Dot(dummy.transform.position - before, Player.transform.forward));
+            }
+
+            Assert.That(most, Is.GreaterThan(0), "no sparks");
+            Assert.That(pushed, Is.GreaterThan(0.03f), "the dummy was not pushed back");
+        }
+
+        [UnityTest]
         public IEnumerator Attack_FacingAway_Misses()
         {
             yield return PlaceAt(60.6f);

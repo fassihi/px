@@ -128,7 +128,7 @@ namespace PX.Tests
             Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Turn));
             Assert.That(Facing(), Is.LessThan(-0.5f), "At the start of the turn her body should still face the way she was running.");
 
-            yield return Frames(Mathf.CeilToInt(Animator.Config.turnDuration * 60f) + 5);
+            yield return Frames(Mathf.CeilToInt(Player.Move.turnDuration * 60f) + 5);
             Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Run));
             Assert.That(Facing(), Is.GreaterThan(0.5f), "After the turn her body should face the new way.");
         }
@@ -276,6 +276,28 @@ namespace PX.Tests
             Vector3 second = Player.transform.InverseTransformPoint(hand.position);
 
             Assert.That((second - first).magnitude, Is.GreaterThan(0.02f), "Her hand does not move while she runs.");
+        }
+
+        [UnityTest]
+        public IEnumerator LandingAtARun_DipsHerBody_WhileSheRunsOn()
+        {
+            yield return PlaceAt(OpenStretch + 2f);
+            Input.Move = 1f;
+            yield return Frames(20);
+            Input.PressJump();
+            yield return Frames(5);
+            for (int i = 0; i < 150 && !Motor.IsGrounded; i++)
+                yield return null;
+
+            float deepest = 0f;
+            for (int i = 0; i < 20; i++)
+            {
+                yield return null;
+                deepest = Mathf.Max(deepest, Animator.LandDip);
+            }
+            Assert.That(deepest, Is.GreaterThan(0f), "a full jump's landing dips her");
+            yield return Frames(30);
+            Assert.That(Animator.LandDip, Is.EqualTo(0f), "and she comes back up");
         }
 
         [UnityTest]

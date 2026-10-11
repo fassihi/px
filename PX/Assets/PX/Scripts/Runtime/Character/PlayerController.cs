@@ -15,6 +15,8 @@ namespace PX
     /// <summary>
     /// The heroine's moment-to-moment control: run, jump, dash, crouch, the light combo and the crouching sweep.
     /// Works in rail space (x = along the rail, y = up) and leaves the 3D part to <see cref="CharacterMotor"/>.
+    /// Moves commit: each one says from when it can be cut short (its cancel window), and a press that comes too early
+    /// is buffered and carried out when the window opens, instead of being dropped or acted on at once.
     /// </summary>
     [RequireComponent(typeof(CharacterMotor))]
     public sealed class PlayerController : MonoBehaviour
@@ -40,6 +42,9 @@ namespace PX
         private int airJumpsLeft;
         private int airDashesLeft;
         private int dashDirection;
+        private float turnTime = float.MaxValue;
+        private float landingRecovery;
+        private bool swingConnected;
 
         /// <summary>Where input comes from. Defaults to an <see cref="IInputSource"/> on the same object.</summary>
         public IInputSource InputSource { get; set; }
@@ -60,6 +65,15 @@ namespace PX
 
         /// <summary>True while the current swing's hitbox is live.</summary>
         public bool IsHitboxActive { get; private set; }
+
+        /// <summary>True during a skid turn: she reversed at speed and is committed to it for a moment.</summary>
+        public bool IsTurning => turnTime < move.turnDuration;
+
+        /// <summary>Seconds since the current skid turn began.</summary>
+        public float TurnTime => turnTime;
+
+        /// <summary>True while she is recovering from a hard landing and cannot jump or dash yet.</summary>
+        public bool IsRecoveringFromLanding => landingRecovery > 0f;
 
         public MoveConfig Move => move;
 
@@ -115,7 +129,7 @@ namespace PX
             bool wasGrounded = motor.IsGrounded;
             motor.Move(velocity, dt);
             if (!wasGrounded && motor.IsGrounded && fallSpeed >= move.hardLandingSpeed)
-                CameraShake.Trigger(move.landingShake, move.landingShakeTime);
+                LandHard();
 
             if (motor.HitCeiling && velocity.y > 0f)
                 velocity.y = 0f;
@@ -126,14 +140,25 @@ namespace PX
             dashBuffer -= dt;
             attackBuffer -= dt;
             dashCooldown -= dt;
+            landingRecovery -= dt;
+            if (turnTime < float.MaxValue)
+                turnTime += dt;
+        }
+
+        /// <summary>A hard landing costs speed and a moment of recovery, so it reads as weight.</summary>
+        private void LandHard()
+        {
+            CameraShake.Trigger(move.landingShake, move.landingShakeTime);
+            velocity.x *= move.hardLandingSpeedKeep;
+            landingRecovery = move.hardLandingRecovery;
         }
 
         private void TickLocomotion(InputFrame input, float dt)
         {
-            if (input.Move != 0f)
-                motor.Facing = input.Move > 0f ? 1 : -1;
+            Steer(input);
 
-            float target = input.Move * move.runSpeed;
+            // During a skid turn she keeps heading the new way; pushing back is held over until the turn ends.
+            float target = IsTurning ? motor.Facing * Mathf.Abs(input.Move) * move.runSpeed : input.Move * move.runSpeed;
             bool accelerating = Mathf.Abs(target) > 0.01f;
             float rate = motor.IsGrounded
                 ? (accelerating ? move.groundAcceleration : move.groundDeceleration)
@@ -152,8 +177,32 @@ namespace PX
                 return;
             }
 
-            if (attackBuffer > 0f && combo.steps.Length > 0)
+            if (attackBuffer > 0f && combo.steps.Length > 0 && CanAct(move.turnActionCancel))
                 StartAttack(0, input);
+        }
+
+        /// <summary>
+        /// Faces where the stick points. Reversing on the ground at speed starts a skid turn, during which she cannot
+        /// turn back. Slow reversals, and any in the air, are instant.
+        /// </summary>
+        private void Steer(InputFrame input)
+        {
+            if (input.Move == 0f || IsTurning)
+                return;
+
+            int wanted = input.Move > 0f ? 1 : -1;
+            if (wanted == motor.Facing)
+                return;
+
+            if (motor.IsGrounded && velocity.x * motor.Facing >= move.turnMinSpeed)
+                turnTime = 0f;
+            motor.Facing = wanted;
+        }
+
+        /// <summary>False while a skid turn is younger than <paramref name="turnCancel"/> or a hard landing recovers.</summary>
+        private bool CanAct(float turnCancel)
+        {
+            return !(IsTurning && turnTime < turnCancel) && landingRecovery <= 0f;
         }
 
         private void TickCrouch(InputFrame input, float dt)
@@ -184,6 +233,15 @@ namespace PX
         {
             // A ground dash stays glued to the floor; an air dash travels flat.
             velocity = new Vector2(dashDirection * move.dashSpeed, motor.IsGrounded ? -GroundStickSpeed : 0f);
+
+            // Late in the dash a jump can cut it short, carrying run speed into the jump.
+            if (stateTime >= move.dashJumpCancel && jumpBuffer > 0f && (coyoteTimer > 0f || airJumpsLeft > 0))
+            {
+                velocity.x = dashDirection * move.runSpeed;
+                dashCooldown = move.dashCooldown;
+                if (TryStartJump())
+                    return;
+            }
 
             if (stateTime >= move.dashDuration)
             {
@@ -228,11 +286,12 @@ namespace PX
                 return;
             }
 
-            if (stateTime >= step.CancelFrom)
-            {
-                if (TryStartJump() || TryStartDash(input))
-                    return;
+            if (stateTime >= step.CancelFrom && (TryStartJump() || TryStartDash(input)))
+                return;
 
+            // The next strike can follow once the hitbox closes if this one connected; a whiff has to recover first.
+            if (stateTime >= (swingConnected ? step.ActiveEnd : step.CancelFrom))
+            {
                 if (attackBuffer > 0f && ComboIndex + 1 < combo.steps.Length)
                 {
                     StartAttack(ComboIndex + 1, input);
@@ -263,7 +322,7 @@ namespace PX
 
         private bool TryStartJump()
         {
-            if (jumpBuffer <= 0f)
+            if (jumpBuffer <= 0f || !CanAct(move.turnJumpCancel))
                 return false;
 
             if (coyoteTimer <= 0f)
@@ -276,13 +335,14 @@ namespace PX
             velocity.y = move.JumpVelocity;
             jumpBuffer = 0f;
             coyoteTimer = 0f;
+            turnTime = float.MaxValue;
             EnterState(PlayerState.Locomotion);
             return true;
         }
 
         private bool TryStartDash(InputFrame input)
         {
-            if (dashBuffer <= 0f || dashCooldown > 0f)
+            if (dashBuffer <= 0f || dashCooldown > 0f || !CanAct(move.turnActionCancel))
                 return false;
 
             if (!motor.IsGrounded)
@@ -297,6 +357,7 @@ namespace PX
 
             dashDirection = motor.Facing;
             dashBuffer = 0f;
+            turnTime = float.MaxValue;
             EnterState(PlayerState.Dash);
             return true;
         }
@@ -309,6 +370,8 @@ namespace PX
             ComboIndex = index;
             IsCrouchAttack = false;
             attackBuffer = 0f;
+            swingConnected = false;
+            turnTime = float.MaxValue;
             hitThisSwing.Clear();
             EnterState(PlayerState.Attack);
         }
@@ -318,6 +381,7 @@ namespace PX
             ComboIndex = 0;
             IsCrouchAttack = true;
             attackBuffer = 0f;
+            swingConnected = false;
             hitThisSwing.Clear();
             EnterState(PlayerState.Attack);
         }
@@ -342,13 +406,14 @@ namespace PX
                 if (target == null || target == ownHealth || target.IsDead || !hitThisSwing.Add(target))
                     continue;
 
-                target.TakeHit(new Hit(step.damage, transform.forward, gameObject));
+                target.TakeHit(new Hit(step.damage, transform.forward, gameObject, step.knockback));
                 HitLanded?.Invoke(target);
                 landed = true;
             }
 
             if (landed)
             {
+                swingConnected = true;
                 HitStop.Trigger(step.hitStop);
                 CameraShake.Trigger(step.shake, combo.shakeTime);
             }
