@@ -137,6 +137,92 @@ namespace PX.Tests
             yield return Capture(folder, "13-landing");
         }
 
+        /// <summary>
+        /// Close-ups of her poses through the game camera, zoomed in, for judging animation: idle, run, crouch, sweep
+        /// and a landing at a run. Only runs when the PX_SCREENSHOT_DIR environment variable names a folder.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CloseUpScreenshots()
+        {
+            string folder = System.Environment.GetEnvironmentVariable("PX_SCREENSHOT_DIR");
+            if (string.IsNullOrEmpty(folder))
+                Assert.Ignore("Set PX_SCREENSHOT_DIR to capture screenshots.");
+            folder = Path.Combine(folder, "closeups");
+            Directory.CreateDirectory(folder);
+
+            yield return PlaceAt(16f);
+            yield return Frames(30);
+            yield return CaptureCloseUp(folder, "idle-a");
+            yield return Frames(50);
+            yield return CaptureCloseUp(folder, "idle-b");
+
+            Input.Move = 1f;
+            yield return Frames(30);
+            for (int i = 0; i < 4; i++)
+            {
+                yield return CaptureCloseUp(folder, $"run-{i}");
+                yield return Frames(3);
+            }
+            Input.Move = 0f;
+            yield return Frames(40);
+
+            Input.CrouchHeld = true;
+            yield return Frames(40);
+            yield return CaptureCloseUp(folder, "crouch");
+            Input.PressAttack();
+            for (int i = 0; i < 4; i++)
+            {
+                yield return Frames(6);
+                yield return CaptureCloseUp(folder, $"sweep-{i}");
+            }
+            yield return Frames(40);
+            Input.CrouchHeld = false;
+            yield return Frames(30);
+
+            yield return PlaceAt(82f);
+            Input.Move = 1f;
+            yield return Frames(20);
+            Input.PressJump();
+            yield return Frames(5);
+            for (int i = 0; i < 150 && !Motor.IsGrounded; i++)
+                yield return null;
+            for (int i = 0; i < 5; i++)
+            {
+                yield return CaptureCloseUp(folder, $"land-run-{i}");
+                yield return Frames(3);
+            }
+            Input.Move = 0f;
+        }
+
+        /// <summary>Renders her from a camera close beside her on the rail's camera side, framed on her whole body.</summary>
+        private IEnumerator CaptureCloseUp(string folder, string name)
+        {
+            yield return null;
+            Vector3 side = Rail.Evaluate(Motor.Distance).Side;
+            Vector3 center = Player.transform.position + Vector3.up * 0.8f;
+            var go = new GameObject("CloseUpCamera");
+            var camera = go.AddComponent<Camera>();
+            camera.fieldOfView = 35f;
+            go.transform.position = center + side * 3.6f + Vector3.up * 0.3f;
+            go.transform.LookAt(center);
+
+            var target = new RenderTexture(720, 720, 24);
+            camera.targetTexture = target;
+            camera.Render();
+            RenderTexture previous = RenderTexture.active;
+            RenderTexture.active = target;
+            var image = new Texture2D(target.width, target.height, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, target.width, target.height), 0, 0);
+            image.Apply();
+            RenderTexture.active = previous;
+            File.WriteAllBytes(Path.Combine(folder, name + ".png"), image.EncodeToPNG());
+            Object.Destroy(image);
+            camera.targetTexture = null;
+            target.Release();
+            Object.Destroy(target);
+            Object.Destroy(go);
+        }
+
         private IEnumerator Capture(string folder, string name)
         {
             yield return null;

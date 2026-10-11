@@ -22,8 +22,11 @@ namespace PX.EditorTools
         private static readonly Vector3 NeckUp = new Vector3(0f, 0.96f, 0.27f).normalized;
         private static readonly Vector3 HeadUp = new Vector3(0f, 0.91f, 0.42f).normalized;
 
-        // From the ankle down to the ball of a flat foot, below horizontal.
-        private const float FootPitch = 33f;
+        // From the ankle down to the toe joint of a flat foot, below horizontal. It depends on where the rig puts that
+        // joint, so each rig has its own: measured from Rana's sole, and from Mixamo clips standing with the toe tip on
+        // the floor. With one angle for both, every Mixamo clip put her up on tiptoe by the difference.
+        private const float RanaFootPitch = 33f;
+        private const float MixamoFootPitch = 61f;
 
         // Rana's head bone points out of her face. Level with the ground, she looks down; tilted up this much, ahead.
         // Heads with an end bone on top (Mixamo) have that pointed straight up instead.
@@ -86,7 +89,7 @@ namespace PX.EditorTools
 
                 // Squaring the chest and aiming the shoulders nudge each other, so settle them over a few passes.
                 for (int pass = 0; pass < 8; pass++)
-                    Pose(Bone);
+                    Pose(Bone, path.StartsWith(RanaImportSettings.MixamoFolder) ? MixamoFootPitch : RanaFootPitch);
 
                 for (int i = 0; i < description.skeleton.Length; i++)
                 {
@@ -116,7 +119,7 @@ namespace PX.EditorTools
             return true;
         }
 
-        private static void Pose(System.Func<string, Transform> bone)
+        private static void Pose(System.Func<string, Transform> bone, float footPitch)
         {
             Transform hips = bone("Hips"), chest = bone("UpperChest") ?? bone("Chest"), head = bone("Head");
 
@@ -162,7 +165,7 @@ namespace PX.EditorTools
 
                 // Spin the whole leg about its length so the knee and foot point forward.
                 Turn(upper, toes.position - foot.position, Vector3.forward);
-                Aim(foot, toes, Quaternion.AngleAxis(FootPitch, Vector3.right) * Vector3.forward);
+                Aim(foot, toes, Quaternion.AngleAxis(footPitch, Vector3.right) * Vector3.forward);
                 if (toes.childCount > 0)
                     Aim(toes, toes.GetChild(0), Vector3.forward);
             }

@@ -279,6 +279,22 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator Idle_StandsOnFlatFeet_NotOnTiptoe()
+        {
+            // Her sole is flat when the line from ankle to toe joint slopes down about 33 degrees. Retargeted clips put
+            // her on tiptoe when the rigs disagree on that angle, see AvatarPose.
+            yield return PlaceAt(OpenStretch);
+            yield return Frames(60);
+            var body = Player.GetComponentInChildren<UnityEngine.Animator>();
+            foreach (var (foot, toes) in new[] { (HumanBodyBones.LeftFoot, HumanBodyBones.LeftToes), (HumanBodyBones.RightFoot, HumanBodyBones.RightToes) })
+            {
+                Vector3 d = body.GetBoneTransform(toes).position - body.GetBoneTransform(foot).position;
+                float slope = Mathf.Atan2(-d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg;
+                Assert.That(slope, Is.InRange(15f, 50f), $"{foot} slopes {slope:0} degrees from ankle to toes.");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Idle_StandsUpright_NotLeaningBack()
         {
             // Clips from a different Tripo export than the body lean her backwards, so check the head sits over the hips.
