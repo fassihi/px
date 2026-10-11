@@ -1,12 +1,66 @@
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 
 namespace PX.Tests
 {
     public sealed class EnemyRigTests
     {
         private const string EnemyAPath = "Assets/PX/Art/EnemyA/EnemyA.fbx";
+
+        [TestCase("Idle", 0.5f)]
+        [TestCase("Attack", 0.64f)]
+        public void EnemyA_Sword_PointsForwardFromItsGrip(string clipName, float time)
+        {
+            // Tripo modelled the sword hanging from a relaxed hand; in Mixamo's two-handed grip it pointed back over the
+            // shoulder until the import seated it (HeldWeapon). In the guard and at the moment the chop lands, the blade
+            // should be out in front of the knight.
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/PX/Prefabs/EnemyA.prefab");
+            var config = AssetDatabase.LoadAssetAtPath<PX.EnemyConfig>("Assets/PX/Config/EnemyA.asset");
+            AnimationClip clip = clipName == "Idle" ? config.idle : config.attackClip.clip;
+            var enemy = Object.Instantiate(prefab, Vector3.zero, Quaternion.identity);
+            var graph = PlayableGraph.Create();
+            try
+            {
+                foreach (MonoBehaviour behaviour in enemy.GetComponentsInChildren<MonoBehaviour>())
+                    behaviour.enabled = false;
+                Animator animator = enemy.GetComponentInChildren<Animator>();
+                var playable = AnimationClipPlayable.Create(graph, clip);
+                AnimationPlayableOutput.Create(graph, "Pose", animator).SetSourcePlayable(playable);
+                playable.SetTime(time);
+                graph.Evaluate(0f);
+
+                var renderer = enemy.GetComponentInChildren<SkinnedMeshRenderer>();
+                Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+                int handIndex = System.Array.IndexOf(renderer.bones, hand);
+                BoneWeight[] weights = renderer.sharedMesh.boneWeights;
+                var posed = new Mesh();
+                renderer.BakeMesh(posed, true);
+                Vector3[] vertices = posed.vertices;
+
+                // The tip: the vertex held rigidly by the hand that is furthest from it.
+                Vector3 tip = hand.position;
+                for (int i = 0; i < vertices.Length; i++)
+                {
+                    if (weights[i].boneIndex0 != handIndex || weights[i].weight0 < 0.99f)
+                        continue;
+                    Vector3 point = renderer.transform.TransformPoint(vertices[i]);
+                    if ((point - hand.position).sqrMagnitude > (tip - hand.position).sqrMagnitude)
+                        tip = point;
+                }
+
+                Vector3 blade = enemy.transform.InverseTransformDirection(tip - hand.position);
+                Assert.That(blade.magnitude, Is.GreaterThan(0.6f), "No sword found in the right hand.");
+                Assert.That(blade.normalized.z, Is.GreaterThan(0.7f), $"The blade points {blade.normalized} from the hand, not forward.");
+            }
+            finally
+            {
+                graph.Destroy();
+                Object.DestroyImmediate(enemy);
+            }
+        }
 
         [Test]
         public void EnemyA_RaisingBothArms_DoesNotDragItsCoat()

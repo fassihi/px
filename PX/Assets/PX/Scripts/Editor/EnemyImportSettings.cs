@@ -20,7 +20,7 @@ namespace PX.EditorTools
         private static readonly string[] LoopingClips = { "Idle", "Walk" };
 
         // Bump when the settings below change, so Unity re-imports the enemies' files.
-        public override uint GetVersion() => 6;
+        public override uint GetVersion() => 7;
 
         private void OnPreprocessModel()
         {
@@ -68,6 +68,10 @@ namespace PX.EditorTools
             // The knight's coat, straps and tassels are skinned to its arms by the auto-rig; hang them from the torso instead.
             int moved = CoatWeights.Fix(model);
             Debug.Log($"{System.IO.Path.GetFileName(assetPath)}: moved {moved} cloth vertices from the arms to the torso.");
+
+            // Its sword hangs from a relaxed hand in the model; turn it into the two-handed grip of the Great Sword clips.
+            int seated = HeldWeapon.Fix(model, "Right");
+            Debug.Log($"{System.IO.Path.GetFileName(assetPath)}: seated a {seated}-vertex sword in the right hand.");
         }
 
         private void OnPreprocessTexture()
