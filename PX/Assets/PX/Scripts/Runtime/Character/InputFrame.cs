@@ -20,6 +20,8 @@ namespace PX
         /// while still facing its opponent. The heroine ignores it.
         /// </summary>
         public float Face;
+        /// <summary>Move at a run, not a walk. Only enemies use it.</summary>
+        public bool Run;
     }
 
     /// <summary>Anything that can drive a character: a device, a test script, later an AI.</summary>

@@ -20,6 +20,12 @@ namespace PX.EditorTools
         /// </summary>
         public static readonly Vector3 GripDirection = new Vector3(0.71f, 0.32f, -0.62f).normalized;
 
+        /// <summary>
+        /// Where a sabre held in one hand points in Mixamo's Sword And Shield clips, in the same frame: out along the
+        /// forearm, canted slightly toward the thumb. (The two-handed grip above points it back over the shoulder.)
+        /// </summary>
+        public static readonly Vector3 OneHandedGripDirection = new Vector3(1f, 0.2f, 0f).normalized;
+
         // As fractions of the model's height. Pieces whose centre lies this close to the blade's line, and which come
         // within the touch distance of the sword, belong to it. The search runs this far back past the blade's base.
         private const float LineRadius = 0.03f;

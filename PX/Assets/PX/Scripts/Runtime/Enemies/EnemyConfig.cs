@@ -23,6 +23,10 @@ namespace PX
 
         [Header("Movement")]
         [Min(0f)] public float walkSpeed = 1.6f;
+        [Tooltip("Speed when it runs, in m/s: it breaks into a run when she is further off than Run Distance.")]
+        [Min(0f)] public float runSpeed = 3.6f;
+        [Tooltip("It runs while she is further away than this along the rail, in metres, and walks once it is closer.")]
+        [Min(0f)] public float runDistance = 7f;
         [Tooltip("Speed backing away while facing her, in m/s.")]
         [Min(0f)] public float walkBackSpeed = 1.2f;
         [Min(0f)] public float acceleration = 12f;
@@ -52,6 +56,9 @@ namespace PX
             damage = 20f, lunge = 2.5f, hitStop = 0.14f, shake = 0.18f, knockback = 10f,
             hitboxCenter = new Vector2(1.1f, 1.0f), hitboxSize = new Vector2(1.7f, 1.4f),
         };
+        [Tooltip("Chance, 0 to 1, that it opens with its second swing instead of the first, so it has two attacks to read " +
+                 "and not one swing with a follow-up.")]
+        [Range(0f, 1f)] public float secondOpenerChance = 0.35f;
         [Tooltip("Chance, 0 to 1, that it follows its first swing with the second.")]
         [Range(0f, 1f)] public float comboChance = 0.5f;
         [Tooltip("Chance, 0 to 1, that it backs off for a moment after attacking, to set up its distance again.")]
@@ -80,6 +87,10 @@ namespace PX
         public AnimationClip walkBack;
         [Tooltip("Ground speed in m/s at which the walk clip plays at normal speed.")]
         [Min(0.1f)] public float walkClipSpeed = 1.4f;
+        [Tooltip("Empty: it walks everywhere.")]
+        public AnimationClip run;
+        [Tooltip("Ground speed in m/s at which the run clip plays at normal speed.")]
+        [Min(0.1f)] public float runClipSpeed = 3.6f;
         [Tooltip("The first swing, trimmed to the part that plays; impact is where the blade is furthest out.")]
         public ClipWindow attackClip;
         public ClipWindow attack2Clip;

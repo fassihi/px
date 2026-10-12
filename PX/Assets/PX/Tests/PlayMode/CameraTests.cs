@@ -321,6 +321,119 @@ namespace PX.Tests
         }
 
         /// <summary>
+        /// Close-ups of what changed in the rework: her run, the dodge, the crouch, the flying kick, the ledge grab and
+        /// climb frame by frame, the enemies running, Enemy B's two swings, and a death into a ragdoll.
+        /// Only runs when the PX_SCREENSHOT_DIR environment variable names a folder.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ReworkScreenshots()
+        {
+            string folder = System.Environment.GetEnvironmentVariable("PX_SCREENSHOT_DIR");
+            if (string.IsNullOrEmpty(folder))
+                Assert.Ignore("Set PX_SCREENSHOT_DIR to capture screenshots.");
+            folder = Path.Combine(folder, "rework");
+            Directory.CreateDirectory(folder);
+
+            yield return PlaceAt(90f);
+            Input.Move = 1f;
+            yield return Frames(40);
+            for (int i = 0; i < 3; i++)
+            {
+                yield return CaptureCloseUp(folder, $"01-run-{i}");
+                yield return Frames(4);
+            }
+            Input.Move = 0f;
+            yield return Frames(30);
+
+            Input.PressDash();
+            for (int i = 0; i < 4; i++)
+            {
+                yield return Frames(6);
+                yield return CaptureCloseUp(folder, $"02-dodge-{i}");
+            }
+            yield return Frames(40);
+
+            Input.CrouchHeld = true;
+            for (int i = 0; i < 4; i++)
+            {
+                yield return Frames(4);
+                yield return CaptureCloseUp(folder, $"03-crouch-{i}");
+            }
+            Input.CrouchHeld = false;
+            yield return Frames(30);
+
+            Input.Move = 1f;
+            Input.PressJump();
+            yield return Frames(14);
+            Input.PressAttack();
+            for (int i = 0; i < 4; i++)
+            {
+                yield return Frames(5);
+                yield return CaptureCloseUp(folder, $"04-air-kick-{i}");
+            }
+            Input.Move = 0f;
+            yield return Frames(60);
+
+            // The ledge, every few frames from the catch to standing on top.
+            Motor.Facing = 1;
+            yield return PlaceAt(129f);
+            Input.Move = 1f;
+            yield return Frames(15);
+            Input.PressJump();
+            int shot = 0;
+            for (int i = 0; i < 120 && Player.State != PlayerState.Hang; i++)
+                yield return null;
+            Input.Move = 0f;
+            for (int i = 0; i < 4; i++)
+            {
+                yield return CaptureCloseUp(folder, $"05-ledge-{shot++:00}");
+                yield return Frames(5);
+            }
+            Input.PressJump();
+            for (int i = 0; i < 18; i++)
+            {
+                yield return CaptureCloseUp(folder, $"05-ledge-{shot++:00}");
+                yield return Frames(4);
+            }
+            yield return Frames(20);
+            yield return CaptureCloseUp(folder, $"05-ledge-{shot++:00}");
+
+            // Enemy B's two swings, at the moment each blow lands.
+            EnemyController enemyB = FindEnemy("EnemyB");
+            for (int swing = 0; swing < 2; swing++)
+            {
+                enemyB.Config.secondOpenerChance = swing;
+                yield return PlaceAt(enemyB.Motor.Distance - 5f);
+                for (int i = 0; i < 300 && !(enemyB.IsHitboxActive); i++)
+                    yield return null;
+                yield return CaptureCloseUp(folder, $"06-enemy-b-swing-{swing + 1}", enemyB.transform);
+                yield return Frames(60);
+            }
+            enemyB.Config.secondOpenerChance = 0f;
+
+            // Enemy A running at her, then killed into a ragdoll, through the game camera.
+            EnemyController enemyA = FindEnemy("EnemyA");
+            yield return PlaceAt(enemyA.Motor.Distance - 8.5f);
+            yield return Frames(24);
+            yield return Capture(folder, "07-enemy-a-run-0");
+            yield return Frames(10);
+            yield return Capture(folder, "07-enemy-a-run-1");
+            yield return PlaceAt(enemyA.Motor.Distance - 3.5f);
+            for (int i = 0; i < 40 && !enemyA.Health.IsDead; i++)
+                enemyA.Health.TakeHit(new Hit(40f, Motor.transform.forward, Player.gameObject, 8f));
+            for (int i = 0; i < 5; i++)
+            {
+                yield return Frames(i == 0 ? 6 : 12);
+                yield return Capture(folder, $"08-ragdoll-{i}");
+            }
+            yield return Frames(60);
+            yield return Capture(folder, "08-ragdoll-rest");
+            enemyA.Revive();
+            yield return Frames(40);
+            yield return Capture(folder, "09-revived");
+        }
+
+        /// <summary>
         /// The fight with Enemy A, framed on the two of them: the knight idle and walking in, its swing winding up and
         /// landing, her staggered, then it staggered by her combo and dead. Only runs when PX_SCREENSHOT_DIR is set.
         /// </summary>
@@ -374,7 +487,8 @@ namespace PX.Tests
             // Two views side by side: from the side, as the game shows her, and from the front three-quarter, where
             // a foot or knee turned the wrong way shows.
             RailPoint point = Rail.Evaluate(Motor.Distance);
-            Vector3 center = Player.transform.position + Vector3.up * 0.8f;
+            // The middle of her body, which is a long way from her root while she hangs and climbs.
+            Vector3 center = Player.GetComponentInChildren<SkinnedMeshRenderer>().bounds.center;
             if (also != null)
                 center = (center + also.position + Vector3.up * 0.9f) * 0.5f;
             Vector3 front = (point.Tangent * Motor.Facing * 0.8f + point.Side * 0.6f).normalized;

@@ -61,6 +61,9 @@ namespace PX
         [Tooltip("The counter after a parry, timed like a combo strike.")]
         public ClipWindow counter;
 
+        [Tooltip("The attack in the air: a flying kick, timed like a combo strike.")]
+        public ClipWindow airAttack;
+
         [Header("Dodge and guard")]
         [Tooltip("The dodge back, played over the dodge.")]
         public ClipWindow dodge;
@@ -73,9 +76,8 @@ namespace PX
         public ClipWindow guardHit;
 
         [Header("Ledges")]
-        [Tooltip("Catching the ledge, played over Grab Duration as she starts to hang.")]
+        [Tooltip("Catching the ledge, played over the move config's Grab Time as she starts to hang.")]
         public ClipWindow ledgeGrab;
-        [Min(0.05f)] public float grabDuration = 0.3f;
         [Tooltip("Hanging from the ledge.")]
         public AnimationClip ledgeHang;
         [Tooltip("Pulling up onto the ledge, played over the climb.")]
@@ -94,6 +96,10 @@ namespace PX
 
         [Tooltip("Seconds the crouch down and the stand up take on screen. Their windows are sped up to fit.")]
         [Min(0.05f)] public float crouchDownDuration = 0.3f;
+
+        [Tooltip("Seconds to blend from standing into the held crouch pose. With no Crouch Down clip this is the whole " +
+                 "movement, so she lowers in one go instead of squatting and then snapping to the pose.")]
+        [Min(0f)] public float crouchFadeTime = 0.22f;
         [Min(0.05f)] public float crouchUpDuration = 0.3f;
 
         [Header("Landing")]

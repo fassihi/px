@@ -69,7 +69,6 @@ namespace PX
         private float regrabTimer;
         private float ledgeTop;
         private float ledgeWall;
-        private Vector2 climbFrom;
         private bool guardBroken;
 
         /// <summary>Where input comes from. Defaults to an <see cref="IInputSource"/> on the same object.</summary>
@@ -83,12 +82,15 @@ namespace PX
         /// <summary>True while the attack in progress is the sweep from a crouch, not a combo step.</summary>
         public bool IsCrouchAttack { get; private set; }
 
+        /// <summary>The attack is the flying kick thrown in the air.</summary>
+        public bool IsAirAttack { get; private set; }
+
         /// <summary>True while the attack in progress is the counter after a parry.</summary>
         public bool IsCounter { get; private set; }
 
         /// <summary>The attack being performed. Only meaningful in <see cref="PlayerState.Attack"/>.</summary>
         public AttackStep CurrentStep =>
-            IsCounter ? combo.counterAttack : IsCrouchAttack ? combo.crouchAttack : combo.steps[ComboIndex];
+            IsCounter ? combo.counterAttack : IsCrouchAttack ? combo.crouchAttack : IsAirAttack ? combo.airAttack : combo.steps[ComboIndex];
 
         /// <summary>Seconds since the current state began.</summary>
         public float StateTime => stateTime;
@@ -126,6 +128,9 @@ namespace PX
 
         /// <summary>Height of the ledge she hangs from or climbs onto.</summary>
         public float LedgeTop => ledgeTop;
+
+        /// <summary>Rail distance of the face of the ledge she hangs from or climbs.</summary>
+        public float LedgeWall => ledgeWall;
 
         public MoveConfig Move => move;
 
@@ -234,7 +239,10 @@ namespace PX
             if (motor.IsCrouched)
                 motor.TryStand();
             if (State == PlayerState.Hang || State == PlayerState.Climb)
+            {
                 regrabTimer = move.regrabDelay;
+                StepOutOfWall();
+            }
             turnTime = float.MaxValue;
             counterTimer = 0f;
             invulnerable = move.hurtInvulnerability;
@@ -576,8 +584,8 @@ namespace PX
             velocity = Vector2.zero;
             airJumpsLeft = move.airJumps;
             airDashesLeft = move.airDashes;
-            motor.Place(wall - motor.Facing * (motor.Radius + 0.02f), top - move.hangHeight);
             EnterState(PlayerState.Hang);
+            PlaceHanging();
             return true;
         }
 
@@ -587,6 +595,7 @@ namespace PX
         private void TickHang(InputFrame input)
         {
             velocity = Vector2.zero;
+            PlaceHanging();
             if (stateTime < move.hangSettle)
                 return;
 
@@ -596,6 +605,7 @@ namespace PX
                 // Spring off the wall, back the way she came.
                 jumpBuffer = 0f;
                 regrabTimer = move.regrabDelay;
+                StepOutOfWall();
                 motor.Facing = -motor.Facing;
                 velocity = new Vector2(motor.Facing * move.runSpeed, move.JumpVelocity * 0.8f);
                 EnterState(PlayerState.Locomotion);
@@ -604,29 +614,48 @@ namespace PX
             if (jumpBuffer > 0f || toward > 0.5f)
             {
                 jumpBuffer = 0f;
-                climbFrom = new Vector2(motor.Distance, motor.transform.position.y);
                 EnterState(PlayerState.Climb);
                 return;
             }
             if (input.CrouchHeld)
             {
                 regrabTimer = move.regrabDelay;
+                StepOutOfWall();
                 EnterState(PlayerState.Locomotion);
             }
         }
 
         /// <summary>
-        /// Pulls her up onto the ledge. The rise is in the climb clip, so she is held below the top by the clip's rise
-        /// while it plays, and moved forward over the edge once she is up; when it ends she stands on the top.
+        /// Her hands are on the lip, so her root hangs inside the wall's face. Before she is a body in the world again, she
+        /// is moved clear of it, or the collision would push her out sideways.
+        /// </summary>
+        private void StepOutOfWall()
+        {
+            motor.Place(ledgeWall - motor.Facing * (motor.Radius + 0.02f), motor.transform.position.y);
+        }
+
+        /// <summary>
+        /// Where her root hangs. Each clip has her hands at a different height above her root, so the root follows the
+        /// hands: low for the catch, then eased up to the hang as the animation cross-fades into it, so her hands stay
+        /// on the ledge the whole time instead of sliding along it.
+        /// </summary>
+        private void PlaceHanging()
+        {
+            float blend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((stateTime - move.grabTime) / move.hangBlend));
+            float depth = Mathf.Lerp(move.grabHandsHeight, move.hangHeight, blend);
+            motor.Place(ledgeWall - motor.Facing * move.hangStandoff, ledgeTop - depth);
+        }
+
+        /// <summary>
+        /// Pulls her up onto the ledge. Her hands stay on the lip while she pulls (the root follows them, see
+        /// <see cref="MoveConfig.climbHandsHeight"/>), then she lets go and steps forward over the edge; when it ends
+        /// she stands on the top.
         /// </summary>
         private void TickClimb()
         {
             velocity = Vector2.zero;
             float t = Mathf.Clamp01(stateTime / move.climbDuration);
-            float settle = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.15f));
-            float step = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - move.climbRiseShare) / (1f - move.climbRiseShare)));
             float onTop = ledgeWall + motor.Facing * (motor.Radius + 0.15f);
-            float held = ledgeTop - move.climbClipRise;
 
             if (t >= 1f)
             {
@@ -634,7 +663,15 @@ namespace PX
                 EnterState(PlayerState.Locomotion);
                 return;
             }
-            motor.Place(Mathf.Lerp(climbFrom.x, onTop, step), Mathf.Lerp(climbFrom.y, held, settle));
+
+            // Hands on the lip: the root sits where those hands put it.
+            float gripX = ledgeWall + motor.Facing * (move.climbGrip - move.climbHandsReach.Evaluate(t));
+            // The pose cross-fades from the hang into the climb, so the root eases from one hands height to the other
+            // over the same time, and her hands do not fly up while the old pose fades out.
+            float blend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(stateTime / move.hangBlend));
+            float y = ledgeTop - Mathf.Lerp(move.hangHeight, move.climbHandsHeight.Evaluate(t), blend);
+            float step = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - move.climbRelease) / (1f - move.climbRelease)));
+            motor.Place(Mathf.Lerp(gripX, onTop, step), y);
         }
 
         // ------------------------------------------------------------- attacks
@@ -643,7 +680,14 @@ namespace PX
         {
             AttackStep step = CurrentStep;
 
-            if (motor.IsGrounded)
+            if (IsAirAttack)
+            {
+                // The flying kick carries her forward through its strike, then she drifts to a stop.
+                velocity.x = stateTime < step.ActiveEnd
+                    ? motor.Facing * step.lunge
+                    : Mathf.MoveTowards(velocity.x, 0f, move.airDeceleration * dt);
+            }
+            else if (motor.IsGrounded)
             {
                 velocity.x = stateTime < step.ActiveEnd
                     ? motor.Facing * step.lunge
@@ -654,11 +698,26 @@ namespace PX
                 velocity.x = Mathf.MoveTowards(velocity.x, 0f, move.airDeceleration * dt);
             }
 
-            ApplyGravity(input.JumpHeld, dt);
+            ApplyGravity(input.JumpHeld || IsAirAttack, dt);
 
             IsHitboxActive = stateTime >= step.startup && stateTime < step.ActiveEnd;
             if (IsHitboxActive)
                 ApplyHits(step);
+
+            if (IsAirAttack)
+            {
+                // Touching down ends the kick; otherwise it plays out and she can cut it short with a jump or a dash.
+                if (motor.IsGrounded && stateTime > 0.05f)
+                {
+                    EnterState(PlayerState.Locomotion);
+                    return;
+                }
+                if (stateTime >= step.CancelFrom && (TryStartJump() || TryStartDash(input) || TryGrabLedge(input)))
+                    return;
+                if (stateTime >= step.Total)
+                    EnterState(PlayerState.Locomotion);
+                return;
+            }
 
             if (IsCrouchAttack)
             {
@@ -705,6 +764,11 @@ namespace PX
             }
             if (combo.steps.Length == 0 || !HasStamina())
                 return false;
+            if (!motor.IsGrounded)
+            {
+                StartAirAttack(input);
+                return true;
+            }
             StartAttack(0, input);
             return true;
         }
@@ -718,6 +782,7 @@ namespace PX
 
             ComboIndex = index;
             IsCrouchAttack = false;
+            IsAirAttack = false;
             IsCounter = counter;
             attackBuffer = 0f;
             swingConnected = false;
@@ -727,10 +792,30 @@ namespace PX
             EnterState(PlayerState.Attack);
         }
 
+        /// <summary>The flying kick: thrown from the air, with a little lift so it reads as a leap.</summary>
+        private void StartAirAttack(InputFrame input)
+        {
+            if (input.Move != 0f)
+                motor.Facing = input.Move > 0f ? 1 : -1;
+
+            ComboIndex = 0;
+            IsCrouchAttack = false;
+            IsAirAttack = true;
+            IsCounter = false;
+            attackBuffer = 0f;
+            swingConnected = false;
+            turnTime = float.MaxValue;
+            hitThisSwing.Clear();
+            velocity.y = Mathf.Max(velocity.y, combo.airAttackLift);
+            stamina?.Spend(combo.airAttack.staminaCost);
+            EnterState(PlayerState.Attack);
+        }
+
         private void StartCrouchAttack()
         {
             ComboIndex = 0;
             IsCrouchAttack = true;
+            IsAirAttack = false;
             IsCounter = false;
             attackBuffer = 0f;
             swingConnected = false;

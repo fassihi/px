@@ -106,7 +106,7 @@ namespace PX.EditorTools
             };
             RailCamera railCamera = CreateCamera(rail, motor);
             CreateLighting();
-            CreateOverlay(motor, railCamera);
+            CreateOverlay(motor, railCamera, enemies);
             CreateCombatLayer(motor.GetComponent<PlayerController>(), enemies);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -504,10 +504,11 @@ namespace PX.EditorTools
 
             // Her idle is the library's plain standing idle.
             config.idle = RanaViewerBuilder.FindClip(library, "Idle_Loop");
-            // Her run (from Mixamo's Female Locomotion Pack), turn and running jump, retargeted onto her humanoid rig.
-            config.run = MixamoClip("Ninja Run");
-            // How fast the ninja run's planted foot sweeps back at her size, in m/s (see Run Clip Speed).
-            config.runClipSpeed = NinjaRunClipSpeed;
+            // Her run (from Mixamo's Female Locomotion Pack: a plain, natural run), turn and running jump, retargeted
+            // onto her humanoid rig.
+            config.run = MixamoClip("Running");
+            // How fast that run's planted foot sweeps back at her size, in m/s (see Run Clip Speed).
+            config.runClipSpeed = RunClipSpeed;
             config.runTurn = MixamoClip("Running Turn 180");
             config.runJump = MixamoClip("Unarmed Jump Running");
             // The combo is a jab, a cross and a side kick from Mixamo, each trimmed to its strike. Times are seconds
@@ -523,10 +524,12 @@ namespace PX.EditorTools
             // The counter after a parry: Mixamo's flying hurricane kick.
             config.counter = MixamoWindow("Counter Hurricane Kick", HurricaneKick.x, HurricaneKick.y, HurricaneKick.z);
             config.attack = config.comboAttacks[0].clip;
-            config.crouchDown = MixamoWindow("Crouch Down", 0.25f, 0f, 1f);
+            // No crouch down or stand up clip: Mixamo's are upright squats that end in a different pose from the held
+            // crouch below, which made two movements (squat, then a snap to the pose). She blends straight into the pose.
+            config.crouchDown = default;
             // Down on one knee with a hand to the ground: Mixamo's male crouch pose, more ninja than a plain squat.
             config.crouchIdle = MixamoClip("Ninja Crouch");
-            config.crouchUp = MixamoWindow("Crouch Up", 0f, 0f, 0.75f);
+            config.crouchUp = default;
             config.crouchAttack = MixamoWindow("Crouch Sweep", 0.4f, 0.87f, 1.4f);
             // The landings start at touchdown. Landing at a run plays the end of the running jump: it follows on from the
             // jump's pose, and its arms end where the run's begin. (Mixamo's Land Run holds one arm out in front.)
@@ -535,12 +538,14 @@ namespace PX.EditorTools
             // Hit: Mixamo's large hit reaction from the front, trimmed to the recoil, so it snaps back on the blow.
             config.hurt = MixamoWindow("Hurt", HurtWindow.x, 0f, HurtWindow.y);
             config.death = MixamoWindow("Death", 0f, 0f, DeathEnd);
-            config.dodge = MixamoWindow("Dodge Back", DodgeWindow.x, 0f, DodgeWindow.y);
+            config.dodge = MixamoWindow("Standing Dodge Backward", DodgeWindow.x, 0f, DodgeWindow.y);
+            // The flying kick (Mixamo's Flying Kick): knee up, then the leg thrown out at 0.5 s.
+            config.airAttack = MixamoWindow("Air Attack", AirAttackWindow.x, AirAttackWindow.y, AirAttackWindow.z);
             config.guard = MixamoClip("Guard");
             config.parry = MixamoWindow("Parry", ParryWindow.x, 0f, ParryWindow.y);
             config.guardHit = MixamoWindow("Guard Hit", GuardHitWindow.x, 0f, GuardHitWindow.y);
             config.ledgeGrab = MixamoWindow("Ledge Grab", LedgeGrabWindow.x, 0f, LedgeGrabWindow.y);
-            config.ledgeHang = MixamoClip("Ledge Hang");
+            config.ledgeHang = MixamoClip("Ledge Hang Braced");
             config.ledgeClimb = MixamoWindow("Ledge Climb", LedgeClimbWindow.x, 0f, LedgeClimbWindow.y);
             config.jumpStart = RanaViewerBuilder.FindClip(library, "Jump_Start");
             config.jumpLoop = RanaViewerBuilder.FindClip(library, "Jump_Loop");
@@ -560,9 +565,10 @@ namespace PX.EditorTools
         private static readonly Vector2 HurtWindow = new Vector2(0f, 0.9f);
         // Her body reaches the floor 0.93 s into the fall and settles by 1.5 s.
         private const float DeathEnd = 1.5f;
-        private const float NinjaRunClipSpeed = 3.4f;
-        // Crouch, hop back, land: the clip's own lead-in and settle are cut.
-        private static readonly Vector2 DodgeWindow = new Vector2(0.35f, 1.65f);
+        private const float RunClipSpeed = 3.1f;
+        // A quick backstep with her guard kept up, played in place: the clip's own lead-in and settle are cut.
+        private static readonly Vector2 DodgeWindow = new Vector2(0.05f, 0.95f);
+        private static readonly Vector3 AirAttackWindow = new Vector3(0.1f, 0.5f, 0.95f);
         // The sweep of her forearm, from guard to furthest out at 0.4 s and back.
         private static readonly Vector2 ParryWindow = new Vector2(0.2f, 0.9f);
         private static readonly Vector2 GuardHitWindow = new Vector2(0f, 0.8f);
@@ -637,6 +643,9 @@ namespace PX.EditorTools
             config.idle = Clip("Idle");
             config.walk = Clip("Walk");
             config.walkBack = Clip("Walk Back");
+            config.run = Clip("Run");
+            config.runSpeed = 3.6f;
+            config.runClipSpeed = 3.6f;
             // The chop is furthest out 0.64 s into the clip; that is lined up with the live hitbox (EnemyTests checks it).
             config.attackClip = new ClipWindow { clip = Clip("Attack"), impact = 0.64f };
             config.attack2Clip = new ClipWindow { clip = Clip("Attack 2"), from = AttackA2From, impact = AttackA2Impact, to = AttackA2To };
@@ -675,9 +684,13 @@ namespace PX.EditorTools
             config.attackPoise = 12f;
             config.hitStun = 0.5f;
             config.walkClipSpeed = 1.3f;
+            config.runSpeed = 4.4f;
+            config.runClipSpeed = 4.4f;
+            config.runDistance = 6.5f;
             config.idle = Clip("Idle");
             config.walk = Clip("Walk");
             config.walkBack = Clip("Walk Back");
+            config.run = Clip("Run");
             config.attackClip = new ClipWindow { clip = Clip("Attack"), from = AttackB1From, impact = AttackB1Impact, to = AttackB1To };
             config.attack2Clip = new ClipWindow { clip = Clip("Attack 2"), from = AttackB2From, impact = AttackB2Impact, to = AttackB2To };
             config.hurt = new ClipWindow { clip = Clip("Hit") };
@@ -711,6 +724,7 @@ namespace PX.EditorTools
             var enemy = root.AddComponent<EnemyController>();
             var brain = root.AddComponent<EnemyBrain>();
             var enemyAnimator = root.AddComponent<EnemyAnimator>();
+            var ragdoll = root.AddComponent<EnemyRagdoll>();
 
             var visual = new GameObject("Visual").transform;
             visual.SetParent(root.transform, false);
@@ -731,6 +745,7 @@ namespace PX.EditorTools
             Wire(brain, "body", enemy);
             Wire(enemyAnimator, "enemy", enemy);
             Wire(enemyAnimator, "animator", animator);
+            Wire(ragdoll, "animator", animator);
             return root;
         }
 
@@ -781,6 +796,17 @@ namespace PX.EditorTools
 
         // ------------------------------------------------------- camera, light
 
+        // Less perspective: a narrower lens from further back frames the same picture with less distortion.
+        private const float LensScale = 0.83f;
+        private const float DistanceScale = 1.2f;
+
+        private static CameraView Flatter(CameraView view)
+        {
+            view.fieldOfView *= LensScale;
+            view.distance *= DistanceScale;
+            return view;
+        }
+
         private static RailCamera CreateCamera(Rail rail, CharacterMotor motor)
         {
             var go = new GameObject("Main Camera") { tag = "MainCamera" };
@@ -792,7 +818,7 @@ namespace PX.EditorTools
 
             var railCamera = go.AddComponent<RailCamera>();
             railCamera.Target = motor;
-            railCamera.DefaultView = CameraView.Side;
+            railCamera.DefaultView = Flatter(CameraView.Side);
 
             // The same gameplay, seen four ways. Distances are metres along the rail.
             railCamera.Zones.Add(new CameraZone
@@ -800,42 +826,42 @@ namespace PX.EditorTools
                 name = "Corner: three-quarter view through the turn",
                 from = 38f,
                 to = 58f,
-                view = new CameraView { yaw = 28f, pitch = 14f, distance = 16f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 2f },
+                view = Flatter(new CameraView { yaw = 28f, pitch = 14f, distance = 16f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 2f }),
             });
             railCamera.Zones.Add(new CameraZone
             {
                 name = "Arena: pulled back for the fight",
                 from = 58f,
                 to = 72f,
-                view = new CameraView { yaw = 0f, pitch = 5f, distance = 16f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1f },
+                view = Flatter(new CameraView { yaw = 0f, pitch = 5f, distance = 16f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1f }),
             });
             railCamera.Zones.Add(new CameraZone
             {
                 name = "Into depth: behind her, looking down the rail",
                 from = 82f,
                 to = EnemyADistance - 10f,
-                view = new CameraView { yaw = 72f, pitch = 18f, distance = 11f, fieldOfView = 50f, focusHeight = 1.6f, lookAhead = 3f },
+                view = Flatter(new CameraView { yaw = 72f, pitch = 18f, distance = 11f, fieldOfView = 50f, focusHeight = 1.6f, lookAhead = 3f }),
             });
             railCamera.Zones.Add(new CameraZone
             {
                 name = "Enemy A: back to the side view for the fight",
                 from = EnemyADistance - 10f,
                 to = ArenaAEnd,
-                view = new CameraView { yaw = 0f, pitch = 5f, distance = 14f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1.5f },
+                view = Flatter(new CameraView { yaw = 0f, pitch = 5f, distance = 14f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1.5f }),
             });
             railCamera.Zones.Add(new CameraZone
             {
                 name = "Ledges: pulled back and raised to see the walls' tops",
                 from = ArenaAEnd,
                 to = LedgesEnd,
-                view = new CameraView { yaw = 0f, pitch = 8f, distance = 20f, fieldOfView = 35f, focusHeight = 3.5f, lookAhead = 2f },
+                view = Flatter(new CameraView { yaw = 0f, pitch = 8f, distance = 20f, fieldOfView = 35f, focusHeight = 3.5f, lookAhead = 2f }),
             });
             railCamera.Zones.Add(new CameraZone
             {
                 name = "Enemy B: side view for the last fight",
                 from = LedgesEnd,
                 to = rail.Length,
-                view = new CameraView { yaw = 0f, pitch = 5f, distance = 14f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1.5f },
+                view = Flatter(new CameraView { yaw = 0f, pitch = 5f, distance = 14f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1.5f }),
             });
 
             railCamera.Snap();
@@ -871,12 +897,13 @@ namespace PX.EditorTools
             }
         }
 
-        private static void CreateOverlay(CharacterMotor motor, RailCamera railCamera)
+        private static void CreateOverlay(CharacterMotor motor, RailCamera railCamera, EnemyController[] enemies)
         {
             var overlay = new GameObject("Overlay").AddComponent<GrayboxOverlay>();
             Wire(overlay, "player", motor.GetComponent<PlayerController>());
             Wire(overlay, "motor", motor);
             Wire(overlay, "railCamera", railCamera);
+            WireArray(overlay, "enemies", enemies.Cast<Object>().ToArray());
         }
 
         // -------------------------------------------------------------- assets

@@ -31,6 +31,7 @@ namespace PX
         LedgeGrab,
         Hang,
         Climb,
+        AirAttack,
     }
 
     /// <summary>
@@ -68,6 +69,7 @@ namespace PX
         private PlayerState lastState;
         private int lastComboIndex;
         private bool lastCrouchAttack;
+        private bool lastAirAttack;
         private float lastVelocityY;
         private bool runningJump;
         private bool airDash;
@@ -117,6 +119,7 @@ namespace PX
             clips[(int)HeroinePose.LedgeGrab] = config.ledgeGrab.clip;
             clips[(int)HeroinePose.Hang] = config.ledgeHang;
             clips[(int)HeroinePose.Climb] = config.ledgeClimb.clip;
+            clips[(int)HeroinePose.AirAttack] = config.airAttack.clip;
             modelRotation = animator.transform.localRotation;
 
             graph = PlayableGraph.Create("Heroine");
@@ -210,6 +213,7 @@ namespace PX
                     return config.dashFadeTime;
                 case HeroinePose.Attack:
                 case HeroinePose.CrouchAttack:
+                case HeroinePose.AirAttack:
                 case HeroinePose.Hurt:
                 case HeroinePose.Dead:
                 case HeroinePose.Dodge:
@@ -220,6 +224,8 @@ namespace PX
                 case HeroinePose.LandRun:
                 case HeroinePose.LandIdle:
                     return config.landFadeTime;
+                case HeroinePose.CrouchIdle:
+                    return config.crouchFadeTime;
                 default:
                     return config.fadeTime;
             }
@@ -234,7 +240,7 @@ namespace PX
             HeroinePose pose = ChoosePose(dt);
 
             bool attackStarted = NewAttackStarted();
-            if (attackStarted && !player.IsCrouchAttack)
+            if (attackStarted && !player.IsCrouchAttack && !player.IsAirAttack)
             {
                 attackWindow = player.IsCounter && config.counter.clip != null ? config.counter : AttackWindowFor(player.ComboIndex);
                 UseAttackClip(attackWindow.clip);
@@ -259,6 +265,7 @@ namespace PX
             lastState = player.State;
             lastComboIndex = player.ComboIndex;
             lastCrouchAttack = player.IsCrouchAttack;
+            lastAirAttack = player.IsAirAttack;
             lastCounter = player.IsCounter;
             lastVelocityY = motor.Velocity.y;
 
@@ -350,7 +357,7 @@ namespace PX
                     landing = null;
                     standingUp = false;
                     airTime = 0f;
-                    if (player.StateTime < config.grabDuration && clips[(int)HeroinePose.LedgeGrab] != null)
+                    if (player.StateTime < player.Move.grabTime && clips[(int)HeroinePose.LedgeGrab] != null)
                         return HeroinePose.LedgeGrab;
                     return clips[(int)HeroinePose.Hang] != null ? HeroinePose.Hang : HeroinePose.JumpLoop;
                 case PlayerState.Climb:
@@ -372,6 +379,8 @@ namespace PX
                 case PlayerState.Attack:
                     landing = null;
                     standingUp = false;
+                    if (player.IsAirAttack && clips[(int)HeroinePose.AirAttack] != null)
+                        return HeroinePose.AirAttack;
                     return player.IsCrouchAttack && clips[(int)HeroinePose.CrouchAttack] != null ? HeroinePose.CrouchAttack : HeroinePose.Attack;
                 case PlayerState.Crouch:
                     landing = null;
@@ -487,13 +496,13 @@ namespace PX
         {
             return player.State == PlayerState.Attack
                 && (lastState != PlayerState.Attack || player.ComboIndex != lastComboIndex
-                    || player.IsCrouchAttack != lastCrouchAttack || player.IsCounter != lastCounter
+                    || player.IsCrouchAttack != lastCrouchAttack || player.IsAirAttack != lastAirAttack || player.IsCounter != lastCounter
                     || player.StateTime <= Time.deltaTime * 1.001f);
         }
 
         private static bool IsWindowed(HeroinePose pose)
         {
-            return pose == HeroinePose.Attack || pose == HeroinePose.CrouchAttack
+            return pose == HeroinePose.Attack || pose == HeroinePose.CrouchAttack || pose == HeroinePose.AirAttack
                 || pose == HeroinePose.LandRun || pose == HeroinePose.LandIdle
                 || pose == HeroinePose.CrouchDown || pose == HeroinePose.CrouchUp || pose == HeroinePose.Hurt
                 || pose == HeroinePose.Dead || pose == HeroinePose.Dodge || pose == HeroinePose.Parry
@@ -511,6 +520,8 @@ namespace PX
                     return StrikeTime(attackWindow, player.CurrentStep, player.StateTime);
                 case HeroinePose.CrouchAttack:
                     return StrikeTime(config.crouchAttack, player.CurrentStep, player.StateTime);
+                case HeroinePose.AirAttack:
+                    return StrikeTime(config.airAttack, player.CurrentStep, player.StateTime);
                 case HeroinePose.LandRun:
                     return config.landRun.At(poseTime / config.landRunDuration);
                 case HeroinePose.LandIdle:
@@ -530,7 +541,7 @@ namespace PX
                 case HeroinePose.GuardHit:
                     return config.guardHit.At(player.GuardReactionTime / GuardHitDuration);
                 case HeroinePose.LedgeGrab:
-                    return config.ledgeGrab.At(player.StateTime / config.grabDuration);
+                    return config.ledgeGrab.At(player.StateTime / player.Move.grabTime);
                 case HeroinePose.Climb:
                     return config.ledgeClimb.At(player.StateTime / Mathf.Max(0.01f, player.Move.climbDuration));
                 default:

@@ -21,11 +21,11 @@ namespace PX.EditorTools
         private static readonly string[] LoopingClips =
         {
             "Running", "Ninja Run", "Crouch Idle", "Ninja Crouch", "Dash Ground Pose", "Dash Air Pose",
-            "Guard", "Ledge Hang",
+            "Guard", "Ledge Hang", "Ledge Hang Braced",
         };
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 15;
+        public override uint GetVersion() => 17;
 
         private void OnPreprocessAnimation()
         {
@@ -43,7 +43,7 @@ namespace PX.EditorTools
             // Strikes keep the orientation they were made with. Dropping their root rotation squares her body to the
             // front and so turns a punch thrown from a bladed stance off to her side.
             // Spinning kicks keep their spin for the same reason.
-            bool keepFacing = turn || name.StartsWith("Combo") || name.Contains("Sweep") || name.StartsWith("Counter");
+            bool keepFacing = turn || name.StartsWith("Combo") || name.Contains("Sweep") || name.StartsWith("Counter") || name == "Air Attack";
             // Hanging, the game holds her body against the wall itself, so those clips drop their rise as well. The
             // climb keeps its rise: the game leaves her where she hung and puts her on top when the clip is done.
             bool ledge = name.StartsWith("Ledge") && name != "Ledge Climb";

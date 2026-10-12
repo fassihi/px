@@ -67,7 +67,10 @@ namespace PX
             if (retreatTimer > 0f || distance < config.tooClose)
                 frame.Move = -toward;
             else if (distance > config.attackRange || height > 1f)
+            {
                 frame.Move = toward;
+                frame.Run = distance > config.runDistance;
+            }
             else
                 frame.AttackPressed = true;
             return frame;

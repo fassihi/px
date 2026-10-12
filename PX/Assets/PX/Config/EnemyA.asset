@@ -18,6 +18,8 @@ MonoBehaviour:
   attackRange: 1.9
   tooClose: 1.1
   walkSpeed: 1.6
+  runSpeed: 3.6
+  runDistance: 7
   walkBackSpeed: 1.2
   acceleration: 12
   gravity: 30
@@ -51,6 +53,7 @@ MonoBehaviour:
     shake: 0.18
     knockback: 10
     staminaCost: 8
+  secondOpenerChance: 0.35
   comboChance: 0.5
   retreatChance: 0.35
   retreatTime: 0.8
@@ -64,6 +67,8 @@ MonoBehaviour:
   walk: {fileID: -203655887218126122, guid: 6d8705613bf0f41b585754b5b74c1dce, type: 3}
   walkBack: {fileID: -203655887218126122, guid: b9eacd2c071854e149867f1644d0be99, type: 3}
   walkClipSpeed: 1.4
+  run: {fileID: -203655887218126122, guid: 5d0e1c7a8aa924ec6bc3800c1568f9a2, type: 3}
+  runClipSpeed: 3.6
   attackClip:
     clip: {fileID: -203655887218126122, guid: ec4a57b8966b24d228b58fdc0906d9c4, type: 3}
     from: 0

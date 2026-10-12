@@ -24,7 +24,8 @@ namespace PX.Tests
             yield return Frames(3);
             Assert.That(Player.State, Is.EqualTo(PlayerState.Crouch));
             Assert.That(ColliderHeight, Is.EqualTo(Player.Move.crouchHeight).Within(0.01f), "her collider should drop so she fits behind cover");
-            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.CrouchDown));
+            // One movement: she blends straight into the held pose, with no squat clip before it.
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.CrouchIdle));
 
             yield return Frames(40);
             Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.CrouchIdle));
@@ -33,7 +34,7 @@ namespace PX.Tests
             yield return Frames(3);
             Assert.That(Player.State, Is.EqualTo(PlayerState.Locomotion));
             Assert.That(ColliderHeight, Is.EqualTo(standing).Within(0.01f));
-            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.CrouchUp));
+            Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Idle));
 
             yield return Frames(40);
             Assert.That(Animator.CurrentPose, Is.EqualTo(HeroinePose.Idle));

@@ -22,9 +22,10 @@ namespace PX
             Parried,
             Climb,
             Dead,
+            Run,
         }
 
-        private const int PoseCount = 9;
+        private const int PoseCount = 10;
 
         [SerializeField] private EnemyController enemy;
         [SerializeField] private Animator animator;
@@ -38,6 +39,7 @@ namespace PX
         private Pose current;
         private EnemyState lastState;
         private int lastCombo;
+        private bool wasRagdoll;
 
         private void OnEnable()
         {
@@ -54,6 +56,7 @@ namespace PX
             clips[(int)Pose.Parried] = config.parried.clip;
             clips[(int)Pose.Climb] = config.climb.clip;
             clips[(int)Pose.Dead] = config.death;
+            clips[(int)Pose.Run] = config.run;
 
             graph = PlayableGraph.Create("Enemy");
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
@@ -83,9 +86,22 @@ namespace PX
             if (!graph.IsValid())
                 return;
 
+            // A ragdoll has the body: the animation is off until it is revived, and then starts from the new pose.
+            if (enemy.IsRagdoll)
+            {
+                wasRagdoll = true;
+                return;
+            }
+
             float dt = Time.deltaTime;
             EnemyConfig config = enemy.Config;
             Pose pose = PoseFor(enemy.State);
+            if (wasRagdoll)
+            {
+                wasRagdoll = false;
+                for (int i = 0; i < PoseCount; i++)
+                    weights[i] = i == (int)pose ? 1f : 0f;
+            }
             if (pose != current || enemy.State != lastState || enemy.ComboIndex != lastCombo)
                 times[(int)pose] = 0.0;
             current = pose;
@@ -121,6 +137,8 @@ namespace PX
             switch (state)
             {
                 case EnemyState.Walk: return clips[(int)Pose.Walk] != null ? Pose.Walk : Pose.Idle;
+                case EnemyState.Run:
+                    return clips[(int)Pose.Run] != null ? Pose.Run : clips[(int)Pose.Walk] != null ? Pose.Walk : Pose.Idle;
                 case EnemyState.WalkBack:
                     return clips[(int)Pose.WalkBack] != null ? Pose.WalkBack : clips[(int)Pose.Walk] != null ? Pose.Walk : Pose.Idle;
                 case EnemyState.Attack:
@@ -147,6 +165,11 @@ namespace PX
                     float direction = pose == Pose.Walk || config.walkBack != null ? 1f : -1f;
                     double next = time + direction * dt * Mathf.Clamp(speed, 0.3f, 2f);
                     return (next % clip.length + clip.length) % clip.length;
+                }
+                case Pose.Run:
+                {
+                    float speed = Mathf.Abs(enemy.Motor.Velocity.x) / config.runClipSpeed;
+                    return (time + dt * Mathf.Clamp(speed, 0.5f, 1.6f)) % clip.length;
                 }
                 case Pose.Attack:
                     return StrikeTime(config.attackClip, config.attack, enemy.StateTime);

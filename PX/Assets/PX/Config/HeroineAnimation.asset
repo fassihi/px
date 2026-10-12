@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: HeroineAnimation
   m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
   idle: {fileID: 7994627924475153551, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
-  run: {fileID: -203655887218126122, guid: f3d24ad9b88094956a10ba145c20cae8, type: 3}
+  run: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
   runTurn: {fileID: -203655887218126122, guid: 8130124ee15784ad3a4e67a246f7ccc7, type: 3}
   jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
@@ -58,11 +58,16 @@ MonoBehaviour:
     from: 0.15
     impact: 0.45
     to: 1
+  airAttack:
+    clip: {fileID: -203655887218126122, guid: bb0a81f6d549f4bb6a12450ef9027ac7, type: 3}
+    from: 0.1
+    impact: 0.5
+    to: 0.95
   dodge:
-    clip: {fileID: -203655887218126122, guid: fba6341df3b2242acaad48b1b3b434dd, type: 3}
-    from: 0.35
+    clip: {fileID: -203655887218126122, guid: b3b8fea1bc3cf4174a5df1a607bca0a4, type: 3}
+    from: 0.05
     impact: 0
-    to: 1.65
+    to: 0.95
   guard: {fileID: -203655887218126122, guid: 8116ab39d6b8d49ad96f25394b2dfb59, type: 3}
   parry:
     clip: {fileID: -203655887218126122, guid: 2791119bad5ac4f47907ea04aeec8a8b, type: 3}
@@ -80,24 +85,23 @@ MonoBehaviour:
     from: 0.3
     impact: 0
     to: 1.2
-  grabDuration: 0.3
-  ledgeHang: {fileID: -203655887218126122, guid: f757110a54e384e63a441ab8e384b0ca, type: 3}
+  ledgeHang: {fileID: -203655887218126122, guid: fb2a0cd709b494534b6450eb2dbd2905, type: 3}
   ledgeClimb:
     clip: {fileID: -203655887218126122, guid: ee5503c368ec348eda85d2510964cadd, type: 3}
     from: 0
     impact: 0
     to: 1
   crouchDown:
-    clip: {fileID: -203655887218126122, guid: fe5aade7246564aed8c66940a0befefe, type: 3}
-    from: 0.25
-    impact: 0
-    to: 1
-  crouchIdle: {fileID: -203655887218126122, guid: 8425607bebe6b40eba7ded24c7bf1096, type: 3}
-  crouchUp:
-    clip: {fileID: -203655887218126122, guid: 6bd097d4686224f468443ce5c1a9dbfb, type: 3}
+    clip: {fileID: 0}
     from: 0
     impact: 0
-    to: 0.75
+    to: 0
+  crouchIdle: {fileID: -203655887218126122, guid: 8425607bebe6b40eba7ded24c7bf1096, type: 3}
+  crouchUp:
+    clip: {fileID: 0}
+    from: 0
+    impact: 0
+    to: 0
   crouchAttack:
     clip: {fileID: -203655887218126122, guid: 31cf1b0e9fa0e44e4b726b4564fd565b, type: 3}
     from: 0.4
@@ -105,6 +109,7 @@ MonoBehaviour:
     to: 1.4
   crouchAttackRise: 0.1
   crouchDownDuration: 0.3
+  crouchFadeTime: 0.22
   crouchUpDuration: 0.3
   landRun:
     clip: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
@@ -132,5 +137,5 @@ MonoBehaviour:
   landDipSpeedRange: {x: 4, y: 15}
   landDipDown: 0.06
   landDipUp: 0.3
-  runClipSpeed: 3.4
+  runClipSpeed: 3.1
   runSpeedScaleRange: {x: 0.5, y: 3}

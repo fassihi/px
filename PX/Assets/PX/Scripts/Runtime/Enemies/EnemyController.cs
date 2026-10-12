@@ -16,6 +16,8 @@ namespace PX
         /// <summary>Climbing onto an obstacle in its way.</summary>
         Climb,
         Dead,
+        /// <summary>Running toward her from a distance.</summary>
+        Run,
     }
 
     /// <summary>
@@ -50,6 +52,9 @@ namespace PX
         private bool posted;
         private float postDistance;
         private int postFacing;
+        private Hit lastHit;
+        private bool hasHit;
+        private EnemyRagdoll ragdoll;
 
         public IInputSource InputSource { get; set; }
 
@@ -71,6 +76,11 @@ namespace PX
 
         public bool IsHitboxActive { get; private set; }
 
+        /// <summary>True while its body is a ragdoll: the animation is off.</summary>
+        public bool IsRagdoll => ragdoll != null && ragdoll.IsActive;
+
+        public EnemyRagdoll Ragdoll => ragdoll;
+
         /// <summary>True from the point in its first swing where the second could follow.</summary>
         public bool CanChain => State == EnemyState.Attack && ComboIndex == 0 && StateTime >= config.attack.CancelFrom;
 
@@ -82,6 +92,7 @@ namespace PX
             motor = GetComponent<CharacterMotor>();
             health = GetComponent<Health>();
             InputSource ??= GetComponent<IInputSource>();
+            ragdoll = GetComponent<EnemyRagdoll>();
         }
 
         private void OnEnable()
@@ -116,6 +127,7 @@ namespace PX
                 case EnemyState.Idle:
                 case EnemyState.Walk:
                 case EnemyState.WalkBack:
+                case EnemyState.Run:
                     TickLocomotion(input, dt);
                     break;
                 case EnemyState.Attack:
@@ -158,12 +170,15 @@ namespace PX
 
             bool walking = Mathf.Abs(input.Move) >= WalkThreshold;
             bool backing = walking && Mathf.Sign(input.Move) != motor.Facing;
-            float target = walking ? Mathf.Sign(input.Move) * (backing ? config.walkBackSpeed : config.walkSpeed) : 0f;
+            bool running = walking && !backing && input.Run && config.runSpeed > config.walkSpeed;
+            float target = walking
+                ? Mathf.Sign(input.Move) * (backing ? config.walkBackSpeed : running ? config.runSpeed : config.walkSpeed)
+                : 0f;
             velocity.x = Mathf.MoveTowards(velocity.x, target, config.acceleration * dt);
 
             if (input.AttackPressed && cooldown <= 0f && motor.IsGrounded)
             {
-                StartSwing(0);
+                StartSwing(UnityEngine.Random.value < config.secondOpenerChance ? 1 : 0);
                 return;
             }
 
@@ -173,8 +188,11 @@ namespace PX
             if (blockedTime >= config.climbAfterBlocked && TryStartClimb())
                 return;
 
+            // Running from the moment it is past walking pace, and back to a walk as it slows through it.
+            float runPace = config.walkSpeed + 0.5f * (config.runSpeed - config.walkSpeed);
             EnemyState next = Mathf.Abs(velocity.x) <= 0.05f ? EnemyState.Idle
-                : Mathf.Sign(velocity.x) == motor.Facing ? EnemyState.Walk : EnemyState.WalkBack;
+                : Mathf.Sign(velocity.x) != motor.Facing ? EnemyState.WalkBack
+                : running && Mathf.Abs(velocity.x) > runPace ? EnemyState.Run : EnemyState.Walk;
             if (next != State)
                 Enter(next);
         }
@@ -284,6 +302,8 @@ namespace PX
 
         private void OnDamaged(Hit hit)
         {
+            lastHit = hit;
+            hasHit = true;
             if (health.IsDead)
                 return;
 
@@ -311,8 +331,47 @@ namespace PX
         private void OnDied()
         {
             Enter(EnemyState.Dead);
-            // The body stays where it fell, but no longer blocks her way.
+            // The body no longer blocks her way, and goes limp: thrown the way the killing blow travelled.
             GetComponent<CharacterController>().enabled = false;
+            if (ragdoll == null || ragdoll.BodyCount == 0)
+                return;
+
+            Vector3 along = motor.Rail != null ? motor.Rail.Evaluate(motor.Distance).Tangent : transform.forward;
+            Vector3 push = hasHit ? lastHit.Direction : -transform.forward;
+            float speed = hasHit ? lastHit.Knockback : 4f;
+            Vector3 velocity = Vector3.Project(push, along).normalized * (speed * 0.35f + 1.5f) + Vector3.up * 2f;
+            if (InputSource is EnemyBrain brain && brain.Target != null)
+                ragdoll.IgnoreCollisionsWith(brain.Target.GetComponent<CharacterController>());
+            ragdoll.Activate(velocity);
+        }
+
+        /// <summary>
+        /// Back on its feet where it fell, at full health, ready to fight. Works on a dead enemy and on a living one
+        /// (which is only healed and sent back to idle). For testing the fights over and over.
+        /// </summary>
+        public void Revive()
+        {
+            bool wasDead = health.IsDead;
+            if (wasDead && ragdoll != null && ragdoll.IsActive)
+            {
+                // Stand up where the body came to rest, which may be some way from where it was struck.
+                float distance = motor.Rail != null ? motor.Rail.Project(ragdoll.HipsPosition) : motor.Distance;
+                ragdoll.Deactivate();
+                GetComponent<CharacterController>().enabled = true;
+                motor.Place(distance, ragdoll.LowestPoint + 0.05f);
+            }
+            else if (wasDead)
+            {
+                GetComponent<CharacterController>().enabled = true;
+                motor.Place(motor.Distance, transform.position.y + 0.05f);
+            }
+            health.Restore();
+            velocity = Vector2.zero;
+            knockback = 0f;
+            cooldown = 0f;
+            blockedTime = 0f;
+            hasHit = false;
+            Enter(EnemyState.Idle);
         }
 
         /// <summary>

@@ -85,12 +85,25 @@ namespace PX.Tests
             Input = new ScriptedInput();
             Player.InputSource = Input;
 
+            // Tests that count on an enemy's first swing get it: the chance of opening with the second is rolled in its own test.
+            secondOpeners.Clear();
+            foreach (EnemyController enemy in Object.FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+            {
+                secondOpeners[enemy.Config] = enemy.Config.secondOpenerChance;
+                enemy.Config.secondOpenerChance = 0f;
+            }
+
             yield return Frames(20);
         }
+
+        private readonly System.Collections.Generic.Dictionary<EnemyConfig, float> secondOpeners =
+            new System.Collections.Generic.Dictionary<EnemyConfig, float>();
 
         [TearDown]
         public void RestoreTime()
         {
+            foreach (var pair in secondOpeners)
+                pair.Key.secondOpenerChance = pair.Value;
             Time.captureDeltaTime = 0f;
             Time.timeScale = 1f;
             CameraShake.Clear();

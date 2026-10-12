@@ -28,10 +28,10 @@ namespace PX.EditorTools
         private static readonly string[] Folders = { EnemyAFolder, EnemyBFolder };
 
         // Clips that loop. The rest play once.
-        private static readonly string[] LoopingClips = { "Idle", "Walk", "Walk Back" };
+        private static readonly string[] LoopingClips = { "Idle", "Walk", "Walk Back", "Run" };
 
         // Bump when the settings below change, so Unity re-imports the enemies' files.
-        public override uint GetVersion() => 16;
+        public override uint GetVersion() => 18;
 
         private bool IsEnemy => Folders.Any(folder => assetPath.StartsWith(folder + "/"));
 
@@ -83,7 +83,7 @@ namespace PX.EditorTools
                 // The swordsman's sabre is skinned to its fingers, so it is seated first: the coat fix below would
                 // otherwise take it for cloth near the hand. Its coat is skinned to its arms like the knight's, and its
                 // musket, slung on its back, is tied to its left arm and leg.
-                int sabre = HeldWeapon.Fix(model, "Right", HeldWeapon.GripDirection);
+                int sabre = HeldWeapon.Fix(model, "Right", HeldWeapon.OneHandedGripDirection);
                 int cloth = CoatWeights.Fix(model);
                 int strapped = HeldWeapon.StrapToTorso(model);
                 Debug.Log($"{System.IO.Path.GetFileName(assetPath)}: seated a {sabre}-vertex sabre, moved {cloth} cloth vertices " +

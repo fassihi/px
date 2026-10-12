@@ -15,6 +15,7 @@ namespace PX
         [SerializeField] private PlayerController player;
         [SerializeField] private CharacterMotor motor;
         [SerializeField] private RailCamera railCamera;
+        [SerializeField] private EnemyController[] enemies = System.Array.Empty<EnemyController>();
 
         private GUIStyle style;
         private int timeScaleIndex = NormalTimeScale;
@@ -48,6 +49,8 @@ namespace PX
                     railCamera.DistanceScale *= 1.15f;
                 if (keyboard.equalsKey.wasPressedThisFrame && railCamera != null)
                     railCamera.DistanceScale /= 1.15f;
+                if (keyboard.rKey.wasPressedThisFrame)
+                    ReviveEnemies();
                 if (keyboard.backslashKey.wasPressedThisFrame)
                 {
                     timeScaleIndex = NormalTimeScale;
@@ -66,6 +69,16 @@ namespace PX
             }
         }
 
+        /// <summary>Brings every enemy back on its feet where it lies, at full health. For testing a fight again.</summary>
+        public void ReviveEnemies()
+        {
+            foreach (EnemyController enemy in enemies)
+            {
+                if (enemy != null)
+                    enemy.Revive();
+            }
+        }
+
         private void OnGUI()
         {
             style ??= new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true };
@@ -77,7 +90,8 @@ namespace PX
                 "Dash  Left Shift / K  or  gamepad east / right trigger (no direction held: dodge back)\n" +
                 "Attack  J / left mouse  or  gamepad west (press again to chain five strikes)\n" +
                 "Guard  L / right mouse  or  left bumper (hold to block; press as a blow lands to parry, then Attack to counter)\n" +
-                "Zoom  scroll  or  - / =        Time scale  [ / ]        Reset  \\";
+                "Zoom  scroll  or  - / =        Time scale  [ / ]        Reset  \\\n" +
+                "Revive enemies  R  or the button at the top right";
 
             string state = player != null && motor != null
                 ? $"\n\nstate {player.State}   rail {motor.Distance:0.0} m   speed {motor.Velocity.x:0.0}   " +
@@ -87,9 +101,12 @@ namespace PX
             string debug = $"\nzoom {(railCamera != null ? railCamera.DistanceScale : 1f):0.00}x   time {TimeScales[timeScaleIndex]:0.##}x";
 
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(new Rect(12f, 56f, 700f, 210f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(12f, 56f, 700f, 232f), Texture2D.whiteTexture);
             GUI.color = Color.white;
-            GUI.Label(new Rect(24f, 64f, 680f, 200f), controls + state + debug, style);
+            GUI.Label(new Rect(24f, 64f, 680f, 222f), controls + state + debug, style);
+
+            if (GUI.Button(new Rect(Screen.width - 192f, 56f, 180f, 36f), "Revive enemies (R)"))
+                ReviveEnemies();
         }
     }
 }

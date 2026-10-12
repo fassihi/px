@@ -69,6 +69,18 @@ namespace PX
             hitboxCenter = new Vector2(0.9f, 1.1f), hitboxSize = new Vector2(1.4f, 1.2f),
         };
 
+        [Tooltip("The attack in the air: a flying kick that carries her forward.")]
+        public AttackStep airAttack = new AttackStep
+        {
+            startup = 0.14f, active = 0.22f, recovery = 0.3f, cancelDelay = 0.12f,
+            damage = 22f, lunge = 6f, hitStop = 0.14f, shake = 0.14f, knockback = 7f, staminaCost = 14f,
+            hitboxCenter = new Vector2(1f, 0.55f), hitboxSize = new Vector2(1.7f, 1.8f),
+        };
+
+        [Tooltip("Upward speed the flying kick gives her at the start, in m/s, if she is not already rising faster. " +
+                 "Zero: she throws it from wherever she is, rising or falling.")]
+        [Min(0f)] public float airAttackLift = 0f;
+
         [Tooltip("How long an attack press is remembered while the current swing finishes.")]
         [Min(0f)] public float bufferTime = 0.2f;
 
