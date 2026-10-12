@@ -7,15 +7,28 @@ namespace PX.Tests
 {
     public sealed class EnemyTests : GrayboxFixture
     {
-        private EnemyController Enemy => Object.FindFirstObjectByType<EnemyController>();
+        private EnemyController Enemy => Named("EnemyA");
+
+        private static EnemyController Named(string name)
+        {
+            foreach (EnemyController enemy in Object.FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+            {
+                if (enemy.name.StartsWith(name))
+                    return enemy;
+            }
+            return null;
+        }
 
         [UnityTest]
-        public IEnumerator EnemyA_WaitsAtTheEndOfTheLevel_IdleWhileSheIsFarAway()
+        public IEnumerator EnemyA_WaitsOnTheLastStraight_AndEnemyBAtTheEnd_IdleWhileSheIsFarAway()
         {
             yield return PlaceAt(90f);
             EnemyController enemy = Enemy;
-            Assert.That(enemy, Is.Not.Null, "No enemy in the scene. Rebuild the graybox scene.");
-            Assert.That(enemy.Motor.Distance, Is.GreaterThan(Rail.Length - 12f), "Enemy A belongs near the end of the level.");
+            Assert.That(enemy, Is.Not.Null, "No Enemy A in the scene. Rebuild the graybox scene.");
+            Assert.That(enemy.Motor.Distance, Is.InRange(100f, 125f), "Enemy A waits in its arena on the last straight.");
+            EnemyController enemyB = Named("EnemyB");
+            Assert.That(enemyB, Is.Not.Null, "No Enemy B in the scene. Rebuild the graybox scene.");
+            Assert.That(enemyB.Motor.Distance, Is.GreaterThan(Rail.Length - 25f), "Enemy B belongs near the end of the level.");
 
             float start = enemy.Motor.Distance;
             yield return Frames(60);
@@ -67,18 +80,20 @@ namespace PX.Tests
             }
 
             Assert.That(swung, Is.True, "it never swung");
+            Assert.That(enemy.ComboIndex, Is.EqualTo(0), "the blow that landed was the first of its combo");
             Assert.That(swingTimeAtHit, Is.GreaterThanOrEqualTo(0f), "the swing never hit her");
             Assert.That(swingTimeAtHit, Is.GreaterThanOrEqualTo(enemy.Config.attack.startup - FrameTime),
                 "the wind-up is the telegraph: the blow lands no sooner than its startup");
             Assert.That(health.Current, Is.EqualTo(health.Max - enemy.Config.attack.damage).Within(0.01f));
             Assert.That(health.Invulnerable, Is.True, "she is briefly invulnerable after a hit");
 
-            yield return Frames(Mathf.CeilToInt((Player.Move.hurtStun + enemy.Config.attack.hitStop) / FrameTime) + 2);
+            float freeze = Mathf.Max(enemy.Config.attack.hitStop, Player.Move.hurtHitStop);
+            yield return Frames(Mathf.CeilToInt((Player.HurtDuration + freeze) / FrameTime) + 2);
             Assert.That(Player.IsHurt, Is.False, "the stagger ends");
         }
 
         [UnityTest]
-        public IEnumerator HittingItDuringItsWindUp_InterruptsTheSwing()
+        public IEnumerator DuringItsWindUp_AJabDoesNotStopIt_ButAJabAndACrossDo()
         {
             EnemyController enemy = Enemy;
             yield return PlaceAt(enemy.Motor.Distance - 1.5f);
@@ -87,11 +102,16 @@ namespace PX.Tests
                 yield return null;
             Assume.That(enemy.State, Is.EqualTo(EnemyState.Attack));
 
+            // Poise: a light blow does not interrupt a committed swing.
+            Input.PressAttack();
+            for (int i = 0; i < 12; i++)
+                yield return null;
+            Assert.That(enemy.State, Is.EqualTo(EnemyState.Attack), "it shrugs off a lone jab mid-swing");
+
             Input.PressAttack();
             for (int i = 0; i < 20 && enemy.State == EnemyState.Attack; i++)
                 yield return null;
-
-            Assert.That(enemy.State, Is.EqualTo(EnemyState.Hurt), "her jab staggered it");
+            Assert.That(enemy.State, Is.EqualTo(EnemyState.Hurt), "the cross on top of it breaks its poise");
             Assert.That(Player.IsHurt, Is.False, "and its swing never landed");
         }
 
@@ -112,6 +132,70 @@ namespace PX.Tests
             Assert.That(Player.IsHurt, Is.False, "a dead enemy does not swing");
         }
 
+        /// <summary>Input that asks for the same thing every frame.</summary>
+        private sealed class Steady : IInputSource
+        {
+            public InputFrame Frame;
+            public InputFrame Read() => Frame;
+        }
+
+        [UnityTest]
+        public IEnumerator AttackPressedThroughItsFirstSwing_ChainsTheSecond()
+        {
+            EnemyController enemy = Enemy;
+            yield return PlaceAt(enemy.Motor.Distance - 4f);
+            enemy.InputSource = new Steady { Frame = new InputFrame { AttackPressed = true, Face = -1f } };
+
+            bool second = false;
+            for (int i = 0; i < 180 && !second; i++)
+            {
+                yield return null;
+                second = enemy.State == EnemyState.Attack && enemy.ComboIndex == 1;
+            }
+            Assert.That(second, Is.True, "it never followed with its second swing");
+            Assert.That(enemy.CurrentStep, Is.SameAs(enemy.Config.attack2));
+        }
+
+        [UnityTest]
+        public IEnumerator WhenSheIsTooClose_ItBacksAway_StillFacingHer()
+        {
+            EnemyController enemy = Enemy;
+            float start = enemy.Motor.Distance;
+            Motor.Teleport(Rail, start - enemy.Config.tooClose * 0.7f, 0.1f);
+            RailCamera.Snap();
+
+            bool backed = false;
+            for (int i = 0; i < 40 && !backed; i++)
+            {
+                yield return null;
+                backed = enemy.State == EnemyState.WalkBack;
+            }
+            Assert.That(backed, Is.True, "it never backed off");
+            yield return Frames(15);
+            Assert.That(enemy.Motor.Distance, Is.GreaterThan(start + 0.1f), "it opened the distance");
+            Assert.That(enemy.Motor.Facing, Is.EqualTo(-1), "facing her as it goes");
+        }
+
+        [UnityTest]
+        public IEnumerator SheStandsOnACrate_ItClimbsUpAfterHer()
+        {
+            EnemyController enemy = Enemy;
+            // The low crate runs from 117 to 119 m and is 1.4 m tall.
+            Motor.Teleport(Rail, 118.5f, 1.5f);
+            Motor.Facing = -1;
+            RailCamera.Snap();
+
+            bool climbed = false;
+            for (int i = 0; i < 600 && !climbed; i++)
+            {
+                yield return null;
+                climbed = enemy.State == EnemyState.Climb;
+            }
+            Assert.That(climbed, Is.True, "it never climbed");
+            yield return Frames(Mathf.CeilToInt(enemy.Config.climbDuration / FrameTime) + 10);
+            Assert.That(enemy.transform.position.y, Is.GreaterThan(1.3f), "it stands on the crate");
+        }
+
         [UnityTest]
         public IEnumerator ItsSwing_HasTheBladeOut_WhileTheHitboxIsLive()
         {
@@ -125,7 +209,7 @@ namespace PX.Tests
             for (int i = 0; i < 240; i++)
             {
                 yield return null;
-                if (enemy.State != EnemyState.Attack)
+                if (enemy.State != EnemyState.Attack || enemy.ComboIndex != 0)
                 {
                     if (at >= 0f)
                         break;

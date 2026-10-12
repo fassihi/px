@@ -13,38 +13,81 @@ MonoBehaviour:
   m_Name: EnemyA
   m_EditorClassIdentifier: PX.Runtime::PX.EnemyConfig
   aggroRange: 9
+  chaseRange: 30
+  aggroHeight: 2.5
   attackRange: 1.9
+  tooClose: 1.1
   walkSpeed: 1.6
+  walkBackSpeed: 1.2
   acceleration: 12
   gravity: 30
+  climbHeight: 1.7
+  climbProbe: 0.5
+  climbDuration: 0.9
+  climbAfterBlocked: 0.15
   attack:
     startup: 0.55
     active: 0.15
     recovery: 0.65
-    cancelDelay: 0
+    cancelDelay: 0.25
     damage: 15
     lunge: 1.5
-    hitboxCenter: {x: 1.2, y: 1.1}
-    hitboxSize: {x: 1.8, y: 1.6}
-    hitStop: 0.08
-    shake: 0.1
+    hitboxCenter: {x: 1.1, y: 1.1}
+    hitboxSize: {x: 1.6, y: 1.6}
+    hitStop: 0.12
+    shake: 0.14
     knockback: 7
+    staminaCost: 8
+  attack2:
+    startup: 0.4
+    active: 0.18
+    recovery: 0.8
+    cancelDelay: 0
+    damage: 20
+    lunge: 2.5
+    hitboxCenter: {x: 1.1, y: 1}
+    hitboxSize: {x: 1.7, y: 1.4}
+    hitStop: 0.14
+    shake: 0.18
+    knockback: 10
+    staminaCost: 8
+  comboChance: 0.5
+  retreatChance: 0.35
+  retreatTime: 0.8
   attackCooldown: 0.9
-  hitboxDepth: 1.5
+  hitboxDepth: 0.8
   hitStun: 0.45
+  attackPoise: 20
+  parriedStun: 1.3
   knockbackFriction: 25
   idle: {fileID: -203655887218126122, guid: 46a3cab9cec5e4e9b90816f4082e9670, type: 3}
   walk: {fileID: -203655887218126122, guid: 6d8705613bf0f41b585754b5b74c1dce, type: 3}
+  walkBack: {fileID: -203655887218126122, guid: b9eacd2c071854e149867f1644d0be99, type: 3}
   walkClipSpeed: 1.4
   attackClip:
     clip: {fileID: -203655887218126122, guid: ec4a57b8966b24d228b58fdc0906d9c4, type: 3}
     from: 0
     impact: 0.64
     to: 0
+  attack2Clip:
+    clip: {fileID: -203655887218126122, guid: d0ffd3d43edd944fe98e94d334ba5c89, type: 3}
+    from: 0.7
+    impact: 1.4
+    to: 1.8
   hurt:
     clip: {fileID: -203655887218126122, guid: 1f6159137103a4b9d9682604d1d3f170, type: 3}
     from: 0
     impact: 0
     to: 0
+  parried:
+    clip: {fileID: -203655887218126122, guid: 826616073efee414fb3a10c804e44ddc, type: 3}
+    from: 0
+    impact: 0
+    to: 0
+  climb:
+    clip: {fileID: -203655887218126122, guid: 0ce018355d7d14b128890789deab14e5, type: 3}
+    from: 0
+    impact: 0
+    to: 0.9
   death: {fileID: -203655887218126122, guid: 87401aaecc84f4e27ab3aea8b239a6af, type: 3}
   fadeTime: 0.12

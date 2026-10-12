@@ -110,6 +110,69 @@ namespace PX
             ApplyFacing();
         }
 
+        /// <summary>
+        /// Puts the character at a rail distance and height on its own rail, keeping its facing, without sweeping for
+        /// collisions. For moves the game animates by hand, like hanging from a ledge and climbing onto it.
+        /// </summary>
+        public void Place(float distance, float height)
+        {
+            Teleport(rail, distance, height);
+        }
+
+        /// <summary>The radius of the character's collider, in metres.</summary>
+        public float Radius => controller != null ? controller.radius : GetComponent<CharacterController>().radius;
+
+        /// <summary>
+        /// Looks for a ledge in front of the character: a wall whose top is between <paramref name="minHeight"/> and
+        /// <paramref name="maxHeight"/> above its feet, within <paramref name="reach"/> of its body, with room to stand
+        /// on top. Returns the top's height and the rail distance of the wall's face.
+        /// </summary>
+        public bool FindLedge(float minHeight, float maxHeight, float reach, out float top, out float wallDistance)
+        {
+            top = 0f;
+            wallDistance = 0f;
+            if (rail == null)
+                return false;
+
+            RailPoint point = rail.Evaluate(Distance);
+            Vector3 forward = point.Tangent * facing;
+            Vector3 feet = transform.position;
+            float radius = Radius;
+
+            // Down from above the highest reach, just past the body: the first floor it meets is the ledge's top.
+            Vector3 probe = feet + forward * (radius + reach * 0.5f) + Vector3.up * (maxHeight + 0.05f);
+            if (!Physics.SphereCast(probe, 0.05f, Vector3.down, out RaycastHit down, maxHeight - minHeight + 0.05f, ~0, QueryTriggerInteraction.Ignore)
+                || down.normal.y < 0.7f || IsIgnored(down.collider))
+                return false;
+            top = down.point.y;
+            float above = top - feet.y;
+            if (above < minHeight || above > maxHeight)
+                return false;
+
+            // The wall under it: straight ahead, a little below the top.
+            Vector3 chest = new Vector3(feet.x, top - 0.15f, feet.z);
+            if (!Physics.Raycast(chest, forward, out RaycastHit wall, radius + reach, ~0, QueryTriggerInteraction.Ignore)
+                || Mathf.Abs(wall.normal.y) > 0.3f || IsIgnored(wall.collider))
+                return false;
+            wallDistance = Distance + Vector3.Dot(wall.point - feet, point.Tangent);
+
+            // Room to stand on top, a body's width past the edge.
+            float standing = standingHeight > 0f ? standingHeight : controller.height;
+            Vector3 onTop = new Vector3(wall.point.x, top, wall.point.z) + forward * (radius + 0.1f);
+            Vector3 bottom = onTop + Vector3.up * (radius + 0.05f);
+            Vector3 head = onTop + Vector3.up * (standing - radius);
+            int count = Physics.OverlapCapsuleNonAlloc(bottom, head, radius * 0.9f, overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                if (!IsIgnored(overlapBuffer[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        // Characters are not ledges: only level geometry counts.
+        private bool IsIgnored(Collider other) => other == controller || other.transform.IsChildOf(transform) || other is CharacterController;
+
         /// <summary>Moves by a rail-space velocity for one time step.</summary>
         public void Move(Vector2 velocity, float deltaTime)
         {

@@ -20,6 +20,7 @@ namespace PX
         private InputAction attack;
         private InputAction crouch;
         private InputAction crouchStick;
+        private InputAction guard;
 
         private void Awake()
         {
@@ -57,6 +58,11 @@ namespace PX
 
             crouchStick = new InputAction("Crouch Stick", InputActionType.Value);
             crouchStick.AddBinding("<Gamepad>/leftStick/y");
+
+            guard = new InputAction("Guard", InputActionType.Button);
+            guard.AddBinding("<Keyboard>/l");
+            guard.AddBinding("<Mouse>/rightButton");
+            guard.AddBinding("<Gamepad>/leftShoulder");
         }
 
         private void OnEnable()
@@ -67,6 +73,7 @@ namespace PX
             attack.Enable();
             crouch.Enable();
             crouchStick.Enable();
+            guard.Enable();
         }
 
         private void OnDisable()
@@ -77,6 +84,7 @@ namespace PX
             attack.Disable();
             crouch.Disable();
             crouchStick.Disable();
+            guard.Disable();
         }
 
         private void OnDestroy()
@@ -87,6 +95,7 @@ namespace PX
             attack.Dispose();
             crouch.Dispose();
             crouchStick.Dispose();
+            guard.Dispose();
         }
 
         public InputFrame Read()
@@ -100,6 +109,8 @@ namespace PX
                 DashPressed = dash.WasPressedThisFrame(),
                 AttackPressed = attack.WasPressedThisFrame(),
                 CrouchHeld = crouch.IsPressed() || crouchStick.ReadValue<float>() < -CrouchStickThreshold,
+                GuardPressed = guard.WasPressedThisFrame(),
+                GuardHeld = guard.IsPressed(),
             };
         }
     }

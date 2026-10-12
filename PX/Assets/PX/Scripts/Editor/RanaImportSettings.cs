@@ -18,10 +18,14 @@ namespace PX.EditorTools
         public const string BodyPath = Folder + "/Animations/RanaAnimations.fbx";
 
         // Mixamo clips that loop. The rest play once.
-        private static readonly string[] LoopingClips = { "Running", "Crouch Idle", "Dash Ground Pose", "Dash Air Pose" };
+        private static readonly string[] LoopingClips =
+        {
+            "Running", "Ninja Run", "Crouch Idle", "Ninja Crouch", "Dash Ground Pose", "Dash Air Pose",
+            "Guard", "Ledge Hang",
+        };
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 13;
+        public override uint GetVersion() => 15;
 
         private void OnPreprocessAnimation()
         {
@@ -38,7 +42,11 @@ namespace PX.EditorTools
             bool turn = name.Contains("Turn");
             // Strikes keep the orientation they were made with. Dropping their root rotation squares her body to the
             // front and so turns a punch thrown from a bladed stance off to her side.
-            bool keepFacing = turn || name.StartsWith("Combo") || name.Contains("Sweep");
+            // Spinning kicks keep their spin for the same reason.
+            bool keepFacing = turn || name.StartsWith("Combo") || name.Contains("Sweep") || name.StartsWith("Counter");
+            // Hanging, the game holds her body against the wall itself, so those clips drop their rise as well. The
+            // climb keeps its rise: the game leaves her where she hung and puts her on top when the clip is done.
+            bool ledge = name.StartsWith("Ledge") && name != "Ledge Climb";
             ModelImporterClipAnimation clip = clips[0];
             clip.name = name;
             // Cycles and held poses loop; moves, landings and transitions play once.
@@ -46,7 +54,7 @@ namespace PX.EditorTools
             // The game moves her, so clips play in place: travel along the ground is dropped, and so is the rise of a
             // jump. A turn keeps its rotation, so she visibly spins round.
             clip.lockRootPositionXZ = false;
-            clip.lockRootHeightY = !jump;
+            clip.lockRootHeightY = !jump && !ledge;
             clip.keepOriginalPositionY = true;
             clip.lockRootRotation = keepFacing;
             clip.keepOriginalOrientation = keepFacing;

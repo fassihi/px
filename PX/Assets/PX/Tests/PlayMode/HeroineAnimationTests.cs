@@ -103,6 +103,7 @@ namespace PX.Tests
         {
             yield return PlaceAt(OpenStretch);
 
+            Input.Move = 1f;
             Input.PressDash();
             yield return Frames(3);
 

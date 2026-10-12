@@ -202,6 +202,124 @@ namespace PX.Tests
         }
 
         /// <summary>Renders her from a camera close beside her on the rail's camera side, framed on her whole body.</summary>
+        private static EnemyController FindEnemy(string name)
+        {
+            foreach (EnemyController enemy in Object.FindObjectsByType<EnemyController>(FindObjectsSortMode.None))
+            {
+                if (enemy.name.StartsWith(name))
+                    return enemy;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Close-ups of the moves added with the soulslike layer and the ledges: the dodge, guard, parry and counter,
+        /// the last two combo strikes, the hit effects, hanging and climbing, the crouch, and Enemy B.
+        /// Only runs when the PX_SCREENSHOT_DIR environment variable names a folder.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator MovesScreenshots()
+        {
+            string folder = System.Environment.GetEnvironmentVariable("PX_SCREENSHOT_DIR");
+            if (string.IsNullOrEmpty(folder))
+                Assert.Ignore("Set PX_SCREENSHOT_DIR to capture screenshots.");
+            folder = Path.Combine(folder, "moves");
+            Directory.CreateDirectory(folder);
+
+            // The dodge back and the crouch, in the open.
+            yield return PlaceAt(90f);
+            Input.PressDash();
+            yield return Frames(10);
+            yield return CaptureCloseUp(folder, "01-dodge");
+            yield return Frames(40);
+            Input.CrouchHeld = true;
+            yield return Frames(40);
+            yield return CaptureCloseUp(folder, "02-crouch");
+            Input.CrouchHeld = false;
+            yield return Frames(30);
+            Input.GuardHeld = true;
+            yield return Frames(30);
+            yield return CaptureCloseUp(folder, "03-guard");
+            Input.GuardHeld = false;
+            yield return Frames(20);
+
+            // The whole combo on a training dummy, caught at the moment each strike lands, sparks and all.
+            yield return PlaceAt(60.6f);
+            int captured = 0;
+            for (int i = 0; i < 240 && captured < Player.Combo.steps.Length; i++)
+            {
+                if (i % 5 == 0)
+                    Input.PressAttack();
+                yield return null;
+                if (Player.State == PlayerState.Attack && Player.ComboIndex == captured
+                    && Player.StateTime >= Player.CurrentStep.startup + Player.CurrentStep.active * 0.5f)
+                {
+                    yield return CaptureCloseUp(folder, $"04-strike-{captured + 1}");
+                    captured++;
+                }
+            }
+
+            // A parry, and the counter after it.
+            EnemyController enemy = FindEnemy("EnemyA");
+            yield return PlaceAt(enemy.Motor.Distance - 1.5f);
+            for (int i = 0; i < 300 && !(enemy.State == EnemyState.Attack && enemy.StateTime >= enemy.Config.attack.startup - 0.08f); i++)
+                yield return null;
+            Input.PressGuard();
+            for (int i = 0; i < 40 && enemy.State != EnemyState.Parried; i++)
+                yield return null;
+            yield return Frames(4);
+            yield return CaptureCloseUp(folder, "05-parry", enemy.transform);
+            Input.GuardHeld = false;
+            Input.PressAttack();
+            for (int i = 0; i < 60 && !(Player.State == PlayerState.Attack && Player.IsHitboxActive); i++)
+                yield return null;
+            yield return Frames(2);
+            yield return CaptureCloseUp(folder, "06-counter", enemy.transform);
+            yield return Frames(60);
+
+            // Taking a blow.
+            for (int i = 0; i < 300 && !Player.IsHurt; i++)
+                yield return null;
+            yield return Frames(6);
+            yield return CaptureCloseUp(folder, "07-hurt", enemy.transform);
+
+            // The ledges, once she is back on her feet.
+            for (int i = 0; i < 120 && (Player.IsHurt || Player.State == PlayerState.Dead); i++)
+                yield return null;
+            Motor.Facing = 1;
+            yield return PlaceAt(129f);
+            Input.Move = 1f;
+            yield return Frames(15);
+            Input.PressJump();
+            for (int i = 0; i < 120 && Player.State != PlayerState.Hang; i++)
+                yield return null;
+            Input.Move = 0f;
+            yield return Frames(20);
+            yield return CaptureCloseUp(folder, "08-hang");
+            Input.PressJump();
+            yield return Frames(20);
+            yield return CaptureCloseUp(folder, "09-climb");
+            yield return Frames(40);
+            yield return CaptureCloseUp(folder, "10-on-top");
+
+            // Enemy B.
+            EnemyController enemyB = FindEnemy("EnemyB");
+            yield return PlaceAt(enemyB.Motor.Distance - 6f);
+            yield return Frames(20);
+            yield return CaptureCloseUp(folder, "11-enemy-b", enemyB.transform);
+            yield return PlaceAt(enemyB.Motor.Distance - 1.6f);
+            for (int i = 0; i < 240 && !enemyB.IsHitboxActive; i++)
+                yield return null;
+            yield return CaptureCloseUp(folder, "12-enemy-b-swing", enemyB.transform);
+
+            // A fall.
+            Health health = Player.GetComponent<Health>();
+            health.Invulnerable = false;
+            health.TakeHit(new Hit(health.Max * 2f, -Player.transform.forward, null, 4f));
+            yield return Frames(80);
+            yield return CaptureCloseUp(folder, "13-fallen");
+        }
+
         /// <summary>
         /// The fight with Enemy A, framed on the two of them: the knight idle and walking in, its swing winding up and
         /// landing, her staggered, then it staggered by her combo and dead. Only runs when PX_SCREENSHOT_DIR is set.
@@ -214,7 +332,7 @@ namespace PX.Tests
                 Assert.Ignore("Set PX_SCREENSHOT_DIR to capture screenshots.");
             folder = Path.Combine(folder, "enemy");
             Directory.CreateDirectory(folder);
-            var enemy = Object.FindFirstObjectByType<EnemyController>();
+            EnemyController enemy = FindEnemy("EnemyA");
 
             yield return PlaceAt(enemy.Motor.Distance - 10f);
             yield return Frames(20);

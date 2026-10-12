@@ -1,0 +1,93 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d7390b4573ba4a77a970f09c327326b, type: 3}
+  m_Name: EnemyB
+  m_EditorClassIdentifier: PX.Runtime::PX.EnemyConfig
+  aggroRange: 8
+  chaseRange: 30
+  aggroHeight: 2.5
+  attackRange: 1.7
+  tooClose: 1
+  walkSpeed: 2.2
+  walkBackSpeed: 1.5
+  acceleration: 12
+  gravity: 30
+  climbHeight: 1.7
+  climbProbe: 0.5
+  climbDuration: 0.9
+  climbAfterBlocked: 0.15
+  attack:
+    startup: 0.38
+    active: 0.12
+    recovery: 0.5
+    cancelDelay: 0.15
+    damage: 11
+    lunge: 2
+    hitboxCenter: {x: 0.95, y: 1.1}
+    hitboxSize: {x: 1.4, y: 1.4}
+    hitStop: 0.1
+    shake: 0.1
+    knockback: 6
+    staminaCost: 8
+  attack2:
+    startup: 0.32
+    active: 0.14
+    recovery: 0.65
+    cancelDelay: 0
+    damage: 14
+    lunge: 2.5
+    hitboxCenter: {x: 1, y: 1.1}
+    hitboxSize: {x: 1.5, y: 1.3}
+    hitStop: 0.12
+    shake: 0.14
+    knockback: 8
+    staminaCost: 8
+  comboChance: 0.65
+  retreatChance: 0.35
+  retreatTime: 0.8
+  attackCooldown: 0.7
+  hitboxDepth: 0.8
+  hitStun: 0.5
+  attackPoise: 12
+  parriedStun: 1.3
+  knockbackFriction: 25
+  idle: {fileID: -203655887218126122, guid: 9fdb0c44bbb5a494d8dab394446ad2c7, type: 3}
+  walk: {fileID: -203655887218126122, guid: dc0c3b5c264b44038b7636b75f57a09f, type: 3}
+  walkBack: {fileID: -203655887218126122, guid: bbbc374d416ee49a384bdc40a74898d7, type: 3}
+  walkClipSpeed: 1.3
+  attackClip:
+    clip: {fileID: -203655887218126122, guid: 80435903544904556a3838df7d1f7e17, type: 3}
+    from: 0.1
+    impact: 0.6
+    to: 1.2
+  attack2Clip:
+    clip: {fileID: -203655887218126122, guid: 94533a68289544b2c997ac032eaf7fbb, type: 3}
+    from: 0.1
+    impact: 0.7
+    to: 1.5
+  hurt:
+    clip: {fileID: -203655887218126122, guid: 6d36458101d694e85ba0f9c554467c76, type: 3}
+    from: 0
+    impact: 0
+    to: 0
+  parried:
+    clip: {fileID: -203655887218126122, guid: 9d15ea98b56e54f5a820b683f3bb0733, type: 3}
+    from: 0
+    impact: 0
+    to: 0
+  climb:
+    clip: {fileID: -203655887218126122, guid: c4acd333b4e4c40369f15362b4d63219, type: 3}
+    from: 0
+    impact: 0
+    to: 0.97
+  death: {fileID: -203655887218126122, guid: 5dc8c2177192f424ea496aca65b28aa2, type: 3}
+  fadeTime: 0.12

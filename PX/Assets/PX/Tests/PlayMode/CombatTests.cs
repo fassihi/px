@@ -98,8 +98,9 @@ namespace PX.Tests
             yield return PlaceAt(60.6f);
             Health dummy = NearestDummy();
             Vector3 before = dummy.transform.position;
-            var sparks = Player.GetComponentInChildren<ParticleSystem>();
-            Assert.That(sparks, Is.Not.Null, "The player has no hit sparks. Delete Player.prefab and rebuild the scene.");
+            var effects = Object.FindFirstObjectByType<HitEffects>();
+            Assert.That(effects, Is.Not.Null, "The scene has no hit effects. Rebuild the graybox scene.");
+            ParticleSystem sparks = effects.transform.Find("Sparks").GetComponent<ParticleSystem>();
 
             Input.PressAttack();
             int most = 0;

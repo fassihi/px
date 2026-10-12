@@ -37,6 +37,9 @@ namespace PX
         [Tooltip("How hard a connecting swing pushes the target back, in m/s.")]
         [Min(0f)] public float knockback = 3f;
 
+        [Tooltip("Stamina it costs to throw. Enemies ignore it.")]
+        [Min(0f)] public float staminaCost = 8f;
+
         public float ActiveEnd => startup + active;
 
         public float CancelFrom => startup + active + Mathf.Min(cancelDelay, recovery);
@@ -54,8 +57,16 @@ namespace PX
         public AttackStep crouchAttack = new AttackStep
         {
             startup = 0.1f, active = 0.12f, recovery = 0.3f, cancelDelay = 0.1f,
-            damage = 14f, lunge = 0f, hitStop = 0.11f, shake = 0.1f, knockback = 2f,
-            hitboxCenter = new Vector2(1.2f, 0.35f), hitboxSize = new Vector2(2.2f, 0.7f),
+            damage = 14f, lunge = 0f, hitStop = 0.11f, shake = 0.1f, knockback = 2f, staminaCost = 12f,
+            hitboxCenter = new Vector2(0.95f, 0.35f), hitboxSize = new Vector2(1.4f, 0.6f),
+        };
+
+        [Tooltip("The counter after a parry: one heavy blow while the enemy is off balance.")]
+        public AttackStep counterAttack = new AttackStep
+        {
+            startup = 0.1f, active = 0.14f, recovery = 0.45f, cancelDelay = 0.2f,
+            damage = 45f, lunge = 4f, hitStop = 0.22f, shake = 0.24f, knockback = 9f, staminaCost = 0f,
+            hitboxCenter = new Vector2(0.9f, 1.1f), hitboxSize = new Vector2(1.4f, 1.2f),
         };
 
         [Tooltip("How long an attack press is remembered while the current swing finishes.")]
@@ -64,7 +75,7 @@ namespace PX
         [Tooltip("Seconds a hit's camera shake takes to die away.")]
         [Min(0.01f)] public float shakeTime = 0.22f;
 
-        [Tooltip("How far the hitbox extends to each side of the rail.")]
-        [Min(0.1f)] public float hitboxDepth = 1.5f;
+        [Tooltip("How far the hitbox extends to each side of the rail. Enough to cover a body on the rail, no more.")]
+        [Min(0.1f)] public float hitboxDepth = 0.6f;
     }
 }

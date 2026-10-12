@@ -30,11 +30,27 @@ namespace PX.EditorTools
         private const string HeroineFolder = HeroineImportSettings.Folder;
         private const float HeroineHeight = 1.75f;
 
-        // Enemy A, the armoured knight, stands a head taller than her.
+        // Enemy A, the armoured knight, stands a head taller than her. Enemy B, the swordsman, a little less.
         private const float EnemyAHeight = 2.0f;
+        private const float EnemyBHeight = 1.9f;
 
-        // Where Enemy A waits: near the end of the level, on the last straight.
-        private const float EnemyADistance = 110f;
+        // Where the enemies wait on the last straight: Enemy A in an arena with crates to climb, then a stretch of
+        // ledges to climb, then Enemy B at the end.
+        private const float EnemyADistance = 112f;
+        private const float ArenaAEnd = 126f;
+        private const float LedgesEnd = 158f;
+        private const float EnemyBDistance = 178f;
+
+        // Where she gets up after a fall: the start, before each fight, and before the ledges.
+        private static readonly float[] Checkpoints = { StartDistance, 98f, ArenaAEnd + 1f, LedgesEnd + 1f };
+        // Enemy clip windows, in seconds into each Mixamo clip: where the part that plays starts, where the blade is
+        // furthest out, and where it ends. Measured by sampling the clips on the enemies.
+        private const float AttackA2From = 0.7f, AttackA2Impact = 1.4f, AttackA2To = 1.8f;
+        private const float AttackB1From = 0.1f, AttackB1Impact = 0.6f, AttackB1To = 1.2f;
+        private const float AttackB2From = 0.1f, AttackB2Impact = 0.7f, AttackB2To = 1.5f;
+        private const float ClimbAFrom = 0f, ClimbATo = 0.9f;
+        private const float ClimbBFrom = 0f, ClimbBTo = 0.97f;
+
         private const string VolumeProfilePath = "Assets/Settings/SceneVolumeProfile.asset";
 
         private const float FloorDepth = 8f;
@@ -50,7 +66,6 @@ namespace PX.EditorTools
             public Material PlayerAccent;
             public Material Dummy;
             public Material Slash;
-            public Material HitSpark;
         }
 
         [MenuItem("PX/Graybox/Rebuild Scene")]
@@ -67,11 +82,16 @@ namespace PX.EditorTools
             Palette palette = LoadPalette();
             MoveConfig move = LoadOrCreateAsset<MoveConfig>($"{ConfigFolder}/PlayerMove.asset", null);
             ComboConfig combo = LoadOrCreateAsset<ComboConfig>($"{ConfigFolder}/PlayerLightCombo.asset", FillDefaultCombo);
+            PlayerCombatConfig combat = LoadOrCreateAsset<PlayerCombatConfig>($"{ConfigFolder}/PlayerCombat.asset", null);
             HeroineAnimationConfig heroineAnimation = LoadOrCreateAsset<HeroineAnimationConfig>($"{ConfigFolder}/HeroineAnimation.asset", FillHeroineAnimation);
-            GameObject playerPrefab = LoadOrCreatePrefab($"{PrefabFolder}/Player.prefab", () => CreatePlayer(move, combo, heroineAnimation, palette));
+            GameObject playerPrefab = LoadOrCreatePrefab($"{PrefabFolder}/Player.prefab", () => CreatePlayer(move, combo, combat, heroineAnimation, palette));
             GameObject dummyPrefab = LoadOrCreatePrefab($"{PrefabFolder}/TrainingDummy.prefab", () => CreateDummy(palette));
             EnemyConfig enemyA = LoadOrCreateAsset<EnemyConfig>($"{ConfigFolder}/EnemyA.asset", FillEnemyA);
-            GameObject enemyAPrefab = LoadOrCreatePrefab($"{PrefabFolder}/EnemyA.prefab", () => CreateEnemyA(enemyA));
+            GameObject enemyAPrefab = LoadOrCreatePrefab($"{PrefabFolder}/EnemyA.prefab", () => CreateEnemy(
+                "EnemyA", enemyA, EnemyImportSettings.EnemyABodyPath, EnemyImportSettings.EnemyATexturePath, EnemyAHeight, 120f, 0.45f));
+            EnemyConfig enemyB = LoadOrCreateAsset<EnemyConfig>($"{ConfigFolder}/EnemyB.asset", FillEnemyB);
+            GameObject enemyBPrefab = LoadOrCreatePrefab($"{PrefabFolder}/EnemyB.prefab", () => CreateEnemy(
+                "EnemyB", enemyB, EnemyImportSettings.EnemyBBodyPath, EnemyImportSettings.EnemyBTexturePath, EnemyBHeight, 80f, 0.4f));
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -79,10 +99,15 @@ namespace PX.EditorTools
             BuildLevel(rail, palette);
             PlaceDummies(rail, dummyPrefab);
             CharacterMotor motor = PlacePlayer(rail, playerPrefab);
-            PlaceEnemy(rail, enemyAPrefab, EnemyADistance, motor);
+            EnemyController[] enemies =
+            {
+                PlaceEnemy(rail, enemyAPrefab, EnemyADistance, motor),
+                PlaceEnemy(rail, enemyBPrefab, EnemyBDistance, motor),
+            };
             RailCamera railCamera = CreateCamera(rail, motor);
             CreateLighting();
             CreateOverlay(motor, railCamera);
+            CreateCombatLayer(motor.GetComponent<PlayerController>(), enemies);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -105,7 +130,8 @@ namespace PX.EditorTools
 
             const float firstStraight = 40f;
             const float radius = 10f;
-            const float secondStraight = 62f;
+            // Long enough for Enemy A's arena, the ledges and Enemy B's ground at the end.
+            const float secondStraight = 140f;
             const float handle = 12f;
             // Handle length that makes a cubic Bezier follow a quarter circle.
             float arc = radius * 0.5523f;
@@ -144,6 +170,21 @@ namespace PX.EditorTools
             // A ledge after the dummies, to fight around.
             AddBlocks(platforms, rail, "Ledge", 74f, 79f, 0f, 1.5f, palette.Platform);
 
+            // Enemy A's arena: crates she can jump onto and the knight climbs after her, one onto the other.
+            AddBlocks(platforms, rail, "Crate low", 117f, 119f, 0f, 1.4f, palette.Platform);
+            AddBlocks(platforms, rail, "Crate high", 119f, 122f, 0f, 2.6f, palette.Platform);
+
+            // The ledges: walls too tall to jump onto, whose tops she catches and climbs. A jump reaches the first
+            // wall's top with her hands; the second, from the first, the same. Falling between them drops her to the floor.
+            AddBlocks(platforms, rail, "Climb wall", 130f, 135f, 0f, 4.5f, palette.Platform);
+            AddBlocks(platforms, rail, "Climb wall high", 138f, 143f, 0f, 9.1f, palette.Platform);
+            AddBlocks(platforms, rail, "Ledge step down", 146f, 150f, 0f, 4.5f, palette.Platform);
+            // A floating ledge to catch from below and pull up onto.
+            AddBlocks(platforms, rail, "Hanging ledge", 152.5f, 156f, 3.9f, 4.4f, palette.Platform);
+
+            // Enemy B's ground: a low wall it climbs over to reach her.
+            AddBlocks(platforms, rail, "Low wall", 169f, 170.5f, 0f, 1.1f, palette.Platform);
+
             // A terrace and a colonnade on the far side of the rail give the eye something to measure depth with.
             // On the last stretch the camera looks down the rail, so the near side gets columns too: a corridor to run through.
             const float corridorFrom = 96f;
@@ -152,7 +193,8 @@ namespace PX.EditorTools
             for (float d = 2f; d < end; d += 7f)
             {
                 AddColumn(backdrop, rail, d, -7f, 11f, palette.Backdrop);
-                if (d > corridorFrom)
+                // Only where the camera looks down the rail: in the side views past it they would stand in front of the camera.
+                if (d > corridorFrom && d < EnemyADistance - 10f)
                     AddColumn(backdrop, rail, d, 7f, 11f, palette.Backdrop);
             }
         }
@@ -241,7 +283,7 @@ namespace PX.EditorTools
             }
         }
 
-        private static GameObject CreatePlayer(MoveConfig move, ComboConfig combo, HeroineAnimationConfig animation, Palette palette)
+        private static GameObject CreatePlayer(MoveConfig move, ComboConfig combo, PlayerCombatConfig combat, HeroineAnimationConfig animation, Palette palette)
         {
             var root = new GameObject("Player") { tag = "Player" };
 
@@ -256,6 +298,7 @@ namespace PX.EditorTools
 
             root.AddComponent<CharacterMotor>();
             root.AddComponent<Health>();
+            var stamina = root.AddComponent<Stamina>();
             root.AddComponent<PlayerInputSource>();
             var player = root.AddComponent<PlayerController>();
             var debugView = root.AddComponent<PlayerDebugView>();
@@ -268,6 +311,8 @@ namespace PX.EditorTools
 
             Wire(player, "move", move);
             Wire(player, "combo", combo);
+            Wire(player, "combat", combat);
+            Wire(stamina, "config", combat);
             Wire(debugView, "player", player);
             Wire(debugView, "hitboxVisual", slash.transform);
             Wire(heroineAnimator, "player", player);
@@ -275,36 +320,53 @@ namespace PX.EditorTools
             Wire(heroineAnimator, "animator", animator);
             Wire(heroineAnimator, "config", animation);
 
-            var sparks = root.AddComponent<HitSparks>();
-            Wire(sparks, "player", player);
-            Wire(sparks, "sparks", CreateHitSparks(root.transform, palette));
+            root.AddComponent<HitFlash>();
             return root;
         }
 
         /// <summary>
-        /// The burst of sparks where a blow lands. Short streaks thrown forward in a cone, on real time so they still
-        /// fly during hit-stop. Emitted by <see cref="HitSparks"/>, never played on its own.
+        /// What sits beside the fighters in the scene: the particles where blows land, the health and stamina bars, and
+        /// getting back up at a checkpoint after a fall.
         /// </summary>
-        private static ParticleSystem CreateHitSparks(Transform parent, Palette palette)
+        private static void CreateCombatLayer(PlayerController player, EnemyController[] enemies)
         {
-            var go = new GameObject("HitSparks");
-            go.transform.SetParent(parent, false);
-            var system = go.AddComponent<ParticleSystem>();
-            system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            Material glow = LoadOrCreateParticleMaterial("HitGlow", ring: false, additive: true);
+            Material ring = LoadOrCreateParticleMaterial("HitRing", ring: true, additive: true);
+            Material dust = LoadOrCreateParticleMaterial("HitDust", ring: false, additive: false);
+            var effects = new GameObject("HitEffects").AddComponent<HitEffects>();
+            Wire(effects, "sparks", CreateSparks(effects.transform, glow));
+            Wire(effects, "flash", CreateBurst(effects.transform, "Flash", glow, lifetime: 0.08f, size: 0.45f, speed: 0f, grow: 1.5f));
+            Wire(effects, "ring", CreateBurst(effects.transform, "Ring", ring, lifetime: 0.2f, size: 0.5f, speed: 0f, grow: 3f));
+            Wire(effects, "dust", CreateBurst(effects.transform, "Dust", dust, lifetime: 0.6f, size: 0.35f, speed: 2f, grow: 2.5f));
 
+            var hud = new GameObject("CombatHud").AddComponent<CombatHud>();
+            Wire(hud, "player", player);
+            WireArray(hud, "enemies", enemies.Select(e => (Object)e.GetComponent<EnemyBrain>()).ToArray());
+
+            var respawn = new GameObject("PlayerRespawn").AddComponent<PlayerRespawn>();
+            Wire(respawn, "player", player);
+            WireArray(respawn, "enemies", enemies.Cast<Object>().ToArray());
+            var serialized = new SerializedObject(respawn);
+            SerializedProperty checkpoints = serialized.FindProperty("checkpoints");
+            checkpoints.arraySize = Checkpoints.Length;
+            for (int i = 0; i < Checkpoints.Length; i++)
+                checkpoints.GetArrayElementAtIndex(i).floatValue = Checkpoints[i];
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// Short streaks thrown forward in a cone, falling under gravity. Emitted by <see cref="HitEffects"/>, which
+        /// colours and sizes each burst.
+        /// </summary>
+        private static ParticleSystem CreateSparks(Transform parent, Material material)
+        {
+            ParticleSystem system = NewParticles(parent, "Sparks");
             ParticleSystem.MainModule main = system.main;
-            main.playOnAwake = false;
-            main.loop = false;
-            main.useUnscaledTime = true;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(0.12f, 0.28f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(6f, 14f);
-            main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.07f);
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.12f, 0.3f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(6f, 15f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.06f);
             main.gravityModifier = 1.5f;
-            main.maxParticles = 200;
-
-            ParticleSystem.EmissionModule emission = system.emission;
-            emission.rateOverTime = 0f;
+            main.maxParticles = 400;
 
             ParticleSystem.ShapeModule shape = system.shape;
             shape.shapeType = ParticleSystemShapeType.Cone;
@@ -315,12 +377,120 @@ namespace PX.EditorTools
             size.enabled = true;
             size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 0f));
 
-            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            var renderer = system.GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = 0.04f;
-            renderer.lengthScale = 2f;
-            renderer.sharedMaterial = palette.HitSpark;
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.velocityScale = 0.03f;
+            renderer.lengthScale = 1.5f;
+            renderer.sharedMaterial = material;
+            return system;
+        }
+
+        /// <summary>Soft round particles that swell and fade: the flash of an impact, a shock ring, a puff of dust.</summary>
+        private static ParticleSystem CreateBurst(Transform parent, string name, Material material, float lifetime, float size, float speed, float grow)
+        {
+            ParticleSystem system = NewParticles(parent, name);
+            ParticleSystem.MainModule main = system.main;
+            main.startLifetime = lifetime;
+            main.startSpeed = speed > 0f ? new ParticleSystem.MinMaxCurve(speed * 0.4f, speed) : new ParticleSystem.MinMaxCurve(0f);
+            main.startSize = size;
+            main.gravityModifier = speed > 0f ? -0.05f : 0f;
+            main.maxParticles = 100;
+
+            ParticleSystem.ShapeModule shape = system.shape;
+            shape.shapeType = speed > 0f ? ParticleSystemShapeType.Circle : ParticleSystemShapeType.Sphere;
+            shape.radius = speed > 0f ? 0.3f : 0.01f;
+
+            ParticleSystem.SizeOverLifetimeModule sizeOverLife = system.sizeOverLifetime;
+            sizeOverLife.enabled = true;
+            sizeOverLife.size = new ParticleSystem.MinMaxCurve(grow, AnimationCurve.EaseInOut(0f, 1f / grow, 1f, 1f));
+
+            ParticleSystem.ColorOverLifetimeModule color = system.colorOverLifetime;
+            color.enabled = true;
+            var fade = new Gradient();
+            fade.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+            color.color = fade;
+
+            var renderer = system.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.sharedMaterial = material;
+            return system;
+        }
+
+        /// <summary>
+        /// A URP particle material on a generated soft texture: a dot fading from the centre, or a thin ring.
+        /// Additive for light (sparks, flashes), alpha-blended for dust.
+        /// </summary>
+        private static Material LoadOrCreateParticleMaterial(string name, bool ring, bool additive)
+        {
+            string path = $"{MaterialFolder}/{name}.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material != null)
+                return material;
+
+            material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+            material.SetTexture("_BaseMap", LoadOrCreateSoftTexture(ring ? "SoftRing" : "SoftDot", ring));
+            material.SetColor("_BaseColor", Color.white);
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", additive ? 2f : 0f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", additive ? (float)BlendMode.One : (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_ZWrite", 0f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.renderQueue = (int)RenderQueue.Transparent;
+            AssetDatabase.CreateAsset(material, path);
+            return material;
+        }
+
+        private static Texture2D LoadOrCreateSoftTexture(string name, bool ring)
+        {
+            string path = $"{MaterialFolder}/{name}.png";
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (texture != null)
+                return texture;
+
+            const int size = 64;
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float r = new Vector2(x + 0.5f - size * 0.5f, y + 0.5f - size * 0.5f).magnitude / (size * 0.5f);
+                    float a = ring ? Mathf.Clamp01(1f - Mathf.Abs(r - 0.8f) / 0.12f) : Mathf.Clamp01(1f - r);
+                    a = ring ? a * a : a * a * a;
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            }
+            var image = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            image.SetPixels32(pixels);
+            image.Apply();
+            File.WriteAllBytes(path, image.EncodeToPNG());
+            Object.DestroyImmediate(image);
+            AssetDatabase.ImportAsset(path);
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.alphaIsTransparency = true;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.mipmapEnabled = false;
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        /// <summary>A particle system that only emits when told to, in world space, on real time so it runs through hit-stop.</summary>
+        private static ParticleSystem NewParticles(Transform parent, string name)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var system = go.AddComponent<ParticleSystem>();
+            system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            ParticleSystem.MainModule main = system.main;
+            main.playOnAwake = false;
+            main.loop = false;
+            main.useUnscaledTime = true;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            ParticleSystem.EmissionModule emission = system.emission;
+            emission.rateOverTime = 0f;
+            go.GetComponent<ParticleSystemRenderer>().shadowCastingMode = ShadowCastingMode.Off;
             return system;
         }
 
@@ -335,7 +505,9 @@ namespace PX.EditorTools
             // Her idle is the library's plain standing idle.
             config.idle = RanaViewerBuilder.FindClip(library, "Idle_Loop");
             // Her run (from Mixamo's Female Locomotion Pack), turn and running jump, retargeted onto her humanoid rig.
-            config.run = MixamoClip("Running");
+            config.run = MixamoClip("Ninja Run");
+            // How fast the ninja run's planted foot sweeps back at her size, in m/s (see Run Clip Speed).
+            config.runClipSpeed = NinjaRunClipSpeed;
             config.runTurn = MixamoClip("Running Turn 180");
             config.runJump = MixamoClip("Unarmed Jump Running");
             // The combo is a jab, a cross and a side kick from Mixamo, each trimmed to its strike. Times are seconds
@@ -345,17 +517,31 @@ namespace PX.EditorTools
                 MixamoWindow("Combo 1 Jab", 0.1f, 0.4f, 0.85f),
                 MixamoWindow("Combo 2 Cross", 0.75f, 1.13f, 1.5f),
                 MixamoWindow("Combo 3 Side Kick", 0.15f, 0.63f, 1.2f),
+                MixamoWindow("Combo 4 Roundhouse", Roundhouse.x, Roundhouse.y, Roundhouse.z),
+                MixamoWindow("Combo 5 Spinning Back Kick", SpinningKick.x, SpinningKick.y, SpinningKick.z),
             };
+            // The counter after a parry: Mixamo's flying hurricane kick.
+            config.counter = MixamoWindow("Counter Hurricane Kick", HurricaneKick.x, HurricaneKick.y, HurricaneKick.z);
             config.attack = config.comboAttacks[0].clip;
             config.crouchDown = MixamoWindow("Crouch Down", 0.25f, 0f, 1f);
-            config.crouchIdle = MixamoClip("Crouch Idle");
+            // Down on one knee with a hand to the ground: Mixamo's male crouch pose, more ninja than a plain squat.
+            config.crouchIdle = MixamoClip("Ninja Crouch");
             config.crouchUp = MixamoWindow("Crouch Up", 0f, 0f, 0.75f);
             config.crouchAttack = MixamoWindow("Crouch Sweep", 0.4f, 0.87f, 1.4f);
             // The landings start at touchdown. Landing at a run plays the end of the running jump: it follows on from the
             // jump's pose, and its arms end where the run's begin. (Mixamo's Land Run holds one arm out in front.)
             config.landRun = MixamoWindow("Unarmed Jump Running", 1.04f, 0f, 1.4f);
             config.landIdle = MixamoWindow("Land Idle", 0.3f, 0f, 1.1f);
-            config.hurt = new ClipWindow { clip = RanaViewerBuilder.FindClip(library, "Hit_Chest") };
+            // Hit: Mixamo's large hit reaction from the front, trimmed to the recoil, so it snaps back on the blow.
+            config.hurt = MixamoWindow("Hurt", HurtWindow.x, 0f, HurtWindow.y);
+            config.death = MixamoWindow("Death", 0f, 0f, DeathEnd);
+            config.dodge = MixamoWindow("Dodge Back", DodgeWindow.x, 0f, DodgeWindow.y);
+            config.guard = MixamoClip("Guard");
+            config.parry = MixamoWindow("Parry", ParryWindow.x, 0f, ParryWindow.y);
+            config.guardHit = MixamoWindow("Guard Hit", GuardHitWindow.x, 0f, GuardHitWindow.y);
+            config.ledgeGrab = MixamoWindow("Ledge Grab", LedgeGrabWindow.x, 0f, LedgeGrabWindow.y);
+            config.ledgeHang = MixamoClip("Ledge Hang");
+            config.ledgeClimb = MixamoWindow("Ledge Climb", LedgeClimbWindow.x, 0f, LedgeClimbWindow.y);
             config.jumpStart = RanaViewerBuilder.FindClip(library, "Jump_Start");
             config.jumpLoop = RanaViewerBuilder.FindClip(library, "Jump_Loop");
             // The dash is too short for a whole move to read, so it holds a single Mixamo pose: a sprinting lunge on the
@@ -364,6 +550,25 @@ namespace PX.EditorTools
             config.airDash = MixamoClip("Dash Air Pose");
             config.stretchDashToDuration = false;
         }
+
+        // Rana's new clip windows, in seconds into each Mixamo clip (from, impact, to for strikes; from, to otherwise).
+        // Measured by sampling the clips on her: a strike's impact is where the striking hand or foot is furthest out.
+        // The hurricane kick spins in the air with a foot out every 0.45 s; one turn of it is the counter.
+        private static readonly Vector3 Roundhouse = new Vector3(0.25f, 0.73f, 1.3f);
+        private static readonly Vector3 SpinningKick = new Vector3(0.35f, 0.93f, 1.6f);
+        private static readonly Vector3 HurricaneKick = new Vector3(0.15f, 0.45f, 1.0f);
+        private static readonly Vector2 HurtWindow = new Vector2(0f, 0.9f);
+        // Her body reaches the floor 0.93 s into the fall and settles by 1.5 s.
+        private const float DeathEnd = 1.5f;
+        private const float NinjaRunClipSpeed = 3.4f;
+        // Crouch, hop back, land: the clip's own lead-in and settle are cut.
+        private static readonly Vector2 DodgeWindow = new Vector2(0.35f, 1.65f);
+        // The sweep of her forearm, from guard to furthest out at 0.4 s and back.
+        private static readonly Vector2 ParryWindow = new Vector2(0.2f, 0.9f);
+        private static readonly Vector2 GuardHitWindow = new Vector2(0f, 0.8f);
+        private static readonly Vector2 LedgeGrabWindow = new Vector2(0.3f, 1.2f);
+        // The pull-up is done by 0.93 s, her feet on the top.
+        private static readonly Vector2 LedgeClimbWindow = new Vector2(0f, 1.0f);
 
         private static ClipWindow MixamoWindow(string name, float from, float impact, float to)
         {
@@ -423,36 +628,85 @@ namespace PX.EditorTools
 
         /// <summary>
         /// Enemy A is a Tripo knight, rigged as a humanoid like Rana. Its clips are Mixamo's Great Sword set: idle,
-        /// walk, downward slash, unblocked impact, and the two-handed sword death falling back.
+        /// walk and backward walk, downward slash and power slash, unblocked and blocked impact, a jump to climb with,
+        /// and the two-handed sword death falling back.
         /// </summary>
         private static void FillEnemyA(EnemyConfig config)
         {
-            AnimationClip Clip(string name) => RanaViewerBuilder.FindClip(
-                RanaViewerBuilder.LoadClips($"{EnemyImportSettings.EnemyAMixamoFolder}/{name}.fbx"), name);
+            AnimationClip Clip(string name) => EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, name);
             config.idle = Clip("Idle");
             config.walk = Clip("Walk");
+            config.walkBack = Clip("Walk Back");
             // The chop is furthest out 0.64 s into the clip; that is lined up with the live hitbox (EnemyTests checks it).
             config.attackClip = new ClipWindow { clip = Clip("Attack"), impact = 0.64f };
+            config.attack2Clip = new ClipWindow { clip = Clip("Attack 2"), from = AttackA2From, impact = AttackA2Impact, to = AttackA2To };
             config.hurt = new ClipWindow { clip = Clip("Hit") };
+            config.parried = new ClipWindow { clip = Clip("Parried") };
+            config.climb = new ClipWindow { clip = Clip("Climb"), from = ClimbAFrom, to = ClimbATo };
             config.death = Clip("Death");
         }
 
-        private static GameObject CreateEnemyA(EnemyConfig config)
+        /// <summary>
+        /// Enemy B is a Tripo swordsman with a broad sabre: quicker and frailer than the knight, swinging sooner and
+        /// following up more often. Its clips are Mixamo's Sword And Shield set (it has no shield; the free arm is empty).
+        /// </summary>
+        private static void FillEnemyB(EnemyConfig config)
         {
-            var root = new GameObject("EnemyA");
+            AnimationClip Clip(string name) => EnemyClip(EnemyImportSettings.EnemyBMixamoFolder, name);
+            config.aggroRange = 8f;
+            config.attackRange = 1.7f;
+            config.tooClose = 1f;
+            config.walkSpeed = 2.2f;
+            config.walkBackSpeed = 1.5f;
+            config.attack = new AttackStep
+            {
+                startup = 0.38f, active = 0.12f, recovery = 0.5f, cancelDelay = 0.15f,
+                damage = 11f, lunge = 2f, hitStop = 0.1f, shake = 0.1f, knockback = 6f,
+                hitboxCenter = new Vector2(0.95f, 1.1f), hitboxSize = new Vector2(1.4f, 1.4f),
+            };
+            config.attack2 = new AttackStep
+            {
+                startup = 0.32f, active = 0.14f, recovery = 0.65f, cancelDelay = 0f,
+                damage = 14f, lunge = 2.5f, hitStop = 0.12f, shake = 0.14f, knockback = 8f,
+                hitboxCenter = new Vector2(1f, 1.1f), hitboxSize = new Vector2(1.5f, 1.3f),
+            };
+            config.comboChance = 0.65f;
+            config.attackCooldown = 0.7f;
+            config.attackPoise = 12f;
+            config.hitStun = 0.5f;
+            config.walkClipSpeed = 1.3f;
+            config.idle = Clip("Idle");
+            config.walk = Clip("Walk");
+            config.walkBack = Clip("Walk Back");
+            config.attackClip = new ClipWindow { clip = Clip("Attack"), from = AttackB1From, impact = AttackB1Impact, to = AttackB1To };
+            config.attack2Clip = new ClipWindow { clip = Clip("Attack 2"), from = AttackB2From, impact = AttackB2Impact, to = AttackB2To };
+            config.hurt = new ClipWindow { clip = Clip("Hit") };
+            config.parried = new ClipWindow { clip = Clip("Parried") };
+            config.climb = new ClipWindow { clip = Clip("Climb"), from = ClimbBFrom, to = ClimbBTo };
+            config.death = Clip("Death");
+        }
+
+        private static AnimationClip EnemyClip(string folder, string name)
+        {
+            return RanaViewerBuilder.FindClip(RanaViewerBuilder.LoadClips($"{folder}/{name}.fbx"), name);
+        }
+
+        private static GameObject CreateEnemy(string name, EnemyConfig config, string bodyPath, string texturePath, float height, float health, float radius)
+        {
+            var root = new GameObject(name);
 
             var controller = root.AddComponent<CharacterController>();
-            controller.height = EnemyAHeight;
-            controller.radius = 0.45f;
-            controller.center = new Vector3(0f, EnemyAHeight * 0.5f, 0f);
+            controller.height = height;
+            controller.radius = radius;
+            controller.center = new Vector3(0f, height * 0.5f, 0f);
             controller.stepOffset = 0.3f;
             controller.skinWidth = 0.03f;
             controller.minMoveDistance = 0f;
 
             root.AddComponent<CharacterMotor>();
-            var health = root.AddComponent<Health>();
-            var serializedHealth = new SerializedObject(health);
-            serializedHealth.FindProperty("max").floatValue = 80f;
+            var healthComponent = root.AddComponent<Health>();
+            var serializedHealth = new SerializedObject(healthComponent);
+            serializedHealth.FindProperty("max").floatValue = health;
             serializedHealth.ApplyModifiedPropertiesWithoutUndo();
             var enemy = root.AddComponent<EnemyController>();
             var brain = root.AddComponent<EnemyBrain>();
@@ -460,18 +714,19 @@ namespace PX.EditorTools
 
             var visual = new GameObject("Visual").transform;
             visual.SetParent(root.transform, false);
-            GameObject model = InstantiateModel(EnemyImportSettings.EnemyABodyPath, visual);
-            Material skin = LoadOrCreateTexturedMaterial("EnemyA", EnemyImportSettings.EnemyATexturePath);
+            GameObject model = InstantiateModel(bodyPath, visual);
+            Material skin = LoadOrCreateTexturedMaterial(name, texturePath);
             foreach (SkinnedMeshRenderer renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
                 renderer.sharedMaterial = skin;
-            float height = MeasureHeight(model);
-            if (height > 0.01f)
-                visual.localScale = Vector3.one * (EnemyAHeight / height);
+            float modelHeight = MeasureHeight(model);
+            if (modelHeight > 0.01f)
+                visual.localScale = Vector3.one * (height / modelHeight);
 
             Animator animator = model.GetComponent<Animator>() ?? model.AddComponent<Animator>();
             animator.applyRootMotion = false;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
+            root.AddComponent<HitFlash>();
             Wire(enemy, "config", config);
             Wire(brain, "body", enemy);
             Wire(enemyAnimator, "enemy", enemy);
@@ -479,7 +734,7 @@ namespace PX.EditorTools
             return root;
         }
 
-        private static void PlaceEnemy(Rail rail, GameObject prefab, float distance, CharacterMotor target)
+        private static EnemyController PlaceEnemy(Rail rail, GameObject prefab, float distance, CharacterMotor target)
         {
             var enemy = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             var motor = enemy.GetComponent<CharacterMotor>();
@@ -488,6 +743,7 @@ namespace PX.EditorTools
             motor.Facing = -1;
             Wire(enemy.GetComponent<EnemyBrain>(), "target", target);
             PrefabUtility.RecordPrefabInstancePropertyModifications(enemy.transform);
+            return enemy.GetComponent<EnemyController>();
         }
 
         private static Material LoadOrCreateTexturedMaterial(string name, string texturePath)
@@ -564,6 +820,20 @@ namespace PX.EditorTools
             {
                 name = "Enemy A: back to the side view for the fight",
                 from = EnemyADistance - 10f,
+                to = ArenaAEnd,
+                view = new CameraView { yaw = 0f, pitch = 5f, distance = 14f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1.5f },
+            });
+            railCamera.Zones.Add(new CameraZone
+            {
+                name = "Ledges: pulled back and raised to see the walls' tops",
+                from = ArenaAEnd,
+                to = LedgesEnd,
+                view = new CameraView { yaw = 0f, pitch = 8f, distance = 20f, fieldOfView = 35f, focusHeight = 3.5f, lookAhead = 2f },
+            });
+            railCamera.Zones.Add(new CameraZone
+            {
+                name = "Enemy B: side view for the last fight",
+                from = LedgesEnd,
                 to = rail.Length,
                 view = new CameraView { yaw = 0f, pitch = 5f, distance = 14f, fieldOfView = 35f, focusHeight = 1.6f, lookAhead = 1.5f },
             });
@@ -623,7 +893,6 @@ namespace PX.EditorTools
                 PlayerAccent = LoadOrCreateMaterial("PlayerAccent", new Color(0.95f, 0.75f, 0.2f), lit: true),
                 Dummy = LoadOrCreateMaterial("Dummy", new Color(0.72f, 0.33f, 0.2f), lit: true),
                 Slash = LoadOrCreateMaterial("Slash", new Color(1f, 0.87f, 0.45f, 0.4f), lit: false),
-                HitSpark = LoadOrCreateMaterial("HitSpark", new Color(1f, 0.85f, 0.4f), lit: false),
             };
         }
 
@@ -662,6 +931,11 @@ namespace PX.EditorTools
             material.renderQueue = (int)RenderQueue.Transparent;
         }
 
+        /// <summary>
+        /// Jab, cross, side kick, roundhouse, spinning back kick: quick hands to open, kicks that hit harder and cost
+        /// more, the spinning kick a heavy finisher. Hitboxes reach about as far as her fist or foot does, and no
+        /// further: a hand's width past the limb, so a whiff looks like a whiff.
+        /// </summary>
         private static void FillDefaultCombo(ComboConfig combo)
         {
             combo.steps = new[]
@@ -669,20 +943,32 @@ namespace PX.EditorTools
                 new AttackStep
                 {
                     startup = 0.06f, active = 0.08f, recovery = 0.22f, cancelDelay = 0.04f,
-                    damage = 10f, lunge = 3f, hitStop = 0.08f, shake = 0.06f, knockback = 2.5f,
-                    hitboxCenter = new Vector2(1.1f, 1f), hitboxSize = new Vector2(1.8f, 1.4f),
+                    damage = 10f, lunge = 3f, hitStop = 0.08f, shake = 0.06f, knockback = 2.5f, staminaCost = 6f,
+                    hitboxCenter = new Vector2(0.75f, 1.35f), hitboxSize = new Vector2(1.0f, 0.6f),
                 },
                 new AttackStep
                 {
                     startup = 0.07f, active = 0.08f, recovery = 0.24f, cancelDelay = 0.05f,
-                    damage = 12f, lunge = 3.5f, hitStop = 0.09f, shake = 0.07f, knockback = 3f,
-                    hitboxCenter = new Vector2(1.2f, 1.1f), hitboxSize = new Vector2(2f, 1.6f),
+                    damage = 12f, lunge = 3.5f, hitStop = 0.09f, shake = 0.07f, knockback = 3f, staminaCost = 7f,
+                    hitboxCenter = new Vector2(0.8f, 1.35f), hitboxSize = new Vector2(1.1f, 0.6f),
                 },
                 new AttackStep
                 {
-                    startup = 0.12f, active = 0.1f, recovery = 0.38f, cancelDelay = 0.14f,
-                    damage = 22f, lunge = 2.5f, hitStop = 0.16f, shake = 0.16f, knockback = 7f,
-                    hitboxCenter = new Vector2(1.4f, 1.1f), hitboxSize = new Vector2(2.6f, 2f),
+                    startup = 0.12f, active = 0.1f, recovery = 0.3f, cancelDelay = 0.1f,
+                    damage = 16f, lunge = 2.5f, hitStop = 0.11f, shake = 0.1f, knockback = 4.5f, staminaCost = 10f,
+                    hitboxCenter = new Vector2(0.85f, 1.0f), hitboxSize = new Vector2(1.3f, 0.8f),
+                },
+                new AttackStep
+                {
+                    startup = 0.14f, active = 0.1f, recovery = 0.32f, cancelDelay = 0.12f,
+                    damage = 18f, lunge = 2.5f, hitStop = 0.12f, shake = 0.12f, knockback = 5f, staminaCost = 12f,
+                    hitboxCenter = new Vector2(0.85f, 1.3f), hitboxSize = new Vector2(1.3f, 0.8f),
+                },
+                new AttackStep
+                {
+                    startup = 0.18f, active = 0.12f, recovery = 0.42f, cancelDelay = 0.16f,
+                    damage = 26f, lunge = 3f, hitStop = 0.17f, shake = 0.18f, knockback = 8f, staminaCost = 16f,
+                    hitboxCenter = new Vector2(0.9f, 1.25f), hitboxSize = new Vector2(1.4f, 0.9f),
                 },
             };
         }
@@ -741,6 +1027,20 @@ namespace PX.EditorTools
                 throw new InvalidOperationException($"{target.GetType().Name} has no serialized field named '{field}'.");
 
             property.objectReferenceValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>Assigns an array of object references to a serialized field by name.</summary>
+        private static void WireArray(Object target, string field, Object[] values)
+        {
+            var serialized = new SerializedObject(target);
+            SerializedProperty property = serialized.FindProperty(field);
+            if (property == null)
+                throw new InvalidOperationException($"{target.GetType().Name} has no serialized field named '{field}'.");
+
+            property.arraySize = values.Length;
+            for (int i = 0; i < values.Length; i++)
+                property.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 

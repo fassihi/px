@@ -73,9 +73,10 @@ namespace PX
             const string controls =
                 "<b>PX graybox</b>\n" +
                 "Move  A / D  or  arrows  or  left stick\n" +
-                "Jump  Space  or  gamepad south (double jump in the air)\n" +
-                "Dash  Left Shift / K  or  gamepad east / right trigger\n" +
-                "Attack  J / left mouse  or  gamepad west (press again to chain)\n" +
+                "Jump  Space  or  gamepad south (double jump; at a ledge she grabs it, Jump climbs, S lets go)\n" +
+                "Dash  Left Shift / K  or  gamepad east / right trigger (no direction held: dodge back)\n" +
+                "Attack  J / left mouse  or  gamepad west (press again to chain five strikes)\n" +
+                "Guard  L / right mouse  or  left bumper (hold to block; press as a blow lands to parry, then Attack to counter)\n" +
                 "Zoom  scroll  or  - / =        Time scale  [ / ]        Reset  \\";
 
             string state = player != null && motor != null
@@ -86,9 +87,9 @@ namespace PX
             string debug = $"\nzoom {(railCamera != null ? railCamera.DistanceScale : 1f):0.00}x   time {TimeScales[timeScaleIndex]:0.##}x";
 
             GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(new Rect(12f, 12f, 520f, 190f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(12f, 56f, 700f, 210f), Texture2D.whiteTexture);
             GUI.color = Color.white;
-            GUI.Label(new Rect(24f, 20f, 500f, 180f), controls + state + debug, style);
+            GUI.Label(new Rect(24f, 64f, 680f, 200f), controls + state + debug, style);
         }
     }
 }

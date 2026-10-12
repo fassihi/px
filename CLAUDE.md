@@ -70,7 +70,16 @@ UNITY="/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity
   loses `skeletonHasParents` and the twist and stretch defaults.
 - To check a pose by eye in edit mode, play the clip through a `PlayableGraph` onto the Player prefab and render it.
   `AnimationClip.SampleAnimation` does not retarget humanoid clips and shows wrong poses. Render at 512 px or more:
-  side views at small sizes make a side-on stance look like a lean.
+  side views at small sizes make a side-on stance look like a lean. `PX.EditorTools.PoseSnapshot` does this
+  (`Render` for one frame, `RenderSheet` for many frames on one image); call it through the MCP's `execute_code`.
+  In edit mode a skinned mesh is skinned once per editor update, so each frame needs a fresh instance (it does that).
+- A weapon modelled into a Tripo character is skinned to the hand at whatever angle Tripo left it, and its hilt often
+  to the arm and hips. `HeldWeapon` (run on import) makes it rigid in the hand and turns it into a Mixamo grip.
+- Mixamo downloads: the browser pane is signed in to Mixamo, but it does not save downloads. Each export answers
+  with a short-lived signed link (in the `/monitor` response) that `curl` can fetch. Ask before downloading.
+- With the MCP, screenshot tests run in the open editor if `PX_SCREENSHOT_DIR` is set in the editor process
+  (`System.Environment.SetEnvironmentVariable` through `execute_code`); unset it afterwards. Play mode entered
+  through the MCP does not advance while the editor window is unfocused, so live screenshots are static.
 
 ## Git
 

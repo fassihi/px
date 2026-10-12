@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: HeroineAnimation
   m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
   idle: {fileID: 7994627924475153551, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
-  run: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
+  run: {fileID: -203655887218126122, guid: f3d24ad9b88094956a10ba145c20cae8, type: 3}
   runTurn: {fileID: -203655887218126122, guid: 8130124ee15784ad3a4e67a246f7ccc7, type: 3}
   jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
@@ -34,17 +34,65 @@ MonoBehaviour:
     from: 0.15
     impact: 0.63
     to: 1.2
+  - clip: {fileID: -203655887218126122, guid: c60afa951c5434ef8b1e416c9e0e60fb, type: 3}
+    from: 0.25
+    impact: 0.73
+    to: 1.3
+  - clip: {fileID: -203655887218126122, guid: cbe507ea786fb402c99a10fc7f4335a4, type: 3}
+    from: 0.35
+    impact: 0.93
+    to: 1.6
   hurt:
-    clip: {fileID: -245273357908900549, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+    clip: {fileID: -203655887218126122, guid: 6e5d05df01ccb474399363d814f8df18, type: 3}
     from: 0
     impact: 0
-    to: 0
+    to: 0.9
+  death:
+    clip: {fileID: -203655887218126122, guid: 14f3e7a7beb4d4592a2d0a904e77669b, type: 3}
+    from: 0
+    impact: 0
+    to: 1.5
+  deathDuration: 1.3
+  counter:
+    clip: {fileID: -203655887218126122, guid: ac82351d9020842a5992513c93f7f2cf, type: 3}
+    from: 0.15
+    impact: 0.45
+    to: 1
+  dodge:
+    clip: {fileID: -203655887218126122, guid: fba6341df3b2242acaad48b1b3b434dd, type: 3}
+    from: 0.35
+    impact: 0
+    to: 1.65
+  guard: {fileID: -203655887218126122, guid: 8116ab39d6b8d49ad96f25394b2dfb59, type: 3}
+  parry:
+    clip: {fileID: -203655887218126122, guid: 2791119bad5ac4f47907ea04aeec8a8b, type: 3}
+    from: 0.2
+    impact: 0
+    to: 0.9
+  parryDuration: 0.4
+  guardHit:
+    clip: {fileID: -203655887218126122, guid: 221df140bf22e436796aa9d8356f876e, type: 3}
+    from: 0
+    impact: 0
+    to: 0.8
+  ledgeGrab:
+    clip: {fileID: -203655887218126122, guid: 92371168ac21c49a59e201e4704ce44e, type: 3}
+    from: 0.3
+    impact: 0
+    to: 1.2
+  grabDuration: 0.3
+  ledgeHang: {fileID: -203655887218126122, guid: f757110a54e384e63a441ab8e384b0ca, type: 3}
+  ledgeClimb:
+    clip: {fileID: -203655887218126122, guid: ee5503c368ec348eda85d2510964cadd, type: 3}
+    from: 0
+    impact: 0
+    to: 1
   crouchDown:
     clip: {fileID: -203655887218126122, guid: fe5aade7246564aed8c66940a0befefe, type: 3}
     from: 0.25
     impact: 0
     to: 1
-  crouchIdle: {fileID: -203655887218126122, guid: e437e5d29ec6a413d9cc9b9fbbed50e4, type: 3}
+  crouchIdle: {fileID: -203655887218126122, guid: 8425607bebe6b40eba7ded24c7bf1096, type: 3}
   crouchUp:
     clip: {fileID: -203655887218126122, guid: 6bd097d4686224f468443ce5c1a9dbfb, type: 3}
     from: 0
@@ -77,12 +125,12 @@ MonoBehaviour:
   runJumpMinSpeed: 3
   runJumpTakeoff: 0.36
   runJumpLanding: 1
-  fadeTime: 0.1
+  fadeTime: 0.12
   attackFadeTime: 0.05
   landFadeTime: 0.06
   landDip: 0.14
   landDipSpeedRange: {x: 4, y: 15}
   landDipDown: 0.06
   landDipUp: 0.3
-  runClipSpeed: 3.1
+  runClipSpeed: 3.4
   runSpeedScaleRange: {x: 0.5, y: 3}

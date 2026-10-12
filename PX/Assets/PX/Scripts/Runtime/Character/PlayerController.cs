@@ -11,10 +11,20 @@ namespace PX
         Attack,
         Crouch,
         Hurt,
+        /// <summary>A hop back with a moment of invulnerability.</summary>
+        Dodge,
+        /// <summary>Guard up: blocks, and parries just after it goes up.</summary>
+        Guard,
+        /// <summary>Hanging from a ledge by her hands.</summary>
+        Hang,
+        /// <summary>Pulling herself up from a ledge onto its top.</summary>
+        Climb,
+        Dead,
     }
 
     /// <summary>
-    /// The heroine's moment-to-moment control: run, jump, dash, crouch, the light combo and the crouching sweep.
+    /// The heroine's moment-to-moment control: run, jump, dash, dodge, crouch, guard and parry, the combo, the
+    /// crouching sweep and the counter, and hanging from and climbing onto ledges.
     /// Works in rail space (x = along the rail, y = up) and leaves the 3D part to <see cref="CharacterMotor"/>.
     /// Moves commit: each one says from when it can be cut short (its cancel window), and a press that comes too early
     /// is buffered and carried out when the window opens, instead of being dropped or acted on at once.
@@ -25,20 +35,26 @@ namespace PX
         // Small constant push into the ground so the motor keeps reporting grounded on flats and slopes.
         private const float GroundStickSpeed = 2f;
 
+        // A Guard press is remembered this long while another move finishes.
+        private const float GuardBufferTime = 0.12f;
+
         [SerializeField] private MoveConfig move;
         [SerializeField] private ComboConfig combo;
+        [SerializeField] private PlayerCombatConfig combat;
 
         private readonly Collider[] overlapBuffer = new Collider[16];
         private readonly HashSet<Health> hitThisSwing = new HashSet<Health>();
 
         private CharacterMotor motor;
         private Health ownHealth;
+        private Stamina stamina;
         private Vector2 velocity;
         private float stateTime;
         private float coyoteTimer;
         private float jumpBuffer;
         private float dashBuffer;
         private float attackBuffer;
+        private float guardBuffer;
         private float dashCooldown;
         private int airJumpsLeft;
         private int airDashesLeft;
@@ -47,6 +63,14 @@ namespace PX
         private float landingRecovery;
         private bool swingConnected;
         private float invulnerable;
+        private float lastGuardPress = float.MinValue;
+        private bool parryArmed;
+        private float counterTimer;
+        private float regrabTimer;
+        private float ledgeTop;
+        private float ledgeWall;
+        private Vector2 climbFrom;
+        private bool guardBroken;
 
         /// <summary>Where input comes from. Defaults to an <see cref="IInputSource"/> on the same object.</summary>
         public IInputSource InputSource { get; set; }
@@ -59,8 +83,12 @@ namespace PX
         /// <summary>True while the attack in progress is the sweep from a crouch, not a combo step.</summary>
         public bool IsCrouchAttack { get; private set; }
 
+        /// <summary>True while the attack in progress is the counter after a parry.</summary>
+        public bool IsCounter { get; private set; }
+
         /// <summary>The attack being performed. Only meaningful in <see cref="PlayerState.Attack"/>.</summary>
-        public AttackStep CurrentStep => IsCrouchAttack ? combo.crouchAttack : combo.steps[ComboIndex];
+        public AttackStep CurrentStep =>
+            IsCounter ? combo.counterAttack : IsCrouchAttack ? combo.crouchAttack : combo.steps[ComboIndex];
 
         /// <summary>Seconds since the current state began.</summary>
         public float StateTime => stateTime;
@@ -77,63 +105,178 @@ namespace PX
         /// <summary>True while she is recovering from a hard landing and cannot jump or dash yet.</summary>
         public bool IsRecoveringFromLanding => landingRecovery > 0f;
 
+        /// <summary>True during the stagger after a hit.</summary>
+        public bool IsHurt => State == PlayerState.Hurt;
+
+        /// <summary>How long the current stagger lasts. Heavier blows stagger her for longer.</summary>
+        public float HurtDuration { get; private set; }
+
+        /// <summary>True while blows pass through her in a dodge.</summary>
+        public bool IsDodgeInvulnerable =>
+            State == PlayerState.Dodge && stateTime >= move.dodgeInvulnerable.x && stateTime < move.dodgeInvulnerable.y;
+
+        /// <summary>Seconds since her guard last took a blow, or since her last parry. Large when neither happened.</summary>
+        public float GuardReactionTime { get; private set; } = float.MaxValue;
+
+        /// <summary>True when the last blow on her guard was parried rather than blocked.</summary>
+        public bool LastGuardWasParry { get; private set; }
+
+        /// <summary>True while a counter is on offer after a parry.</summary>
+        public bool CanCounter => counterTimer > 0f;
+
+        /// <summary>Height of the ledge she hangs from or climbs onto.</summary>
+        public float LedgeTop => ledgeTop;
+
         public MoveConfig Move => move;
 
         public ComboConfig Combo => combo;
 
+        public PlayerCombatConfig Combat => combat;
+
+        public Stamina Stamina => stamina;
+
         /// <summary>Raised when a swing connects, once per target.</summary>
         public event Action<Health> HitLanded;
+
+        /// <summary>Raised when she parries a blow. The argument is whatever struck at her.</summary>
+        public event Action<GameObject> Parried;
+
+        /// <summary>Raised when her health runs out.</summary>
+        public event Action Died;
 
         private void Awake()
         {
             motor = GetComponent<CharacterMotor>();
             ownHealth = GetComponent<Health>();
+            stamina = GetComponent<Stamina>();
             InputSource ??= GetComponent<IInputSource>();
         }
 
         private void OnEnable()
         {
             if (ownHealth != null)
+            {
                 ownHealth.Damaged += OnHurt;
+                ownHealth.Guard = OnIncomingBlow;
+            }
         }
 
         private void OnDisable()
         {
             if (ownHealth != null)
+            {
                 ownHealth.Damaged -= OnHurt;
+                ownHealth.Guard = null;
+            }
+        }
+
+        // ------------------------------------------------------------ taking blows
+
+        /// <summary>
+        /// Decides what a blow does before it lands. With her guard up and facing it, she parries it if Guard went down
+        /// just now, and blocks it otherwise: a block costs stamina, lets a little damage through and pushes her back,
+        /// and when the stamina runs out it breaks her guard.
+        /// </summary>
+        private HitResult OnIncomingBlow(ref Hit hit)
+        {
+            if (State != PlayerState.Guard || combat == null)
+                return HitResult.Damaged;
+            // A guard only covers her front: the blow has to travel against the way she faces.
+            if (Vector3.Dot(hit.Direction, transform.forward) > 0f)
+                return HitResult.Damaged;
+
+            if (parryArmed && stateTime <= combat.parryWindow)
+            {
+                parryArmed = false;
+                LastGuardWasParry = true;
+                GuardReactionTime = 0f;
+                counterTimer = combat.counterWindow;
+                HitStop.Trigger(combat.parryHitStop);
+                CameraShake.Trigger(combat.parryShake, 0.25f);
+                Parried?.Invoke(hit.Source);
+                return HitResult.Parried;
+            }
+
+            float cost = hit.Damage * combat.blockStaminaPerDamage;
+            bool broken = stamina != null && stamina.Current < cost;
+            stamina?.Spend(cost);
+            if (broken)
+            {
+                // Out of stamina, the guard gives: the blow lands in full and staggers her for longer.
+                guardBroken = true;
+                return HitResult.Damaged;
+            }
+
+            hit = hit.Scaled(combat.blockDamageScale, combat.blockKnockbackScale);
+            LastGuardWasParry = false;
+            GuardReactionTime = 0f;
+            velocity.x = KnockbackAlongRail(hit);
+            return HitResult.Blocked;
+        }
+
+        private float KnockbackAlongRail(Hit hit)
+        {
+            Vector3 along = motor.Rail != null ? motor.Rail.Evaluate(motor.Distance).Tangent : Vector3.right;
+            return Mathf.Sign(Vector3.Dot(hit.Direction, along)) * hit.Knockback;
         }
 
         /// <summary>
-        /// A hit staggers her: knocked back along the rail the way the blow travels, a short hop, no control until
-        /// the stun ends, and a moment of invulnerability after. Whatever she was doing is interrupted.
+        /// A hit staggers her: knocked back along the rail the way the blow travels, a short hop, no control until the
+        /// stun ends, and a moment of invulnerability after. Heavier blows stagger for longer. Whatever she was doing is
+        /// interrupted; at zero health she falls.
         /// </summary>
         private void OnHurt(Hit hit)
         {
-            Vector3 along = motor.Rail != null ? motor.Rail.Evaluate(motor.Distance).Tangent : Vector3.right;
-            float direction = Mathf.Sign(Vector3.Dot(hit.Direction, along));
-            velocity = new Vector2(direction * hit.Knockback, move.hurtHop);
-            motor.Facing = -(int)direction;
-            motor.TryStand();
+            float push = KnockbackAlongRail(hit);
+            velocity = new Vector2(push, move.hurtHop);
+            if (push != 0f)
+                motor.Facing = -(int)Mathf.Sign(push);
+            if (motor.IsCrouched)
+                motor.TryStand();
+            if (State == PlayerState.Hang || State == PlayerState.Climb)
+                regrabTimer = move.regrabDelay;
             turnTime = float.MaxValue;
+            counterTimer = 0f;
             invulnerable = move.hurtInvulnerability;
             ownHealth.Invulnerable = true;
-            // There is no game over yet: at zero health she simply gets it all back.
+            HitStop.Trigger(move.hurtHitStop);
+            CameraShake.Trigger(move.hurtShake, 0.3f);
+
             if (ownHealth.IsDead)
-                ownHealth.Restore();
+            {
+                EnterState(PlayerState.Dead);
+                Died?.Invoke();
+                return;
+            }
+
+            HurtDuration = (guardBroken ? combat.guardBreakStun : move.hurtStun) + hit.Knockback * move.hurtStunPerKnockback;
+            guardBroken = false;
             EnterState(PlayerState.Hurt);
         }
 
-        /// <summary>True during the stagger after a hit.</summary>
-        public bool IsHurt => State == PlayerState.Hurt;
+        /// <summary>Gets her back up after a fall: full health and stamina, standing at a rail distance.</summary>
+        public void Respawn(float distance)
+        {
+            ownHealth.Restore();
+            stamina?.Restore();
+            motor.Teleport(motor.Rail, distance, 0.1f);
+            velocity = Vector2.zero;
+            invulnerable = move.hurtInvulnerability;
+            counterTimer = 0f;
+            EnterState(PlayerState.Locomotion);
+        }
+
+        // ----------------------------------------------------------------- update
 
         private void Update()
         {
-            InputFrame input = InputSource != null ? InputSource.Read() : default;
+            InputFrame input = InputSource != null && State != PlayerState.Dead ? InputSource.Read() : default;
 
             // Presses are remembered before the early-out below, so nothing is lost during hit-stop.
             if (input.JumpPressed) jumpBuffer = move.jumpBufferTime;
             if (input.DashPressed) dashBuffer = move.dashBufferTime;
             if (input.AttackPressed) attackBuffer = combo.bufferTime;
+            if (input.GuardPressed) guardBuffer = GuardBufferTime;
 
             float dt = Time.deltaTime;
             if (dt <= 0f)
@@ -161,34 +304,58 @@ namespace PX
                     TickCrouch(input, dt);
                     break;
                 case PlayerState.Hurt:
-                    TickHurt(input, dt);
+                    TickHurt(dt);
+                    break;
+                case PlayerState.Dodge:
+                    TickDodge(input, dt);
+                    break;
+                case PlayerState.Guard:
+                    TickGuard(input, dt);
+                    break;
+                case PlayerState.Hang:
+                    TickHang(input);
+                    break;
+                case PlayerState.Climb:
+                    TickClimb();
+                    break;
+                case PlayerState.Dead:
+                    TickDead(dt);
                     break;
             }
 
-            float fallSpeed = -velocity.y;
-            bool wasGrounded = motor.IsGrounded;
-            motor.Move(velocity, dt);
-            if (!wasGrounded && motor.IsGrounded && fallSpeed >= move.hardLandingSpeed)
-                LandHard();
-
-            if (motor.HitCeiling && velocity.y > 0f)
-                velocity.y = 0f;
+            // On a ledge the position is set by hand; everything else moves through the motor.
+            if (State != PlayerState.Hang && State != PlayerState.Climb)
+            {
+                float fallSpeed = -velocity.y;
+                bool wasGrounded = motor.IsGrounded;
+                motor.Move(velocity, dt);
+                if (!wasGrounded && motor.IsGrounded && fallSpeed >= move.hardLandingSpeed && State != PlayerState.Dead)
+                    LandHard();
+                if (motor.HitCeiling && velocity.y > 0f)
+                    velocity.y = 0f;
+            }
 
             stateTime += dt;
             coyoteTimer -= dt;
             jumpBuffer -= dt;
             dashBuffer -= dt;
             attackBuffer -= dt;
+            guardBuffer -= dt;
             dashCooldown -= dt;
             landingRecovery -= dt;
+            counterTimer -= dt;
+            regrabTimer -= dt;
+            if (GuardReactionTime < float.MaxValue)
+                GuardReactionTime += dt;
             if (invulnerable > 0f)
-            {
                 invulnerable -= dt;
-                if (invulnerable <= 0f && ownHealth != null)
-                    ownHealth.Invulnerable = false;
-            }
             if (turnTime < float.MaxValue)
                 turnTime += dt;
+
+            if (ownHealth != null)
+                ownHealth.Invulnerable = invulnerable > 0f || IsDodgeInvulnerable || State == PlayerState.Dead;
+            if (stamina != null)
+                stamina.RegenScale = State == PlayerState.Guard ? combat.guardRegenScale : 1f;
         }
 
         /// <summary>A hard landing costs speed and a moment of recovery, so it reads as weight.</summary>
@@ -198,6 +365,8 @@ namespace PX
             velocity.x *= move.hardLandingSpeedKeep;
             landingRecovery = move.hardLandingRecovery;
         }
+
+        // -------------------------------------------------------------- moving
 
         private void TickLocomotion(InputFrame input, float dt)
         {
@@ -213,7 +382,7 @@ namespace PX
 
             ApplyGravity(input.JumpHeld, dt);
 
-            if (TryStartJump() || TryStartDash(input))
+            if (TryStartJump() || TryStartDash(input) || TryGrabLedge(input))
                 return;
 
             if (input.CrouchHeld && motor.IsGrounded)
@@ -223,8 +392,11 @@ namespace PX
                 return;
             }
 
-            if (attackBuffer > 0f && combo.steps.Length > 0 && CanAct(move.turnActionCancel))
-                StartAttack(0, input);
+            if (TryStartGuard(input))
+                return;
+
+            if (attackBuffer > 0f && CanAct(move.turnActionCancel))
+                TryStartAttackOrCounter(input);
         }
 
         /// <summary>
@@ -251,13 +423,20 @@ namespace PX
             return !(IsTurning && turnTime < turnCancel) && landingRecovery <= 0f;
         }
 
-        private void TickHurt(InputFrame input, float dt)
+        private void TickHurt(float dt)
         {
             float rate = motor.IsGrounded ? move.groundDeceleration * 0.5f : move.airDeceleration;
             velocity.x = Mathf.MoveTowards(velocity.x, 0f, rate * dt);
             ApplyGravity(false, dt);
-            if (stateTime >= move.hurtStun)
+            if (stateTime >= HurtDuration)
                 EnterState(PlayerState.Locomotion);
+        }
+
+        private void TickDead(float dt)
+        {
+            float rate = motor.IsGrounded ? move.groundDeceleration * 0.3f : move.airDeceleration;
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, rate * dt);
+            ApplyGravity(false, dt);
         }
 
         private void TickCrouch(InputFrame input, float dt)
@@ -268,7 +447,7 @@ namespace PX
             velocity.x = Mathf.MoveTowards(velocity.x, 0f, move.groundDeceleration * dt);
             ApplyGravity(input.JumpHeld, dt);
 
-            if (attackBuffer > 0f)
+            if (attackBuffer > 0f && HasStamina())
             {
                 StartCrouchAttack();
                 return;
@@ -307,6 +486,159 @@ namespace PX
             }
         }
 
+        /// <summary>
+        /// The dodge back: a fast hop away from where she faces that slows to a stop, still facing forward, with blows
+        /// passing through her early on. Late in it an attack or a jump can cut it short.
+        /// </summary>
+        private void TickDodge(InputFrame input, float dt)
+        {
+            float t = Mathf.Clamp01(stateTime / move.dodgeDuration);
+            velocity.x = dashDirection * move.dodgeSpeed * (1f - t * t);
+            ApplyGravity(false, dt);
+
+            if (stateTime >= move.dodgeCancel)
+            {
+                if (TryStartJump())
+                    return;
+                if (attackBuffer > 0f && TryStartAttackOrCounter(input))
+                    return;
+            }
+
+            if (stateTime >= move.dodgeDuration)
+            {
+                dashCooldown = move.dashCooldown;
+                EnterState(PlayerState.Locomotion);
+            }
+        }
+
+        // --------------------------------------------------------------- guard
+
+        private bool TryStartGuard(InputFrame input)
+        {
+            if (!motor.IsGrounded || combat == null || !(input.GuardHeld || guardBuffer > 0f))
+                return false;
+
+            // Only a fresh press opens a parry window, and not one hard on the heels of the last.
+            parryArmed = guardBuffer > 0f && Time.time - lastGuardPress >= combat.parryRepressDelay;
+            if (guardBuffer > 0f)
+                lastGuardPress = Time.time;
+            guardBuffer = 0f;
+            turnTime = float.MaxValue;
+            EnterState(PlayerState.Guard);
+            return true;
+        }
+
+        /// <summary>
+        /// Guard up: she stands her ground facing the way she was, blocks what comes from the front, and slides back a
+        /// little when a block lands. Attack leaves the guard with a strike, or with the counter just after a parry;
+        /// Dash leaves it with a dodge or a dash; letting go of Guard lowers it.
+        /// </summary>
+        private void TickGuard(InputFrame input, float dt)
+        {
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, move.groundDeceleration * 0.5f * dt);
+            ApplyGravity(false, dt);
+
+            // Pressing Guard again re-opens the parry window, as long as it is not mashed.
+            if (guardBuffer > 0f && Time.time - lastGuardPress >= combat.parryRepressDelay)
+            {
+                parryArmed = true;
+                lastGuardPress = Time.time;
+                guardBuffer = 0f;
+                stateTime = 0f;
+            }
+
+            bool reacting = GuardReactionTime < combat.blockStun;
+            if (!reacting && (TryStartDash(input) || TryStartJump()))
+                return;
+            if (attackBuffer > 0f && (CanCounter || !reacting) && TryStartAttackOrCounter(input))
+                return;
+            if (!input.GuardHeld && !reacting && stateTime >= 0.1f)
+                EnterState(PlayerState.Locomotion);
+        }
+
+        // ------------------------------------------------------------- ledges
+
+        /// <summary>
+        /// In the air, falling or near the top of a jump, she catches a ledge in front of her that is within reach of
+        /// her hands, unless Down is held or she is pushing away from it.
+        /// </summary>
+        private bool TryGrabLedge(InputFrame input)
+        {
+            if (motor.IsGrounded || velocity.y > move.ledgeGrabMaxRise || regrabTimer > 0f || input.CrouchHeld)
+                return false;
+            if (input.Move * motor.Facing < 0f)
+                return false;
+            if (!motor.FindLedge(move.ledgeReach.x, move.ledgeReach.y, move.ledgeProbe, out float top, out float wall))
+                return false;
+
+            ledgeTop = top;
+            ledgeWall = wall;
+            velocity = Vector2.zero;
+            airJumpsLeft = move.airJumps;
+            airDashesLeft = move.airDashes;
+            motor.Place(wall - motor.Facing * (motor.Radius + 0.02f), top - move.hangHeight);
+            EnterState(PlayerState.Hang);
+            return true;
+        }
+
+        /// <summary>
+        /// Hanging: Jump or a push toward the wall climbs up; Down lets go; Jump while pushing away springs off the wall.
+        /// </summary>
+        private void TickHang(InputFrame input)
+        {
+            velocity = Vector2.zero;
+            if (stateTime < move.hangSettle)
+                return;
+
+            float toward = input.Move * motor.Facing;
+            if (jumpBuffer > 0f && toward < -0.5f)
+            {
+                // Spring off the wall, back the way she came.
+                jumpBuffer = 0f;
+                regrabTimer = move.regrabDelay;
+                motor.Facing = -motor.Facing;
+                velocity = new Vector2(motor.Facing * move.runSpeed, move.JumpVelocity * 0.8f);
+                EnterState(PlayerState.Locomotion);
+                return;
+            }
+            if (jumpBuffer > 0f || toward > 0.5f)
+            {
+                jumpBuffer = 0f;
+                climbFrom = new Vector2(motor.Distance, motor.transform.position.y);
+                EnterState(PlayerState.Climb);
+                return;
+            }
+            if (input.CrouchHeld)
+            {
+                regrabTimer = move.regrabDelay;
+                EnterState(PlayerState.Locomotion);
+            }
+        }
+
+        /// <summary>
+        /// Pulls her up onto the ledge. The rise is in the climb clip, so she is held below the top by the clip's rise
+        /// while it plays, and moved forward over the edge once she is up; when it ends she stands on the top.
+        /// </summary>
+        private void TickClimb()
+        {
+            velocity = Vector2.zero;
+            float t = Mathf.Clamp01(stateTime / move.climbDuration);
+            float settle = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.15f));
+            float step = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - move.climbRiseShare) / (1f - move.climbRiseShare)));
+            float onTop = ledgeWall + motor.Facing * (motor.Radius + 0.15f);
+            float held = ledgeTop - move.climbClipRise;
+
+            if (t >= 1f)
+            {
+                motor.Place(onTop, ledgeTop + 0.02f);
+                EnterState(PlayerState.Locomotion);
+                return;
+            }
+            motor.Place(Mathf.Lerp(climbFrom.x, onTop, step), Mathf.Lerp(climbFrom.y, held, settle));
+        }
+
+        // ------------------------------------------------------------- attacks
+
         private void TickAttack(InputFrame input, float dt)
         {
             AttackStep step = CurrentStep;
@@ -331,7 +663,7 @@ namespace PX
             if (IsCrouchAttack)
             {
                 // From a crouch the only follow-up is another sweep; she stays down until it ends.
-                if (stateTime >= step.CancelFrom && attackBuffer > 0f)
+                if (stateTime >= step.CancelFrom && attackBuffer > 0f && HasStamina())
                 {
                     StartCrouchAttack();
                     return;
@@ -347,16 +679,67 @@ namespace PX
             // The next strike can follow once the hitbox closes if this one connected; a whiff has to recover first.
             if (stateTime >= (swingConnected ? step.ActiveEnd : step.CancelFrom))
             {
-                if (attackBuffer > 0f && ComboIndex + 1 < combo.steps.Length)
+                if (attackBuffer > 0f && !IsCounter && ComboIndex + 1 < combo.steps.Length && HasStamina())
                 {
                     StartAttack(ComboIndex + 1, input);
                     return;
                 }
+                if (stateTime >= step.CancelFrom && TryStartGuard(input))
+                    return;
             }
 
             if (stateTime >= step.Total)
                 EnterState(PlayerState.Locomotion);
         }
+
+        private bool HasStamina() => stamina == null || stamina.HasAny;
+
+        /// <summary>The counter while one is on offer, the first strike of the combo otherwise.</summary>
+        private bool TryStartAttackOrCounter(InputFrame input)
+        {
+            if (CanCounter)
+            {
+                counterTimer = 0f;
+                StartStrike(input, 0, counter: true);
+                return true;
+            }
+            if (combo.steps.Length == 0 || !HasStamina())
+                return false;
+            StartAttack(0, input);
+            return true;
+        }
+
+        private void StartAttack(int index, InputFrame input) => StartStrike(input, index, counter: false);
+
+        private void StartStrike(InputFrame input, int index, bool counter)
+        {
+            if (input.Move != 0f)
+                motor.Facing = input.Move > 0f ? 1 : -1;
+
+            ComboIndex = index;
+            IsCrouchAttack = false;
+            IsCounter = counter;
+            attackBuffer = 0f;
+            swingConnected = false;
+            turnTime = float.MaxValue;
+            hitThisSwing.Clear();
+            stamina?.Spend(CurrentStep.staminaCost);
+            EnterState(PlayerState.Attack);
+        }
+
+        private void StartCrouchAttack()
+        {
+            ComboIndex = 0;
+            IsCrouchAttack = true;
+            IsCounter = false;
+            attackBuffer = 0f;
+            swingConnected = false;
+            hitThisSwing.Clear();
+            stamina?.Spend(combo.crouchAttack.staminaCost);
+            EnterState(PlayerState.Attack);
+        }
+
+        // ------------------------------------------------------- jumps, dashes
 
         private void ApplyGravity(bool jumpHeld, float dt)
         {
@@ -395,10 +778,27 @@ namespace PX
             return true;
         }
 
+        /// <summary>
+        /// Dash. With no direction held on the ground it is a dodge back instead, the soulslike backstep: she stays
+        /// facing her opponent and hops away from them.
+        /// </summary>
         private bool TryStartDash(InputFrame input)
         {
-            if (dashBuffer <= 0f || dashCooldown > 0f || !CanAct(move.turnActionCancel))
+            if (dashBuffer <= 0f || dashCooldown > 0f || !CanAct(move.turnActionCancel) || !HasStamina())
                 return false;
+
+            if (motor.IsGrounded && input.Move == 0f)
+            {
+                dashDirection = -motor.Facing;
+                dashBuffer = 0f;
+                turnTime = float.MaxValue;
+                stamina?.Spend(combat != null ? combat.dodgeCost : 0f);
+                if (motor.IsCrouched)
+                    motor.TryStand();
+                velocity = new Vector2(dashDirection * move.dodgeSpeed, move.dodgeHop);
+                EnterState(PlayerState.Dodge);
+                return true;
+            }
 
             if (!motor.IsGrounded)
             {
@@ -413,32 +813,9 @@ namespace PX
             dashDirection = motor.Facing;
             dashBuffer = 0f;
             turnTime = float.MaxValue;
+            stamina?.Spend(combat != null ? combat.dashCost : 0f);
             EnterState(PlayerState.Dash);
             return true;
-        }
-
-        private void StartAttack(int index, InputFrame input)
-        {
-            if (input.Move != 0f)
-                motor.Facing = input.Move > 0f ? 1 : -1;
-
-            ComboIndex = index;
-            IsCrouchAttack = false;
-            attackBuffer = 0f;
-            swingConnected = false;
-            turnTime = float.MaxValue;
-            hitThisSwing.Clear();
-            EnterState(PlayerState.Attack);
-        }
-
-        private void StartCrouchAttack()
-        {
-            ComboIndex = 0;
-            IsCrouchAttack = true;
-            attackBuffer = 0f;
-            swingConnected = false;
-            hitThisSwing.Clear();
-            EnterState(PlayerState.Attack);
         }
 
         private void EnterState(PlayerState next)
@@ -461,7 +838,11 @@ namespace PX
                 if (target == null || target == ownHealth || target.IsDead || !hitThisSwing.Add(target))
                     continue;
 
-                target.TakeHit(new Hit(step.damage, transform.forward, gameObject, step.knockback));
+                // Where the blow meets the body: the point on it nearest her, at the height of the strike.
+                Vector3 point = overlapBuffer[i].ClosestPoint(new Vector3(transform.position.x, center.y, transform.position.z));
+                HitResult result = target.TakeHit(new Hit(step.damage, transform.forward, gameObject, step.knockback, point));
+                if (result == HitResult.Ignored)
+                    continue;
                 HitLanded?.Invoke(target);
                 landed = true;
             }

@@ -62,13 +62,51 @@ namespace PX
         [Tooltip("How long a dash press is remembered while another action finishes.")]
         [Min(0f)] public float dashBufferTime = 0.15f;
 
+        [Header("Dodge")]
+        [Tooltip("Dash with no direction held, on the ground, is a dodge back: a hop away from where she faces.")]
+        [Min(0f)] public float dodgeSpeed = 8f;
+        [Min(0.05f)] public float dodgeDuration = 0.5f;
+        [Tooltip("Upward speed of the hop back, in m/s.")]
+        [Min(0f)] public float dodgeHop = 3f;
+        [Tooltip("Seconds into the dodge when blows start to pass through her, and when they stop.")]
+        public Vector2 dodgeInvulnerable = new Vector2(0.03f, 0.3f);
+        [Tooltip("Seconds into the dodge before an attack or a jump can cut it short.")]
+        [Min(0f)] public float dodgeCancel = 0.36f;
+
+        [Header("Ledges")]
+        [Tooltip("In the air, she grabs a ledge whose top is between these heights above her feet.")]
+        public Vector2 ledgeReach = new Vector2(1.2f, 2.3f);
+        [Tooltip("How far in front of her body she reaches for a ledge, in metres.")]
+        [Min(0f)] public float ledgeProbe = 0.45f;
+        [Tooltip("She only grabs on the way down, or near the top of a jump: rising faster than this, in m/s, she does not.")]
+        public float ledgeGrabMaxRise = 2f;
+        [Tooltip("Height of the ledge above her feet while she hangs from it: where her hands are in the hang clip.")]
+        [Min(0.5f)] public float hangHeight = 1.79f;
+        [Tooltip("How far the climb clip lifts her feet, in metres. While it plays she is held this far below the ledge, " +
+                 "so the clip's own rise brings her feet up to the top.")]
+        [Min(0f)] public float climbClipRise = 1.61f;
+        [Tooltip("Seconds she hangs before she can climb or let go, so a held direction does not climb at once.")]
+        [Min(0f)] public float hangSettle = 0.2f;
+        [Tooltip("Seconds the climb up onto the ledge takes.")]
+        [Min(0.1f)] public float climbDuration = 0.95f;
+        [Tooltip("Share of the climb before she starts to move forward onto the top; until then she pulls straight up.")]
+        [Range(0.1f, 0.9f)] public float climbRiseShare = 0.45f;
+        [Tooltip("Seconds after letting go before she can grab again.")]
+        [Min(0f)] public float regrabDelay = 0.35f;
+
         [Header("Hurt")]
         [Tooltip("Seconds a hit staggers her. She cannot act until it ends; presses are buffered.")]
-        [Min(0f)] public float hurtStun = 0.4f;
+        [Min(0f)] public float hurtStun = 0.45f;
+        [Tooltip("Extra stagger per m/s of the blow's knockback, so heavy blows rock her for longer.")]
+        [Min(0f)] public float hurtStunPerKnockback = 0.03f;
         [Tooltip("Upward speed a hit knocks her into, in m/s, so the knockback reads.")]
-        [Min(0f)] public float hurtHop = 4f;
+        [Min(0f)] public float hurtHop = 3f;
         [Tooltip("Seconds after a hit during which further hits are ignored.")]
         [Min(0f)] public float hurtInvulnerability = 1f;
+        [Tooltip("How long the world freezes when she is hit, on top of the attacker's own hit-stop.")]
+        [Min(0f)] public float hurtHitStop = 0.1f;
+        [Tooltip("How hard a hit on her shakes the camera, in metres.")]
+        [Min(0f)] public float hurtShake = 0.16f;
 
         [Header("Crouch")]
         [Tooltip("Height of her collider while crouched, in metres. Cover lower than this hides her.")]

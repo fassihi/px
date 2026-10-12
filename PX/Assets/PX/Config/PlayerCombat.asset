@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47e72cb86c78b4c40975389b12b22786, type: 3}
+  m_Name: PlayerCombat
+  m_EditorClassIdentifier: PX.Runtime::PX.PlayerCombatConfig
+  maxStamina: 100
+  staminaRegen: 45
+  staminaRegenDelay: 0.6
+  exhaustedRegenDelay: 1.3
+  guardRegenScale: 0.35
+  dashCost: 12
+  dodgeCost: 18
+  parryWindow: 0.18
+  parryRepressDelay: 0.4
+  blockDamageScale: 0.2
+  blockKnockbackScale: 0.5
+  blockStaminaPerDamage: 2
+  blockStun: 0.25
+  guardBreakStun: 0.9
+  parryHitStop: 0.16
+  parryShake: 0.12
+  counterWindow: 1.1
+  respawnDelay: 2.5

@@ -12,8 +12,10 @@ namespace PX.Tests
         public float Move;
         public bool JumpHeld;
         public bool CrouchHeld;
+        public bool GuardHeld;
 
         private bool jumpPressed;
+        private bool guardPressed;
         private bool dashPressed;
         private bool attackPressed;
 
@@ -27,6 +29,13 @@ namespace PX.Tests
 
         public void PressAttack() => attackPressed = true;
 
+        /// <summary>Puts the guard up (and keeps it up while <see cref="GuardHeld"/> stays true).</summary>
+        public void PressGuard(bool hold = true)
+        {
+            guardPressed = true;
+            GuardHeld = hold;
+        }
+
         public InputFrame Read()
         {
             var frame = new InputFrame
@@ -37,8 +46,10 @@ namespace PX.Tests
                 DashPressed = dashPressed,
                 AttackPressed = attackPressed,
                 CrouchHeld = CrouchHeld,
+                GuardPressed = guardPressed,
+                GuardHeld = GuardHeld,
             };
-            jumpPressed = dashPressed = attackPressed = false;
+            jumpPressed = dashPressed = attackPressed = guardPressed = false;
             return frame;
         }
     }

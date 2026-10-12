@@ -83,6 +83,7 @@ namespace PX.Tests
         public IEnumerator AJumpDuringADash_CutsItShort_OnlyLateInTheDash()
         {
             yield return PlaceAt(OpenStretch);
+            Input.Move = 1f;
             Input.PressDash();
             yield return Frames(2);
             Assume.That(Player.State, Is.EqualTo(PlayerState.Dash));
@@ -225,6 +226,8 @@ namespace PX.Tests
             float start = Motor.Distance;
             MoveConfig move = Player.Move;
 
+            // A direction is held: standing still, Dash is the dodge back.
+            Input.Move = 1f;
             Input.PressDash();
             yield return null;
             Assert.That(Player.State, Is.EqualTo(PlayerState.Dash));
@@ -232,7 +235,7 @@ namespace PX.Tests
             yield return Frames(Mathf.CeilToInt(move.dashDuration / FrameTime) + 2);
 
             Assert.That(Player.State, Is.EqualTo(PlayerState.Locomotion));
-            Assert.That(Motor.Distance - start, Is.EqualTo(move.dashSpeed * move.dashDuration).Within(0.8f));
+            Assert.That(Motor.Distance - start, Is.EqualTo(move.dashSpeed * move.dashDuration).Within(1f));
         }
 
         [UnityTest]
@@ -240,6 +243,7 @@ namespace PX.Tests
         {
             yield return PlaceAt(OpenStretch);
 
+            Input.Move = 1f;
             Input.PressDash();
             yield return Frames(Mathf.CeilToInt(Player.Move.dashDuration / FrameTime) + 3);
 

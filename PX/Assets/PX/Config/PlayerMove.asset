@@ -40,6 +40,24 @@ MonoBehaviour:
   airDashes: 1
   dashJumpCancel: 0.18
   dashBufferTime: 0.15
-  hurtStun: 0.4
-  hurtHop: 4
+  dodgeSpeed: 8
+  dodgeDuration: 0.5
+  dodgeHop: 3
+  dodgeInvulnerable: {x: 0.03, y: 0.3}
+  dodgeCancel: 0.36
+  ledgeReach: {x: 1.2, y: 2.3}
+  ledgeProbe: 0.45
+  ledgeGrabMaxRise: 2
+  hangHeight: 1.79
+  climbClipRise: 1.61
+  hangSettle: 0.2
+  climbDuration: 0.95
+  climbRiseShare: 0.45
+  regrabDelay: 0.35
+  hurtStun: 0.45
+  hurtStunPerKnockback: 0.03
+  hurtHop: 3
   hurtInvulnerability: 1
+  hurtHitStop: 0.1
+  hurtShake: 0.16
+  crouchHeight: 1.1

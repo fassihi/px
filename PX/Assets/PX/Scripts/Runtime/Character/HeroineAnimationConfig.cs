@@ -54,6 +54,33 @@ namespace PX
         [Tooltip("Her reaction to being hit, played over the stun.")]
         public ClipWindow hurt;
 
+        [Tooltip("Her fall when her health runs out. The window plays over Death Duration, then holds its last frame.")]
+        public ClipWindow death;
+        [Min(0.1f)] public float deathDuration = 1.3f;
+
+        [Tooltip("The counter after a parry, timed like a combo strike.")]
+        public ClipWindow counter;
+
+        [Header("Dodge and guard")]
+        [Tooltip("The dodge back, played over the dodge.")]
+        public ClipWindow dodge;
+        [Tooltip("Holding the guard up.")]
+        public AnimationClip guard;
+        [Tooltip("The parry: her arm sweeps the blow aside. Played over Parry Duration.")]
+        public ClipWindow parry;
+        [Min(0.05f)] public float parryDuration = 0.4f;
+        [Tooltip("A blow landing on her guard, played over the block's stun.")]
+        public ClipWindow guardHit;
+
+        [Header("Ledges")]
+        [Tooltip("Catching the ledge, played over Grab Duration as she starts to hang.")]
+        public ClipWindow ledgeGrab;
+        [Min(0.05f)] public float grabDuration = 0.3f;
+        [Tooltip("Hanging from the ledge.")]
+        public AnimationClip ledgeHang;
+        [Tooltip("Pulling up onto the ledge, played over the climb.")]
+        public ClipWindow ledgeClimb;
+
         [Header("Crouch")]
         public ClipWindow crouchDown;
         public AnimationClip crouchIdle;
@@ -125,7 +152,7 @@ namespace PX
         [Min(0.01f)] public float landDipUp = 0.3f;
 
         [Tooltip("Ground speed in m/s at which the run clip plays at normal speed: how fast her planted foot sweeps " +
-                 "backwards in it. 3.1 for the Mixamo Running clip (Female Locomotion Pack) at her size. Measure again when the run clip or her " +
+                 "backwards in it. 3.4 for the Mixamo Female Ninja Run at her size (3.1 for the Female Locomotion Pack running). Measure again when the run clip or her " +
                  "height changes, or her feet slide.")]
         public float runClipSpeed = 3.1f;
 

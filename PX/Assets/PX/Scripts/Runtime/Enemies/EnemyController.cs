@@ -7,15 +7,22 @@ namespace PX
     {
         Idle,
         Walk,
+        /// <summary>Backing away while still facing her.</summary>
+        WalkBack,
         Attack,
         Hurt,
+        /// <summary>Thrown off balance by a parry: wide open.</summary>
+        Parried,
+        /// <summary>Climbing onto an obstacle in its way.</summary>
+        Climb,
         Dead,
     }
 
     /// <summary>
-    /// A melee enemy's body: walks along its rail, swings, staggers when hit and dies. Decisions come from an
-    /// <see cref="IInputSource"/> (normally <see cref="EnemyBrain"/>); this only carries them out, with the same
-    /// commitment rules as the player: a swing, once started, plays out unless a hit staggers it.
+    /// A melee enemy's body: walks along its rail, backs off, climbs what blocks it, swings a one- or two-hit combo,
+    /// staggers when hit and dies. Decisions come from an <see cref="IInputSource"/> (normally <see cref="EnemyBrain"/>);
+    /// this only carries them out, with the same commitment rules as the player: a swing, once started, plays out
+    /// unless a heavy enough blow staggers it out, or it is parried.
     /// </summary>
     [RequireComponent(typeof(CharacterMotor), typeof(Health))]
     public sealed class EnemyController : MonoBehaviour
@@ -35,6 +42,14 @@ namespace PX
         private float knockback;
         private float cooldown;
         private bool swingConnected;
+        private float poiseTaken;
+        private float blockedTime;
+        private float climbTop;
+        private float climbWall;
+        private Vector2 climbFrom;
+        private bool posted;
+        private float postDistance;
+        private int postFacing;
 
         public IInputSource InputSource { get; set; }
 
@@ -48,7 +63,16 @@ namespace PX
 
         public float StateTime { get; private set; }
 
+        /// <summary>Which swing of its combo is in progress: 0 or 1. Only meaningful in <see cref="EnemyState.Attack"/>.</summary>
+        public int ComboIndex { get; private set; }
+
+        /// <summary>The swing in progress.</summary>
+        public AttackStep CurrentStep => config.Step(ComboIndex);
+
         public bool IsHitboxActive { get; private set; }
+
+        /// <summary>True from the point in its first swing where the second could follow.</summary>
+        public bool CanChain => State == EnemyState.Attack && ComboIndex == 0 && StateTime >= config.attack.CancelFrom;
 
         /// <summary>Raised when its swing connects with something that has health.</summary>
         public event Action<Health> HitLanded;
@@ -78,22 +102,39 @@ namespace PX
             if (dt <= 0f || config == null)
                 return;
 
+            if (!posted && motor.Rail != null)
+            {
+                posted = true;
+                postDistance = motor.Distance;
+                postFacing = motor.Facing;
+            }
+
             InputFrame input = State == EnemyState.Dead || InputSource == null ? default : InputSource.Read();
 
             switch (State)
             {
                 case EnemyState.Idle:
                 case EnemyState.Walk:
+                case EnemyState.WalkBack:
                     TickLocomotion(input, dt);
                     break;
                 case EnemyState.Attack:
-                    TickAttack(dt);
+                    TickAttack(input, dt);
                     break;
                 case EnemyState.Hurt:
                     if (StateTime >= config.hitStun)
                         Enter(EnemyState.Idle);
                     velocity.x = knockback;
                     break;
+                case EnemyState.Parried:
+                    if (StateTime >= config.parriedStun)
+                        Enter(EnemyState.Idle);
+                    velocity.x = knockback;
+                    break;
+                case EnemyState.Climb:
+                    TickClimb();
+                    StateTime += dt;
+                    return;
                 case EnemyState.Dead:
                     // It lies where it fell; its collider is off, so it no longer moves.
                     StateTime += dt;
@@ -110,27 +151,70 @@ namespace PX
 
         private void TickLocomotion(InputFrame input, float dt)
         {
-            if (input.Move != 0f)
+            if (input.Face != 0f)
+                motor.Facing = input.Face > 0f ? 1 : -1;
+            else if (input.Move != 0f)
                 motor.Facing = input.Move > 0f ? 1 : -1;
 
-            float target = Mathf.Abs(input.Move) >= WalkThreshold ? Mathf.Sign(input.Move) * config.walkSpeed : 0f;
+            bool walking = Mathf.Abs(input.Move) >= WalkThreshold;
+            bool backing = walking && Mathf.Sign(input.Move) != motor.Facing;
+            float target = walking ? Mathf.Sign(input.Move) * (backing ? config.walkBackSpeed : config.walkSpeed) : 0f;
             velocity.x = Mathf.MoveTowards(velocity.x, target, config.acceleration * dt);
 
             if (input.AttackPressed && cooldown <= 0f && motor.IsGrounded)
             {
-                swingConnected = false;
-                Enter(EnemyState.Attack);
+                StartSwing(0);
                 return;
             }
 
-            EnemyState next = Mathf.Abs(velocity.x) > 0.05f ? EnemyState.Walk : EnemyState.Idle;
+            // Walking into something it cannot pass: climb it if it is low enough.
+            bool blocked = walking && !backing && motor.IsGrounded && Mathf.Abs(motor.Velocity.x) < 0.1f;
+            blockedTime = blocked ? blockedTime + dt : 0f;
+            if (blockedTime >= config.climbAfterBlocked && TryStartClimb())
+                return;
+
+            EnemyState next = Mathf.Abs(velocity.x) <= 0.05f ? EnemyState.Idle
+                : Mathf.Sign(velocity.x) == motor.Facing ? EnemyState.Walk : EnemyState.WalkBack;
             if (next != State)
                 Enter(next);
         }
 
-        private void TickAttack(float dt)
+        private bool TryStartClimb()
         {
-            AttackStep step = config.attack;
+            if (!motor.FindLedge(0.3f, config.climbHeight, config.climbProbe, out float top, out float wall))
+                return false;
+            climbTop = top;
+            climbWall = wall;
+            climbFrom = new Vector2(motor.Distance, transform.position.y);
+            blockedTime = 0f;
+            velocity = Vector2.zero;
+            Enter(EnemyState.Climb);
+            return true;
+        }
+
+        /// <summary>Hauls itself up to the top of the obstacle, then steps onto it.</summary>
+        private void TickClimb()
+        {
+            float t = Mathf.Clamp01(StateTime / config.climbDuration);
+            float rise = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.6f));
+            float step = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - 0.45f) / 0.55f));
+            float onTop = climbWall + motor.Facing * (motor.Radius + 0.15f);
+            motor.Place(Mathf.Lerp(climbFrom.x, onTop, step), Mathf.Lerp(climbFrom.y, climbTop + 0.02f, rise));
+            if (t >= 1f)
+                Enter(EnemyState.Idle);
+        }
+
+        private void StartSwing(int index)
+        {
+            ComboIndex = index;
+            swingConnected = false;
+            poiseTaken = 0f;
+            Enter(EnemyState.Attack);
+        }
+
+        private void TickAttack(InputFrame input, float dt)
+        {
+            AttackStep step = CurrentStep;
             velocity.x = StateTime < step.ActiveEnd
                 ? motor.Facing * step.lunge
                 : Mathf.MoveTowards(velocity.x, 0f, config.acceleration * dt);
@@ -138,6 +222,14 @@ namespace PX
             IsHitboxActive = StateTime >= step.startup && StateTime < step.ActiveEnd;
             if (IsHitboxActive && !swingConnected)
                 ApplyHits(step);
+
+            if (CanChain && input.AttackPressed)
+            {
+                if (input.Face != 0f)
+                    motor.Facing = input.Face > 0f ? 1 : -1;
+                StartSwing(1);
+                return;
+            }
 
             if (StateTime >= step.Total)
             {
@@ -160,11 +252,24 @@ namespace PX
                 if (target.GetComponent<EnemyController>() != null)
                     continue;
 
-                target.TakeHit(new Hit(step.damage, transform.forward, gameObject, step.knockback));
+                // Where the blow meets the body: the point on it nearest the attacker, at the height of the swing.
+                Vector3 point = overlapBuffer[i].ClosestPoint(new Vector3(transform.position.x, center.y, transform.position.z));
+                HitResult result = target.TakeHit(new Hit(step.damage, transform.forward, gameObject, step.knockback, point));
+                if (result == HitResult.Ignored)
+                    continue;
+
                 swingConnected = true;
+                if (result == HitResult.Parried)
+                {
+                    // Its blade is turned aside and it reels back, wide open.
+                    knockback = -motor.Facing * 2.5f;
+                    Enter(EnemyState.Parried);
+                    return;
+                }
+
                 HitLanded?.Invoke(target);
-                HitStop.Trigger(step.hitStop);
-                CameraShake.Trigger(step.shake, 0.22f);
+                HitStop.Trigger(result == HitResult.Blocked ? step.hitStop * 0.6f : step.hitStop);
+                CameraShake.Trigger(result == HitResult.Blocked ? step.shake * 0.6f : step.shake, 0.25f);
                 return;
             }
         }
@@ -172,19 +277,34 @@ namespace PX
         /// <summary>Its swing's hitbox in world space, oriented by this transform's rotation.</summary>
         public void GetHitbox(out Vector3 center, out Vector3 halfExtents)
         {
-            AttackStep step = config.attack;
+            AttackStep step = CurrentStep;
             center = transform.TransformPoint(new Vector3(0f, step.hitboxCenter.y, step.hitboxCenter.x));
             halfExtents = new Vector3(config.hitboxDepth, step.hitboxSize.y * 0.5f, step.hitboxSize.x * 0.5f);
         }
 
         private void OnDamaged(Hit hit)
         {
+            if (health.IsDead)
+                return;
+
+            // Mid-swing it shrugs off light blows: only enough damage staggers it out of the attack.
+            if (State == EnemyState.Attack && StateTime < CurrentStep.ActiveEnd)
+            {
+                poiseTaken += hit.Damage;
+                if (poiseTaken < config.attackPoise)
+                    return;
+            }
+            // Climbing, it is committed too.
+            if (State == EnemyState.Climb)
+                return;
+
             // Pushed along the rail the way the blow travels, and turned to face whoever struck it.
             Vector3 along = motor.Rail != null ? motor.Rail.Evaluate(motor.Distance).Tangent : Vector3.right;
             float direction = Mathf.Sign(Vector3.Dot(hit.Direction, along));
             knockback = direction * hit.Knockback;
             motor.Facing = -(int)direction;
-            if (!health.IsDead)
+            // A parried enemy stays open for the counter: the blow lands but does not restart its stagger.
+            if (State != EnemyState.Parried)
                 Enter(EnemyState.Hurt);
         }
 
@@ -193,6 +313,23 @@ namespace PX
             Enter(EnemyState.Dead);
             // The body stays where it fell, but no longer blocks her way.
             GetComponent<CharacterController>().enabled = false;
+        }
+
+        /// <summary>
+        /// Back to where it started, at full health, as if she had never come. Called when she gets up after dying.
+        /// A dead enemy stays dead.
+        /// </summary>
+        public void ReturnToPost()
+        {
+            if (health.IsDead || !posted)
+                return;
+            health.Restore();
+            motor.Place(postDistance, 0.05f);
+            motor.Facing = postFacing;
+            velocity = Vector2.zero;
+            knockback = 0f;
+            cooldown = 0f;
+            Enter(EnemyState.Idle);
         }
 
         private void Enter(EnemyState next)

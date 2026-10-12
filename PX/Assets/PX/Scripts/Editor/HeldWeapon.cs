@@ -26,19 +26,26 @@ namespace PX.EditorTools
         private const float TouchDistance = 0.004f;
         private const float HiltReach = 0.25f;
 
+        // A hilt or guard has at most this many times the blade's vertices.
+        private const int SwordPieceLimit = 4;
+
         // A blade is a piece weighted to the hand that reaches further from it than any glove.
         private const float BladeReach = 0.15f;
 
-        /// <summary>Seats the sword held in <paramref name="side"/> ("Left" or "Right"). Returns the vertices moved.</summary>
-        public static int Fix(GameObject model, string side)
+        /// <summary>
+        /// Seats the sword held in <paramref name="side"/> ("Left" or "Right"). With <paramref name="grip"/>, it is also
+        /// turned to run that way in the hand's frame; without, it keeps the angle it was modelled at. Returns the
+        /// vertices made rigid.
+        /// </summary>
+        public static int Fix(GameObject model, string side, Vector3? grip = null)
         {
             int moved = 0;
             foreach (SkinnedMeshRenderer renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
-                moved += Fix(renderer, side);
+                moved += Fix(renderer, side, grip);
             return moved;
         }
 
-        private static int Fix(SkinnedMeshRenderer renderer, string side)
+        private static int Fix(SkinnedMeshRenderer renderer, string side, Vector3? grip)
         {
             Mesh mesh = renderer.sharedMesh;
             Transform[] bones = renderer.bones;
@@ -54,12 +61,28 @@ namespace PX.EditorTools
             float height = world.Max(p => p.y) - world.Min(p => p.y);
             int[] island = Islands(mesh, vertices);
 
+            // The hand and its fingers: a grip may be skinned to either.
+            var handBones = new HashSet<int>(Enumerable.Range(0, bones.Length).Where(i => bones[i] == bones[hand] || bones[i].IsChildOf(bones[hand])));
             Vector3 handPosition = bones[hand].position;
+            // A blade: a piece mostly weighted to the hand that reaches well beyond it. (A glove modelled into the body
+            // also reaches past the hand at the fingertips, but the body is mostly weighted elsewhere.)
             var blade = new HashSet<int>();
+            var reaching = new HashSet<int>();
+            var size = new Dictionary<int, int>();
+            var held = new Dictionary<int, int>();
             for (int i = 0; i < weights.Length; i++)
             {
-                if (weights[i].boneIndex0 == hand && (world[i] - handPosition).magnitude > BladeReach * height)
-                    blade.Add(island[i]);
+                size[island[i]] = (size.TryGetValue(island[i], out int s) ? s : 0) + 1;
+                if (!handBones.Contains(weights[i].boneIndex0))
+                    continue;
+                held[island[i]] = (held.TryGetValue(island[i], out int h) ? h : 0) + 1;
+                if ((world[i] - handPosition).magnitude > BladeReach * height)
+                    reaching.Add(island[i]);
+            }
+            foreach (int piece in reaching)
+            {
+                if (held[piece] * 2 > size[piece])
+                    blade.Add(piece);
             }
             if (blade.Count == 0)
                 return 0;
@@ -68,17 +91,23 @@ namespace PX.EditorTools
             List<int> bladeVertices = Enumerable.Range(0, world.Length).Where(i => blade.Contains(island[i])).ToList();
             Vector3 centre = bladeVertices.Aggregate(Vector3.zero, (s, i) => s + world[i]) / bladeVertices.Count;
             Vector3 axis = LongestAxis(bladeVertices.Select(i => world[i] - centre).ToList());
-            if (Vector3.Dot(axis, centre - handPosition) < 0f)
+            // Toward the tip: the end furthest from the hand. (The hand can hold a sabre near its middle, so the
+            // blade's centre alone does not say which way it points.)
+            int tipVertex = bladeVertices.OrderByDescending(i => (world[i] - handPosition).sqrMagnitude).First();
+            if (Vector3.Dot(axis, world[tipVertex] - centre) < 0f)
                 axis = -axis;
             float baseOfBlade = bladeVertices.Min(i => Vector3.Dot(world[i] - centre, axis));
             float tip = bladeVertices.Max(i => Vector3.Dot(world[i] - centre, axis));
 
             // Pieces centred on that line, from behind the hand to the tip, that touch the sword: the hilt touches the
             // blade, a pommel the hilt. Studs on the glove lie near the line too, but stand clear of the hilt.
+            // The body itself can lie across the blade's line (a sabre held low in front of the coat), so pieces much
+            // bigger than the blade are never part of the sword.
             var candidates = new List<List<int>>();
+            int largestPart = SwordPieceLimit * bladeVertices.Count;
             foreach (IGrouping<int, int> piece in Enumerable.Range(0, world.Length).GroupBy(i => island[i]))
             {
-                if (blade.Contains(piece.Key))
+                if (blade.Contains(piece.Key) || piece.Count() > largestPart)
                     continue;
                 Vector3 pieceCentre = piece.Aggregate(Vector3.zero, (s, i) => s + world[i]) / piece.Count();
                 float along = Vector3.Dot(pieceCentre - centre, axis);
@@ -107,8 +136,12 @@ namespace PX.EditorTools
             Vector3 x = (knuckle.position - handPosition).normalized;
             Vector3 y = Vector3.ProjectOnPlane(thumb.position - handPosition, x).normalized;
             Vector3 z = Vector3.Cross(x, y);
-            Vector3 wanted = x * GripDirection.x + y * GripDirection.y + z * GripDirection.z;
-            Quaternion turn = Quaternion.FromToRotation(axis, wanted);
+            Quaternion turn = Quaternion.identity;
+            if (grip.HasValue)
+            {
+                Vector3 g = grip.Value.normalized;
+                turn = Quaternion.FromToRotation(axis, x * g.x + y * g.y + z * g.z);
+            }
 
             Vector3[] normals = mesh.normals;
             Vector4[] tangents = mesh.tangents;
@@ -138,6 +171,48 @@ namespace PX.EditorTools
                 mesh.tangents = tangents;
             mesh.boneWeights = weights;
             mesh.RecalculateBounds();
+            return moved;
+        }
+
+        /// <summary>
+        /// Straps loose gear to the torso: a separate piece of the mesh (a gun slung on the back, say) that the auto-rig
+        /// weighted partly to an arm and partly to a leg is made rigid on the nearest torso bone, so it rides on the
+        /// back instead of tearing between the limbs. Returns the vertices moved.
+        /// </summary>
+        public static int StrapToTorso(GameObject model)
+        {
+            int moved = 0;
+            foreach (SkinnedMeshRenderer renderer in model.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                Mesh mesh = renderer.sharedMesh;
+                Transform[] bones = renderer.bones;
+                int[] torso = new[] { "Chest", "UpperChest", "Spine" }.Select(n => System.Array.FindIndex(bones, b => b.name == n)).Where(i => i >= 0).ToArray();
+                if (mesh == null || torso.Length == 0)
+                    continue;
+                bool Arm(int bone) => bones[bone].name.Contains("Arm") || bones[bone].name.Contains("Hand");
+                bool Leg(int bone) => bones[bone].name.Contains("Leg") || bones[bone].name.Contains("Foot");
+
+                Vector3[] vertices = mesh.vertices;
+                BoneWeight[] weights = mesh.boneWeights;
+                int[] island = Islands(mesh, vertices);
+                int body = island.GroupBy(i => i).OrderByDescending(g => g.Count()).First().Key;
+                foreach (IGrouping<int, int> piece in Enumerable.Range(0, vertices.Length).GroupBy(i => island[i]))
+                {
+                    if (piece.Key == body)
+                        continue;
+                    int onArm = piece.Count(i => Arm(weights[i].boneIndex0));
+                    int onLeg = piece.Count(i => Leg(weights[i].boneIndex0));
+                    // At least a tenth of it on each: a stray vertex or two is not enough to call it slung gear.
+                    if (onArm * 10 < piece.Count() || onLeg * 10 < piece.Count())
+                        continue;
+                    Vector3 centre = piece.Aggregate(Vector3.zero, (sum, i) => sum + renderer.transform.TransformPoint(vertices[i])) / piece.Count();
+                    int anchor = torso.OrderBy(t => (bones[t].position - centre).sqrMagnitude).First();
+                    foreach (int i in piece)
+                        weights[i] = new BoneWeight { boneIndex0 = anchor, weight0 = 1f };
+                    moved += piece.Count();
+                }
+                mesh.boneWeights = weights;
+            }
             return moved;
         }
 

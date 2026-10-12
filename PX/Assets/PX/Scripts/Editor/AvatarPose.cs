@@ -44,14 +44,20 @@ namespace PX.EditorTools
         public static IEnumerable<string> Models()
         {
             yield return RanaImportSettings.BodyPath;
-            yield return EnemyImportSettings.EnemyABodyPath;
+            foreach (string body in EnemyImportSettings.BodyPaths)
+            {
+                if (AssetDatabase.LoadAssetAtPath<GameObject>(body) != null)
+                    yield return body;
+            }
             if (!AssetDatabase.IsValidFolder(RanaImportSettings.MixamoFolder))
                 yield break;
             foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { RanaImportSettings.MixamoFolder }))
                 yield return AssetDatabase.GUIDToAssetPath(guid);
-            if (AssetDatabase.IsValidFolder(EnemyImportSettings.EnemyAMixamoFolder))
+            foreach (string folder in EnemyImportSettings.MixamoFolders)
             {
-                foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { EnemyImportSettings.EnemyAMixamoFolder }))
+                if (!AssetDatabase.IsValidFolder(folder))
+                    continue;
+                foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { folder }))
                     yield return AssetDatabase.GUIDToAssetPath(guid);
             }
         }

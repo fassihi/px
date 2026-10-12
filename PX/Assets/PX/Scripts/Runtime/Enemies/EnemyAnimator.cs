@@ -15,12 +15,16 @@ namespace PX
         {
             Idle,
             Walk,
+            WalkBack,
             Attack,
+            Attack2,
             Hurt,
+            Parried,
+            Climb,
             Dead,
         }
 
-        private const int PoseCount = 5;
+        private const int PoseCount = 9;
 
         [SerializeField] private EnemyController enemy;
         [SerializeField] private Animator animator;
@@ -33,6 +37,7 @@ namespace PX
         private readonly double[] times = new double[PoseCount];
         private Pose current;
         private EnemyState lastState;
+        private int lastCombo;
 
         private void OnEnable()
         {
@@ -42,8 +47,12 @@ namespace PX
             EnemyConfig config = enemy.Config;
             clips[(int)Pose.Idle] = config.idle;
             clips[(int)Pose.Walk] = config.walk;
+            clips[(int)Pose.WalkBack] = config.walkBack;
             clips[(int)Pose.Attack] = config.attackClip.clip;
+            clips[(int)Pose.Attack2] = config.attack2Clip.clip;
             clips[(int)Pose.Hurt] = config.hurt.clip;
+            clips[(int)Pose.Parried] = config.parried.clip;
+            clips[(int)Pose.Climb] = config.climb.clip;
             clips[(int)Pose.Dead] = config.death;
 
             graph = PlayableGraph.Create("Enemy");
@@ -77,10 +86,11 @@ namespace PX
             float dt = Time.deltaTime;
             EnemyConfig config = enemy.Config;
             Pose pose = PoseFor(enemy.State);
-            if (pose != current || enemy.State != lastState)
+            if (pose != current || enemy.State != lastState || enemy.ComboIndex != lastCombo)
                 times[(int)pose] = 0.0;
             current = pose;
             lastState = enemy.State;
+            lastCombo = enemy.ComboIndex;
 
             // Eased, normalised cross-fade, as for the heroine.
             float fade = config.fadeTime > 0f ? dt / config.fadeTime : 1f;
@@ -111,8 +121,13 @@ namespace PX
             switch (state)
             {
                 case EnemyState.Walk: return clips[(int)Pose.Walk] != null ? Pose.Walk : Pose.Idle;
-                case EnemyState.Attack: return Pose.Attack;
+                case EnemyState.WalkBack:
+                    return clips[(int)Pose.WalkBack] != null ? Pose.WalkBack : clips[(int)Pose.Walk] != null ? Pose.Walk : Pose.Idle;
+                case EnemyState.Attack:
+                    return enemy.ComboIndex == 1 && clips[(int)Pose.Attack2] != null ? Pose.Attack2 : Pose.Attack;
                 case EnemyState.Hurt: return Pose.Hurt;
+                case EnemyState.Parried: return clips[(int)Pose.Parried] != null ? Pose.Parried : Pose.Hurt;
+                case EnemyState.Climb: return clips[(int)Pose.Climb] != null ? Pose.Climb : Pose.Idle;
                 case EnemyState.Dead: return Pose.Dead;
                 default: return Pose.Idle;
             }
@@ -125,14 +140,27 @@ namespace PX
             switch (pose)
             {
                 case Pose.Walk:
+                case Pose.WalkBack:
                 {
                     float speed = Mathf.Abs(enemy.Motor.Velocity.x) / config.walkClipSpeed;
-                    return (time + dt * Mathf.Clamp(speed, 0.3f, 2f)) % clip.length;
+                    // Without its own clip, backing off plays the walk in reverse.
+                    float direction = pose == Pose.Walk || config.walkBack != null ? 1f : -1f;
+                    double next = time + direction * dt * Mathf.Clamp(speed, 0.3f, 2f);
+                    return (next % clip.length + clip.length) % clip.length;
                 }
                 case Pose.Attack:
                     return StrikeTime(config.attackClip, config.attack, enemy.StateTime);
+                case Pose.Attack2:
+                    return StrikeTime(config.attack2Clip, config.attack2, enemy.StateTime);
                 case Pose.Hurt:
                     return config.hurt.At(enemy.StateTime / Mathf.Max(0.01f, config.hitStun));
+                case Pose.Parried:
+                {
+                    ClipWindow window = config.parried.clip != null ? config.parried : config.hurt;
+                    return window.At(enemy.StateTime / Mathf.Max(0.01f, config.parriedStun));
+                }
+                case Pose.Climb:
+                    return config.climb.At(enemy.StateTime / Mathf.Max(0.01f, config.climbDuration));
                 case Pose.Dead:
                     return System.Math.Min(time + dt, clip.length);
                 default:
