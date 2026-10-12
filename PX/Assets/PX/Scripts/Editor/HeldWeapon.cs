@@ -102,6 +102,15 @@ namespace PX.EditorTools
             int tipVertex = bladeVertices.OrderByDescending(i => (world[i] - handPosition).sqrMagnitude).First();
             if (Vector3.Dot(axis, world[tipVertex] - centre) < 0f)
                 axis = -axis;
+            // A hand holding the sabre by its middle is as far from the hilt's end as from the tip, and the hilt's hook
+            // can win that: then the blade is the end that tapers to a point, the one with the smaller cross-section.
+            float lowEnd = bladeVertices.Min(i => Vector3.Dot(world[i] - centre, axis));
+            float highEnd = bladeVertices.Max(i => Vector3.Dot(world[i] - centre, axis));
+            float handAlong = Vector3.Dot(handPosition - centre, axis);
+            float nearer = Mathf.Min(highEnd - handAlong, handAlong - lowEnd);
+            float further = Mathf.Max(highEnd - handAlong, handAlong - lowEnd);
+            if (nearer > 0.7f * further && Spread(bladeVertices, world, centre, axis, highEnd) > Spread(bladeVertices, world, centre, axis, lowEnd))
+                axis = -axis;
             float baseOfBlade = bladeVertices.Min(i => Vector3.Dot(world[i] - centre, axis));
             float tip = bladeVertices.Max(i => Vector3.Dot(world[i] - centre, axis));
 
@@ -220,6 +229,19 @@ namespace PX.EditorTools
                 mesh.boneWeights = weights;
             }
             return moved;
+        }
+
+        /// <summary>How far from the axis the vertices lie within a tenth of the blade's length of the given end of it.</summary>
+        private static float Spread(List<int> vertices, Vector3[] world, Vector3 centre, Vector3 axis, float end)
+        {
+            float length = vertices.Max(i => Vector3.Dot(world[i] - centre, axis)) - vertices.Min(i => Vector3.Dot(world[i] - centre, axis));
+            float spread = 0f;
+            foreach (int i in vertices)
+            {
+                if (Mathf.Abs(Vector3.Dot(world[i] - centre, axis) - end) < 0.1f * length)
+                    spread = Mathf.Max(spread, OffLine(world[i], centre, axis));
+            }
+            return spread;
         }
 
         private static float OffLine(Vector3 point, Vector3 origin, Vector3 axis)

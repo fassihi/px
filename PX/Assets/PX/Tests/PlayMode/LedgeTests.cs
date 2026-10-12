@@ -65,7 +65,7 @@ namespace PX.Tests
             Input.PressJump();
             yield return Frames(2);
             Assert.That(Player.State, Is.EqualTo(PlayerState.Climb));
-            yield return Frames(Mathf.CeilToInt(Player.Move.climbDuration / FrameTime) + 10);
+            yield return Frames(Mathf.CeilToInt((Player.Move.climbDuration + Player.Move.climbSettle) / FrameTime) + 10);
 
             Assert.That(Player.State, Is.EqualTo(PlayerState.Locomotion));
             Assert.That(Motor.IsGrounded, Is.True);
@@ -125,6 +125,34 @@ namespace PX.Tests
             Assert.That(worstHeight, Is.LessThan(0.3f), "her hands stay at the height of the ledge's top");
             Assert.That(worstReach, Is.LessThan(0.3f), "and over its lip, not out in the air in front of the wall");
             Assert.That(worstStep, Is.LessThan(0.2f), "and do not jump from one frame to the next");
+        }
+
+        [UnityTest]
+        public IEnumerator TheClimbEnds_WithoutHerBodyJumping()
+        {
+            yield return JumpAtTheWall();
+            Assume.That(Player.State, Is.EqualTo(PlayerState.Hang));
+            Input.Move = 0f;
+            yield return Frames(Mathf.CeilToInt(Player.Move.hangSettle / FrameTime) + 1);
+            Input.PressJump();
+
+            Animator animator = Player.GetComponentInChildren<Animator>();
+            Vector3 last = animator.GetBoneTransform(HumanBodyBones.Hips).position;
+            float worst = 0f;
+            var trace = new System.Text.StringBuilder();
+            for (int i = 0; i < 200; i++)
+            {
+                yield return null;
+                Vector3 hips = animator.GetBoneTransform(HumanBodyBones.Hips).position;
+                float step = (hips - last).magnitude;
+                trace.AppendLine($"{i} {Player.State} t={Player.StateTime:0.00} step={step:0.000} hipsY={hips.y:0.00} rootY={Motor.transform.position.y:0.00} footY={Mathf.Min(animator.GetBoneTransform(HumanBodyBones.LeftFoot).position.y, animator.GetBoneTransform(HumanBodyBones.RightFoot).position.y):0.00} pos={animator.transform.localPosition} wpos={animator.transform.position.y:0.00}");
+                if (i > 3) worst = Mathf.Max(worst, step);
+                last = hips;
+                if (Player.State == PlayerState.Locomotion && Player.StateTime > 0.3f)
+                    break;
+            }
+            Debug.Log(trace.ToString());
+            Assert.That(worst, Is.LessThan(0.12f), "her hips do not pop between frames");
         }
 
         [UnityTest]

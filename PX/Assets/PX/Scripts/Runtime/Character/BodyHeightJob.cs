@@ -22,6 +22,9 @@ namespace PX
         /// <summary>How far to lower the body regardless of the ceiling, as for a landing. Stream units.</summary>
         public float dip;
 
+        /// <summary>How far the neck and head are tipped up, in muscle units (-1 to 1 across their range). Already scaled by its weight.</summary>
+        public float headLift;
+
         /// <summary>When true, the job writes this frame's body height to <see cref="measured"/> and changes nothing.</summary>
         public bool measure;
 
@@ -42,6 +45,14 @@ namespace PX
             {
                 measured[0] = body.y;
                 return;
+            }
+
+            if (headLift != 0f)
+            {
+                var neck = new MuscleHandle(HeadDof.NeckFrontBack);
+                var head = new MuscleHandle(HeadDof.HeadFrontBack);
+                human.SetMuscle(neck, Mathf.Clamp(human.GetMuscle(neck) + headLift * 0.4f, -1f, 1f));
+                human.SetMuscle(head, Mathf.Clamp(human.GetMuscle(head) + headLift * 0.6f, -1f, 1f));
             }
 
             float drop = Mathf.Max((body.y - ceiling) * Mathf.Clamp01(weight), dip);

@@ -271,7 +271,7 @@ namespace PX
 
             // Cross-fade: each weight moves linearly, and is eased on the way into the mixer, so blends start and
             // end softly instead of with a kink. Weights are normalised so the pose never loses or gains strength.
-            float fadeTime = FadeTimeInto(pose);
+            float fadeTime = player.ClimbSettling ? player.Move.climbSettle : FadeTimeInto(pose);
             float fade = fadeTime > 0f ? dt / fadeTime : 1f;
             float total = 0f;
             for (int i = 0; i < PoseCount; i++)
@@ -315,6 +315,7 @@ namespace PX
             bodyCap.SetJobData(new BodyHeightJob
             {
                 weight = weights[(int)HeroinePose.CrouchAttack], ceiling = CrouchAttackCeiling, dip = LandDip,
+                headLift = config.idleHeadLift * (total > 0f ? applied[(int)HeroinePose.Idle] / total : 0f),
                 measured = measuredBody,
             });
         }
@@ -364,6 +365,8 @@ namespace PX
                     landing = null;
                     standingUp = false;
                     airTime = 0f;
+                    if (player.ClimbSettling)
+                        return HeroinePose.Idle;
                     return clips[(int)HeroinePose.Climb] != null ? HeroinePose.Climb : HeroinePose.JumpLoop;
                 case PlayerState.Hurt:
                     landing = null;

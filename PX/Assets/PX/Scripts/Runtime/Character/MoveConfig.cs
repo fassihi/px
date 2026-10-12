@@ -111,6 +111,8 @@ namespace PX
         [Min(0f)] public float hangSettle = 0.2f;
         [Tooltip("Seconds the climb up onto the ledge takes.")]
         [Min(0.1f)] public float climbDuration = 0.95f;
+        [Tooltip("Seconds after the climb clip ends in which the pull-up pose fades into standing, as she rises onto her feet.")]
+        [Min(0.01f)] public float climbSettle = 0.2f;
         [Tooltip("Seconds after letting go before she can grab again.")]
         [Min(0f)] public float regrabDelay = 0.35f;
 

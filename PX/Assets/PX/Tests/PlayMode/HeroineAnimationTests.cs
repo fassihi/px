@@ -22,6 +22,24 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator Idle_HoldsHerHeadHigherThanTheClipDoes()
+        {
+            yield return PlaceAt(OpenStretch);
+            yield return Frames(30);
+            UnityEngine.Animator rig = Player.GetComponentInChildren<UnityEngine.Animator>();
+            Transform head = rig.GetBoneTransform(HumanBodyBones.Head);
+            HeroineAnimationConfig config = Animator.Config;
+            float lift = config.idleHeadLift;
+            // Tipping her head back swings its top away from the way she faces.
+            float with = -Vector3.Dot(head.up, Player.transform.forward);
+            config.idleHeadLift = 0f;
+            yield return Frames(10);
+            float without = -Vector3.Dot(head.up, Player.transform.forward);
+            config.idleHeadLift = lift;
+            Assert.That(with, Is.GreaterThan(without + 0.03f), $"her head is tipped up in the idle (with {with:0.000}, without {without:0.000})");
+        }
+
+        [UnityTest]
         public IEnumerator Running_PlaysRun_AndStoppingGoesBackToIdle()
         {
             yield return PlaceAt(OpenStretch);

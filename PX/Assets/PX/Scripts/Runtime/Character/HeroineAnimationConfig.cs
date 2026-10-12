@@ -145,6 +145,11 @@ namespace PX
         [Tooltip("Seconds to blend into a landing. Short, so the touchdown reads as a contact.")]
         [Min(0f)] public float landFadeTime = 0.06f;
 
+        [Header("Head")]
+        [Tooltip("How far her head is tipped up in the idle, in muscle units (-1 to 1 across the neck's and head's range), " +
+                 "on top of the clip, which has her looking down at the floor. Faded with the idle pose.")]
+        [Range(-1f, 1f)] public float idleHeadLift = 0.4f;
+
         [Header("Landing dip")]
         [Tooltip("How far her body drops on a landing, added on top of whatever she is playing, as a fraction of her " +
                  "standing body height. Her feet stay planted, so her knees take it.")]

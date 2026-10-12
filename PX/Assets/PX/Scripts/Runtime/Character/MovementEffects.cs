@@ -69,7 +69,7 @@ namespace PX
             if (air)
             {
                 Place(dashTrail, player.transform.position + Vector3.up * dashTrailHeight);
-                Burst(-player.transform.forward, 30, dashColor, 1.6f);
+                Burst(-player.transform.forward, 8, dashColor, 1.1f);
             }
         }
 
@@ -103,8 +103,8 @@ namespace PX
             }
 
             // Streaks keep coming off her through the dash.
-            if (dashing && streaks != null && Time.frameCount % 2 == 0)
-                Burst(-player.transform.forward, 4, dashColor, 1.3f);
+            if (dashing && streaks != null && Time.frameCount % 5 == 0)
+                Burst(-player.transform.forward, 1, dashColor, 1f);
         }
 
         private static void Place(TrailRenderer trail, Vector3 position)

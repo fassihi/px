@@ -364,7 +364,7 @@ namespace PX.EditorTools
             Wire(effects, "player", player);
             // Alpha-blended rather than additive: a ribbon of light would vanish against the bright sky.
             Material ribbon = LoadOrCreateParticleMaterial("MoveTrail", ring: false, additive: false, streak: true);
-            Wire(effects, "dashTrail", NewTrail(effects.transform, "DashTrail", ribbon, 0.45f, 0.5f, new Color(0.45f, 0.85f, 1f)));
+            Wire(effects, "dashTrail", NewTrail(effects.transform, "DashTrail", ribbon, 0.3f, 0.2f, new Color(0.45f, 0.85f, 1f, 0.6f)));
             Wire(effects, "jumpTrail", NewTrail(effects.transform, "JumpTrail", ribbon, 0.7f, 0.18f, new Color(1f, 0.8f, 0.3f)));
             Wire(effects, "jumpTrailBack", NewTrail(effects.transform, "JumpTrailBack", ribbon, 0.7f, 0.18f, new Color(1f, 0.8f, 0.3f)));
 
@@ -402,7 +402,7 @@ namespace PX.EditorTools
             trail.sharedMaterial = material;
             var fade = new Gradient();
             fade.SetKeys(new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
-                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.7f, 0.4f), new GradientAlphaKey(0f, 1f) });
+                new[] { new GradientAlphaKey(color.a, 0f), new GradientAlphaKey(0.7f * color.a, 0.4f), new GradientAlphaKey(0f, 1f) });
             trail.colorGradient = fade;
             return trail;
         }

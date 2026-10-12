@@ -126,6 +126,9 @@ namespace PX
         /// <summary>True while a counter is on offer after a parry.</summary>
         public bool CanCounter => counterTimer > 0f;
 
+        /// <summary>True in the last moments of the climb, when the pull-up pose fades into standing.</summary>
+        public bool ClimbSettling => State == PlayerState.Climb && stateTime >= move.climbDuration;
+
         /// <summary>Height of the ledge she hangs from or climbs onto.</summary>
         public float LedgeTop => ledgeTop;
 
@@ -665,8 +668,16 @@ namespace PX
 
             if (t >= 1f)
             {
-                motor.Place(onTop, ledgeTop + 0.02f);
-                EnterState(PlayerState.Locomotion);
+                // The clip's pose sits low by how far her root still has to rise (the clip carries her body up the wall
+                // itself). The animator fades the pose out into the idle over the settle time, and the root rises by
+                // the share of the pose that is left, so her body goes on smoothly from the climb to standing.
+                float settle = Mathf.Max(0.01f, move.climbSettle);
+                float p = Mathf.Clamp01((stateTime - move.climbDuration) / settle);
+                float low = ledgeTop - move.climbHandsHeight.Evaluate(1f);
+                float top = ledgeTop + 0.02f;
+                motor.Place(onTop, top - (top - low) * (1f - Mathf.SmoothStep(0f, 1f, p)));
+                if (p >= 1f)
+                    EnterState(PlayerState.Locomotion);
                 return;
             }
 
