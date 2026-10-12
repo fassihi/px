@@ -242,18 +242,18 @@ namespace PX
         }
 
         /// <summary>
-        /// The jump over a climb in three beats: it crouches and leans in, launches and stretches up and forward, and
-        /// lands with its knees taking the drop.
+        /// The weight added to the jump over a climb: the hips sink into the crouch before the leap and take the drop
+        /// on landing.
         /// </summary>
         private void ClimbPose(EnemyConfig config, out float lean, out float drop)
         {
             float t = Mathf.Clamp01(enemy.StateTime / Mathf.Max(0.1f, config.climbDuration));
             float crouch = Mathf.Sin(Mathf.Clamp01(t / EnemyController.ClimbCrouchEnd) * Mathf.PI);
-            float air = t > EnemyController.ClimbCrouchEnd && t < EnemyController.ClimbLandStart ? 1f : 0f;
-            float land = t >= EnemyController.ClimbLandStart
+                        float land = t >= EnemyController.ClimbLandStart
                 ? Mathf.Sin(Mathf.Clamp01((t - EnemyController.ClimbLandStart) / (1f - EnemyController.ClimbLandStart)) * Mathf.PI)
                 : 0f;
-            lean = 14f * crouch + 22f * air + 8f * land;
+            // The Mixamo jump carries its own lean and stretch; this only adds a little weight to the crouch and landing.
+            lean = 4f * crouch + 3f * land;
             drop = config.crouchDepth * (crouch + 0.7f * land);
         }
 

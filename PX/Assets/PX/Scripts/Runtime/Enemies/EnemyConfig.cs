@@ -39,7 +39,7 @@ namespace PX
         [Min(0f)] public float climbProbe = 0.5f;
         [Min(0.1f)] public float climbDuration = 0.9f;
         [Tooltip("How far above the top of the obstacle its jump arcs, in metres.")]
-        [Min(0f)] public float climbHop = 0.35f;
+        [Min(0f)] public float climbHop = 0.15f;
         [Tooltip("Seconds it has to be stopped by an obstacle before it climbs it.")]
         [Min(0f)] public float climbAfterBlocked = 0.15f;
 
@@ -114,7 +114,7 @@ namespace PX
         [Tooltip("Degrees per second it swivels round when it turns to face her.")]
         [Min(1f)] public float turnSpeed = 720f;
         [Tooltip("How far its hips sink, in metres, as it crouches to jump and lands.")]
-        [Min(0f)] public float crouchDepth = 0.14f;
+        [Min(0f)] public float crouchDepth = 0.1f;
 
         /// <summary>The swing for a step of its combo.</summary>
         public AttackStep Step(int index) => index == 0 ? attack : attack2;

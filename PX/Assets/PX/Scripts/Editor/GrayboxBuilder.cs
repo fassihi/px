@@ -48,8 +48,9 @@ namespace PX.EditorTools
         private const float AttackA2From = 0.7f, AttackA2Impact = 1.4f, AttackA2To = 1.8f;
         private const float AttackB1From = 0.1f, AttackB1Impact = 0.6f, AttackB1To = 1.2f;
         private const float AttackB2From = 0.1f, AttackB2Impact = 0.7f, AttackB2To = 1.5f;
-        private const float ClimbAFrom = 0f, ClimbATo = 0.9f;
-        private const float ClimbBFrom = 0f, ClimbBTo = 0.97f;
+        // The climb is Mixamo's running jump, all of it.
+        private const float ClimbAFrom = 0f, ClimbATo = 0f;
+        private const float ClimbBFrom = 0f, ClimbBTo = 0f;
 
         private const string VolumeProfilePath = "Assets/Settings/SceneVolumeProfile.asset";
 
@@ -709,7 +710,7 @@ namespace PX.EditorTools
             config.attack2Clip = new ClipWindow { clip = Clip("Attack 2"), from = AttackA2From, impact = AttackA2Impact, to = AttackA2To };
             config.hurt = new ClipWindow { clip = Clip("Hit") };
             config.parried = new ClipWindow { clip = Clip("Parried") };
-            config.climb = new ClipWindow { clip = Clip("Climb"), from = ClimbAFrom, to = ClimbATo };
+            config.climb = new ClipWindow { clip = Clip("Jump"), from = ClimbAFrom, to = ClimbATo };
             config.death = Clip("Death");
         }
 
@@ -753,7 +754,7 @@ namespace PX.EditorTools
             config.attack2Clip = new ClipWindow { clip = Clip("Attack 2"), from = AttackB2From, impact = AttackB2Impact, to = AttackB2To };
             config.hurt = new ClipWindow { clip = Clip("Hit") };
             config.parried = new ClipWindow { clip = Clip("Parried") };
-            config.climb = new ClipWindow { clip = Clip("Climb"), from = ClimbBFrom, to = ClimbBTo };
+            config.climb = new ClipWindow { clip = Clip("Jump"), from = ClimbBFrom, to = ClimbBTo };
             config.death = Clip("Death");
         }
 

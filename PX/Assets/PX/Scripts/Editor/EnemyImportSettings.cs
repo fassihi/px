@@ -31,7 +31,7 @@ namespace PX.EditorTools
         private static readonly string[] LoopingClips = { "Idle", "Walk", "Walk Back", "Run" };
 
         // Bump when the settings below change, so Unity re-imports the enemies' files.
-        public override uint GetVersion() => 18;
+        public override uint GetVersion() => 19;
 
         private bool IsEnemy => Folders.Any(folder => assetPath.StartsWith(folder + "/"));
 

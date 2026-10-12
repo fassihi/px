@@ -26,6 +26,7 @@ MonoBehaviour:
   climbHeight: 1.7
   climbProbe: 0.5
   climbDuration: 0.9
+  climbHop: 0.15
   climbAfterBlocked: 0.15
   attack:
     startup: 0.55
@@ -90,9 +91,14 @@ MonoBehaviour:
     impact: 0
     to: 0
   climb:
-    clip: {fileID: -203655887218126122, guid: 0ce018355d7d14b128890789deab14e5, type: 3}
+    clip: {fileID: -203655887218126122, guid: 870af7ff9d8ca450b9a44252eca75d50, type: 3}
     from: 0
     impact: 0
-    to: 0.9
+    to: 0
   death: {fileID: -203655887218126122, guid: 87401aaecc84f4e27ab3aea8b239a6af, type: 3}
   fadeTime: 0.12
+  runLean: 5
+  leanStiffness: 90
+  stride: 3
+  turnSpeed: 720
+  crouchDepth: 0.1

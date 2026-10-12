@@ -117,7 +117,7 @@ namespace PX.Tests
                 else if (top > 0f)
                     break;
             }
-            Assert.That(top, Is.GreaterThan(1.4f + 0.15f), "it arcs above the crate's top on the way over");
+            Assert.That(top, Is.GreaterThan(1.4f + 0.04f), "it arcs above the crate's top on the way over");
             Assert.That(lowestInCrouch, Is.LessThan(0.2f), "and crouches on the ground before it leaps");
         }
     }
