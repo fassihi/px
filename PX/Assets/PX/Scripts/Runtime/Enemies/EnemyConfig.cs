@@ -111,6 +111,8 @@ namespace PX
         [Min(1f)] public float leanStiffness = 90f;
         [Tooltip("Degrees the pelvis rolls with each stride.")]
         [Min(0f)] public float stride = 3f;
+        [Tooltip("Degrees its head is tipped up in the idle, on top of the clip, which has it looking down at the floor.")]
+        public float idleHeadLift = 20f;
         [Tooltip("Degrees per second it swivels round when it turns to face her.")]
         [Min(1f)] public float turnSpeed = 720f;
         [Tooltip("How far its hips sink, in metres, as it crouches to jump and lands.")]

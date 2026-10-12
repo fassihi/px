@@ -33,6 +33,7 @@ namespace PX
         [SerializeField] private EnemyController enemy;
         [SerializeField] private Animator animator;
 
+        private float idleShare;
         private PlayableGraph graph;
         private AnimationMixerPlayable mixer;
         private readonly AnimationClipPlayable[] playables = new AnimationClipPlayable[PoseCount];
@@ -141,6 +142,7 @@ namespace PX
                 total += applied[i];
             }
 
+            idleShare = total > 0f ? applied[(int)Pose.Idle] / total : 0f;
             for (int i = 0; i < PoseCount; i++)
             {
                 if (clips[i] == null)
@@ -233,6 +235,16 @@ namespace PX
                 spine.rotation = Quaternion.AngleAxis(leaned * 0.4f - sway * 0.5f, right) * spine.rotation;
             if (chest != null && chest != spine)
                 chest.rotation = Quaternion.AngleAxis(leaned * 0.6f - sway * 0.5f, right) * chest.rotation;
+
+            // The idle clips have it looking down at the floor: tip the head back up, split between neck and head.
+            float lift = config.idleHeadLift * idleShare;
+            if (lift != 0f)
+            {
+                if (neck != null)
+                    neck.rotation = Quaternion.AngleAxis(-lift * 0.4f, right) * neck.rotation;
+                if (head != null)
+                    head.rotation = Quaternion.AngleAxis(-lift * 0.6f, right) * head.rotation;
+            }
             else if (chest != null)
                 chest.rotation = Quaternion.AngleAxis(leaned * 0.2f, right) * chest.rotation;
             // The head stays up and on its target while the body pitches.

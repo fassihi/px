@@ -37,6 +37,26 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator Idle_TipsBothEnemiesHeadsUp()
+        {
+            yield return PlaceAt(90f);
+            foreach (string name in new[] { "EnemyA", "EnemyB" })
+            {
+                EnemyController enemy = Named(name);
+                Assert.That(enemy, Is.Not.Null, name);
+                Transform head = enemy.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Head);
+                yield return Frames(10);
+                Quaternion with = head.rotation;
+                float lift = enemy.Config.idleHeadLift;
+                enemy.Config.idleHeadLift = 0f;
+                yield return Frames(2);
+                Quaternion without = head.rotation;
+                enemy.Config.idleHeadLift = lift;
+                Assert.That(Quaternion.Angle(with, without), Is.GreaterThan(lift * 0.5f), $"{name}'s head is tipped up in the idle");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ReachingTheEnemy_TheCameraTurnsBackToASideView()
         {
             EnemyController enemy = Enemy;
