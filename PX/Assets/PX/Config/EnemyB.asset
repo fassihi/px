@@ -68,7 +68,7 @@ MonoBehaviour:
   walk: {fileID: -203655887218126122, guid: dc0c3b5c264b44038b7636b75f57a09f, type: 3}
   walkBack: {fileID: -203655887218126122, guid: bbbc374d416ee49a384bdc40a74898d7, type: 3}
   walkClipSpeed: 1.3
-  run: {fileID: -203655887218126122, guid: 6b805824fe9fc4310a9375a473b72db7, type: 3}
+  run: {fileID: -203655887218126122, guid: 6f02c58f75a974671b378af17a5785a1, type: 3}
   runClipSpeed: 4.4
   attackClip:
     clip: {fileID: -203655887218126122, guid: 80435903544904556a3838df7d1f7e17, type: 3}

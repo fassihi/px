@@ -28,10 +28,10 @@ namespace PX.EditorTools
         private static readonly string[] Folders = { EnemyAFolder, EnemyBFolder };
 
         // Clips that loop. The rest play once.
-        private static readonly string[] LoopingClips = { "Idle", "Walk", "Walk Back", "Run" };
+        private static readonly string[] LoopingClips = { "Idle", "Walk", "Walk Back", "Run", "Run Weighted" };
 
         // Bump when the settings below change, so Unity re-imports the enemies' files.
-        public override uint GetVersion() => 19;
+        public override uint GetVersion() => 20;
 
         private bool IsEnemy => Folders.Any(folder => assetPath.StartsWith(folder + "/"));
 

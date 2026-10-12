@@ -749,7 +749,7 @@ namespace PX.EditorTools
             config.idle = Clip("Idle");
             config.walk = Clip("Walk");
             config.walkBack = Clip("Walk Back");
-            config.run = Clip("Run");
+            config.run = Clip("Run Weighted");
             config.attackClip = new ClipWindow { clip = Clip("Attack"), from = AttackB1From, impact = AttackB1Impact, to = AttackB1To };
             config.attack2Clip = new ClipWindow { clip = Clip("Attack 2"), from = AttackB2From, impact = AttackB2Impact, to = AttackB2To };
             config.hurt = new ClipWindow { clip = Clip("Hit") };

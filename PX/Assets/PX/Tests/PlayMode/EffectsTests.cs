@@ -120,5 +120,31 @@ namespace PX.Tests
             Assert.That(top, Is.GreaterThan(1.4f + 0.04f), "it arcs above the crate's top on the way over");
             Assert.That(lowestInCrouch, Is.LessThan(0.2f), "and crouches on the ground before it leaps");
         }
+
+        [UnityTest]
+        public IEnumerator EnemyB_RunsWithItsWeightedRun_FeetLeavingTheGroundInStride()
+        {
+            EnemyController enemy = Named("EnemyB");
+            var animator = enemy.GetComponentInChildren<Animator>();
+            Transform foot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+            yield return PlaceAt(enemy.Motor.Distance - 7.8f);
+            for (int i = 0; i < 300 && enemy.State != EnemyState.Run; i++)
+                yield return null;
+            Assert.That(enemy.State, Is.EqualTo(EnemyState.Run));
+            Assert.That(enemy.Config.run.name, Is.EqualTo("Run Weighted"));
+            // It has noticed her, so she can fall back and it keeps running after her.
+            yield return PlaceAt(enemy.Motor.Distance - 20f);
+            for (int i = 0; i < 120 && enemy.State != EnemyState.Run; i++)
+                yield return null;
+
+            float low = float.MaxValue, high = float.MinValue;
+            for (int i = 0; i < 40 && enemy.State == EnemyState.Run; i++)
+            {
+                yield return null;
+                low = Mathf.Min(low, foot.position.y);
+                high = Mathf.Max(high, foot.position.y);
+            }
+            Assert.That(high - low, Is.GreaterThan(0.15f), "its stride moves its feet");
+        }
     }
 }

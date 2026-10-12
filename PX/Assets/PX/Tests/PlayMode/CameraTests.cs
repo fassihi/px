@@ -492,6 +492,18 @@ namespace PX.Tests
             yield return Frames(7);
             yield return CaptureCloseUp(folder, "3-enemy-run-1", enemy.transform);
 
+            EnemyController enemyB = FindEnemy("EnemyB");
+            yield return PlaceAt(enemyB.Motor.Distance - 7.8f);
+            for (int i = 0; i < 300 && enemyB.State != EnemyState.Run; i++)
+                yield return null;
+            yield return PlaceAt(enemyB.Motor.Distance - 20f);
+            yield return Frames(20);
+            for (int i = 0; i < 4; i++)
+            {
+                yield return Frames(5);
+                yield return CaptureRagdoll(folder, $"3-enemy-b-run-{i}", enemyB);
+            }
+
             Motor.Teleport(Rail, 118.5f, 1.5f);
             Motor.Facing = -1;
             RailCamera.Snap();
