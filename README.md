@@ -48,8 +48,9 @@ PX/                         Unity project
                             hit effects and hit flash, training dummy
         Enemies/            Enemy config, controller (idle, walk, run, walk back, two swings that it opens with either of and
                             sometimes chains, hurt, parried, climb, dead), AI brain (an IInputSource), animator and
-                            ragdoll (a dead enemy goes limp as a ragdoll; Revive stands it up again)
+                            ragdoll (a dead enemy goes limp as a ragdoll, its joints made around the pose it dies in; Revive stands it up again), animator also lays a procedural layer on its clips (run lean on a spring, stride sway, swivel when it turns, a crouch-leap-land jump over obstacles)
         UI/                 Combat HUD: her health and stamina, the health of the enemy she fights
+        (Character/ also has MovementEffects: the ribbons and sprays of her air dash and double jump)
         Camera/             Rail-relative camera and camera zones
         Debugging/          Graybox stand-ins for animation and UI
         (Character/ also has HeroineAnimator, which plays the clips named in Config/HeroineAnimation, one attack clip per combo step)

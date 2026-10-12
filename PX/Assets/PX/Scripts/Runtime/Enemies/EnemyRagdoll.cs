@@ -8,14 +8,23 @@ namespace PX
     /// capsule and a rigidbody per major bone, joined by character joints with limits (knees and elbows bend one way).
     /// It sleeps as kinematic bodies with their colliders off while the enemy lives and is animated. On death the
     /// animator is switched off and the bodies are set free with the velocity of the killing blow; on revival they are
-    /// frozen again, the bones go back to their bind pose, and the animator takes over.
+    /// frozen again, the bones go back to their bind pose, and the animator takes over. The joints are made at that
+    /// moment, around whatever pose the animation had the body in: a joint made in the bind pose would treat a
+    /// hunched or swinging pose as far outside its limits and snap the body into a heap.
     /// </summary>
     public sealed class EnemyRagdoll : MonoBehaviour
     {
+        private enum Hinge { None, Knee, Elbow }
+
         private struct Part
         {
             public Rigidbody Body;
             public Collider Collider;
+            public Rigidbody Parent;
+            public Hinge Hinge;
+            public float Twist;
+            public float Swing;
+            public Vector3 LocalAxis;
         }
 
         // Shares of the character's height.
@@ -121,8 +130,6 @@ namespace PX
             SetPhysics(false);
         }
 
-        private enum Hinge { None, Knee, Elbow }
-
         private void AddLimb(Transform bone, Transform child, float radius, float mass, Hinge hinge, float twist, float swing)
         {
             if (bone == null || child == null || bone == child)
@@ -158,39 +165,47 @@ namespace PX
             body.maxDepenetrationVelocity = 4f;
 
             Rigidbody parent = ParentBody(bone);
-            if (parent != null)
+            parts.Add(new Part
             {
-                var joint = bone.gameObject.AddComponent<CharacterJoint>();
-                joint.connectedBody = parent;
-                joint.anchor = Vector3.zero;
-                joint.enableProjection = true;
-                joint.enablePreprocessing = false;
+                Body = body, Collider = collider, Parent = parent, Hinge = hinge, Twist = twist, Swing = swing,
+                LocalAxis = localAxis,
+            });
+        }
 
-                if (hinge == Hinge.None)
-                {
-                    Vector3 twistAxis = localAxis.sqrMagnitude > 1e-6f ? localAxis.normalized : Vector3.up;
-                    joint.axis = twistAxis;
-                    joint.swingAxis = Perpendicular(twistAxis);
-                    joint.lowTwistLimit = new SoftJointLimit { limit = -twist };
-                    joint.highTwistLimit = new SoftJointLimit { limit = twist };
-                    joint.swing1Limit = new SoftJointLimit { limit = swing };
-                    joint.swing2Limit = new SoftJointLimit { limit = swing };
-                }
-                else
-                {
-                    // A hinge about her side-to-side axis, with the other two held nearly still. Bending the shin so the
-                    // foot goes backward, and the forearm so the hand goes forward, is a turn about +/- that axis.
-                    Vector3 side = bone.InverseTransformDirection(transform.right).normalized;
-                    joint.axis = side;
-                    joint.swingAxis = Perpendicular(side);
-                    joint.lowTwistLimit = new SoftJointLimit { limit = hinge == Hinge.Knee ? -5f : -135f };
-                    joint.highTwistLimit = new SoftJointLimit { limit = hinge == Hinge.Knee ? 135f : 5f };
-                    joint.swing1Limit = new SoftJointLimit { limit = 4f };
-                    joint.swing2Limit = new SoftJointLimit { limit = 4f };
-                }
+        /// <summary>Joins a body to the one above it, with its limits measured from the pose it is in now.</summary>
+        private void AddJoint(Part part)
+        {
+            if (part.Parent == null)
+                return;
+            GameObject bone = part.Body.gameObject;
+            var joint = bone.AddComponent<CharacterJoint>();
+            joint.connectedBody = part.Parent;
+            joint.anchor = Vector3.zero;
+            joint.enableProjection = true;
+            joint.enablePreprocessing = false;
+
+            if (part.Hinge == Hinge.None)
+            {
+                Vector3 twistAxis = part.LocalAxis.sqrMagnitude > 1e-6f ? part.LocalAxis.normalized : Vector3.up;
+                joint.axis = twistAxis;
+                joint.swingAxis = Perpendicular(twistAxis);
+                joint.lowTwistLimit = new SoftJointLimit { limit = -part.Twist };
+                joint.highTwistLimit = new SoftJointLimit { limit = part.Twist };
+                joint.swing1Limit = new SoftJointLimit { limit = part.Swing };
+                joint.swing2Limit = new SoftJointLimit { limit = part.Swing };
             }
-
-            parts.Add(new Part { Body = body, Collider = collider });
+            else
+            {
+                // A hinge about her side-to-side axis, with the other two held nearly still. Bending the shin so the
+                // foot goes backward, and the forearm so the hand goes forward, is a turn about +/- that axis.
+                Vector3 side = bone.transform.InverseTransformDirection(transform.right).normalized;
+                joint.axis = side;
+                joint.swingAxis = Perpendicular(side);
+                joint.lowTwistLimit = new SoftJointLimit { limit = part.Hinge == Hinge.Knee ? -5f : -135f };
+                joint.highTwistLimit = new SoftJointLimit { limit = part.Hinge == Hinge.Knee ? 135f : 5f };
+                joint.swing1Limit = new SoftJointLimit { limit = 4f };
+                joint.swing2Limit = new SoftJointLimit { limit = 4f };
+            }
         }
 
         private Rigidbody ParentBody(Transform bone)
@@ -257,6 +272,8 @@ namespace PX
 
             SetPhysics(true);
             foreach (Part part in parts)
+                AddJoint(part);
+            foreach (Part part in parts)
             {
                 part.Body.linearVelocity = velocity;
                 part.Body.angularVelocity = Vector3.zero;
@@ -286,6 +303,12 @@ namespace PX
             {
                 part.Body.linearVelocity = Vector3.zero;
                 part.Body.angularVelocity = Vector3.zero;
+            }
+            foreach (Part part in parts)
+            {
+                var joint = part.Body.GetComponent<CharacterJoint>();
+                if (joint != null)
+                    Destroy(joint);
             }
             SetPhysics(false);
             foreach (KeyValuePair<Transform, (Vector3 position, Quaternion rotation)> pair in bindPose)

@@ -7,7 +7,10 @@ namespace PX
     /// <summary>
     /// Plays an enemy's animation from what its <see cref="EnemyController"/> reports, the way
     /// <see cref="HeroineAnimator"/> does for her: clip time follows the simulation, so the swing's blade is out
-    /// when its hitbox is live, and a stagger plays over exactly the stun.
+    /// when its hitbox is live, and a stagger plays over exactly the stun. On top of the clips it lays a procedural
+    /// layer, because the clips alone play stiff: the body leans into a run and swings back past upright when it
+    /// stops (a spring, so it overshoots), the pelvis sways with each stride, the head stays level and on her, it
+    /// swivels round when it turns instead of snapping, and a climb is a real jump: a crouch, a leap and a landing.
     /// </summary>
     public sealed class EnemyAnimator : MonoBehaviour
     {
@@ -41,6 +44,14 @@ namespace PX
         private int lastCombo;
         private bool wasRagdoll;
 
+        // The procedural layer.
+        private Transform hips, spine, chest, neck, head;
+        private float lean, leanVelocity;
+        private float yawOffset;
+        private int lastFacing = int.MinValue;
+        private float hipsDrop, hipsDropVelocity;
+        private float swayPhase;
+
         private void OnEnable()
         {
             if (animator == null || enemy == null || enemy.Config == null)
@@ -70,6 +81,13 @@ namespace PX
                 graph.Connect(playables[i], 0, mixer, i);
             }
             AnimationPlayableOutput.Create(graph, "Enemy", animator).SetSourcePlayable(mixer);
+            hips = animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Hips) : null;
+            spine = animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Spine) : null;
+            chest = animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Chest) : null;
+            neck = animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Neck) : null;
+            head = animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Head) : null;
+            if (chest == null)
+                chest = spine;
             graph.Play();
             weights[(int)Pose.Idle] = 1f;
             mixer.SetInputWeight((int)Pose.Idle, 1f);
@@ -90,6 +108,8 @@ namespace PX
             if (enemy.IsRagdoll)
             {
                 wasRagdoll = true;
+                lean = leanVelocity = hipsDrop = hipsDropVelocity = yawOffset = 0f;
+                lastFacing = int.MinValue;
                 return;
             }
 
@@ -130,6 +150,111 @@ namespace PX
                     times[i] = TimeFor(pose, times[i], dt);
                 playables[i].SetTime(times[i]);
             }
+
+            ApplyProceduralLayer(dt);
+        }
+
+        /// <summary>
+        /// Adjusts the bones the clips have just posed. The lean is a spring that chases a target set by how fast the
+        /// enemy is going forward, so it leans in as it speeds up, and rocks back upright with a little overshoot when
+        /// it stops or is thrown back.
+        /// </summary>
+        private void ApplyProceduralLayer(float dt)
+        {
+            if (hips == null || dt <= 0f || enemy.State == EnemyState.Dead)
+                return;
+
+            int facing = enemy.Motor.Facing;
+            EnemyConfig config = enemy.Config;
+
+            // Turning: the body is already turned round, so start it pointing the old way and swing it back.
+            if (lastFacing != int.MinValue && facing != lastFacing)
+                yawOffset = 180f * facing;
+            lastFacing = facing;
+            yawOffset = Mathf.MoveTowards(yawOffset, 0f, config.turnSpeed * dt);
+
+            float forward = enemy.Motor.Velocity.x * facing;
+            float target = 0f;
+            float dropTarget = 0f;
+            float weight = 1f;
+            switch (enemy.State)
+            {
+                case EnemyState.Run:
+                    target = Mathf.Clamp(forward * config.runLean, 0f, 22f);
+                    break;
+                case EnemyState.Walk:
+                    target = Mathf.Clamp(forward * config.runLean * 0.5f, 0f, 10f);
+                    break;
+                case EnemyState.WalkBack:
+                    target = Mathf.Clamp(forward * config.runLean, -8f, 0f);
+                    break;
+                case EnemyState.Attack:
+                    // The swing's lunge pitches it into the blow; the clip keeps the rest.
+                    target = Mathf.Clamp(forward * config.runLean * 0.6f, 0f, 12f);
+                    weight = 0.7f;
+                    break;
+                case EnemyState.Hurt:
+                case EnemyState.Parried:
+                    // Knocked back, it rocks away from the blow and recovers.
+                    target = Mathf.Clamp(forward * config.runLean * 0.8f, -14f, 0f);
+                    break;
+                case EnemyState.Climb:
+                    ClimbPose(config, out target, out dropTarget);
+                    break;
+            }
+
+            // Underdamped spring: stiff enough to follow, loose enough to overshoot.
+            float stiffness = config.leanStiffness;
+            float damping = 2f * 0.45f * Mathf.Sqrt(stiffness);
+            leanVelocity += ((target - lean) * stiffness - leanVelocity * damping) * dt;
+            lean += leanVelocity * dt;
+            hipsDropVelocity += ((dropTarget - hipsDrop) * stiffness * 2f - hipsDropVelocity * damping * 1.4f) * dt;
+            hipsDrop += hipsDropVelocity * dt;
+
+            // Each stride swings the pelvis one way and the shoulders the other.
+            float sway = 0f;
+            if (enemy.State == EnemyState.Walk || enemy.State == EnemyState.Run || enemy.State == EnemyState.WalkBack)
+            {
+                AnimationClip clip = clips[(int)current];
+                if (clip != null && clip.length > 0f)
+                    swayPhase = (float)(times[(int)current] / clip.length);
+                float strength = Mathf.Clamp01(Mathf.Abs(forward) / config.runClipSpeed);
+                sway = Mathf.Sin(swayPhase * Mathf.PI * 4f) * config.stride * strength;
+            }
+
+            Vector3 right = transform.right;
+            Vector3 fwd = transform.forward;
+            float leaned = lean * weight;
+            if (Mathf.Abs(yawOffset) > 0.01f)
+                hips.rotation = Quaternion.AngleAxis(yawOffset, Vector3.up) * hips.rotation;
+            hips.position += Vector3.down * hipsDrop;
+            hips.rotation = Quaternion.AngleAxis(sway, fwd) * hips.rotation;
+            if (spine != null)
+                spine.rotation = Quaternion.AngleAxis(leaned * 0.4f - sway * 0.5f, right) * spine.rotation;
+            if (chest != null && chest != spine)
+                chest.rotation = Quaternion.AngleAxis(leaned * 0.6f - sway * 0.5f, right) * chest.rotation;
+            else if (chest != null)
+                chest.rotation = Quaternion.AngleAxis(leaned * 0.2f, right) * chest.rotation;
+            // The head stays up and on its target while the body pitches.
+            Transform level = head ?? neck;
+            if (level != null)
+                level.rotation = Quaternion.AngleAxis(-leaned * 0.7f + sway * 0.4f, right) * level.rotation;
+        }
+
+        /// <summary>
+        /// The jump over a climb in three beats: it crouches and leans in, launches and stretches up and forward, and
+        /// lands with its knees taking the drop.
+        /// </summary>
+        private void ClimbPose(EnemyConfig config, out float lean, out float drop)
+        {
+            float t = Mathf.Clamp01(enemy.StateTime / Mathf.Max(0.1f, config.climbDuration));
+            float crouch = Mathf.Sin(Mathf.Clamp01(t / EnemyController.ClimbCrouchEnd) * Mathf.PI);
+            float air = t > EnemyController.ClimbCrouchEnd && t < EnemyController.ClimbLandStart ? 1f : 0f;
+            float land = t >= EnemyController.ClimbLandStart
+                ? Mathf.Sin(Mathf.Clamp01((t - EnemyController.ClimbLandStart) / (1f - EnemyController.ClimbLandStart)) * Mathf.PI)
+                : 0f;
+            lean = 14f * crouch + 22f * air + 8f * land;
+            drop = config.crouchDepth * (crouch + 0.7f * land);
         }
 
         private Pose PoseFor(EnemyState state)

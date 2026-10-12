@@ -29,6 +29,10 @@ namespace PX
     [RequireComponent(typeof(CharacterMotor), typeof(Health))]
     public sealed class EnemyController : MonoBehaviour
     {
+        /// <summary>The jump over a climb: it crouches until this share of the climb, leaps, and lands from the second.</summary>
+        public const float ClimbCrouchEnd = 0.25f;
+        public const float ClimbLandStart = 0.78f;
+
         // Small constant push into the ground so the motor keeps reporting grounded.
         private const float GroundStickSpeed = 2f;
 
@@ -210,14 +214,19 @@ namespace PX
             return true;
         }
 
-        /// <summary>Hauls itself up to the top of the obstacle, then steps onto it.</summary>
+        /// <summary>
+        /// Jumps onto the obstacle: a crouch, then a leap that arcs above the top and comes down on it, then the landing.
+        /// </summary>
         private void TickClimb()
         {
             float t = Mathf.Clamp01(StateTime / config.climbDuration);
-            float rise = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.6f));
-            float step = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - 0.45f) / 0.55f));
+            float u = Mathf.Clamp01((t - ClimbCrouchEnd) / (ClimbLandStart - ClimbCrouchEnd));
             float onTop = climbWall + motor.Facing * (motor.Radius + 0.15f);
-            motor.Place(Mathf.Lerp(climbFrom.x, onTop, step), Mathf.Lerp(climbFrom.y, climbTop + 0.02f, rise));
+            // Fast off the ground and slowing to the top; the arc carries it above the edge on the way over.
+            float rise = 1f - (1f - u) * (1f - u);
+            float arc = 4f * u * (1f - u) * config.climbHop;
+            motor.Place(Mathf.Lerp(climbFrom.x, onTop, Mathf.SmoothStep(0f, 1f, u)),
+                Mathf.Lerp(climbFrom.y, climbTop + 0.02f, rise) + arc);
             if (t >= 1f)
                 Enter(EnemyState.Idle);
         }

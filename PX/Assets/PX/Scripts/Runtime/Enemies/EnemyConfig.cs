@@ -38,6 +38,8 @@ namespace PX
         [Tooltip("How far ahead of its body it looks for something to climb, in metres.")]
         [Min(0f)] public float climbProbe = 0.5f;
         [Min(0.1f)] public float climbDuration = 0.9f;
+        [Tooltip("How far above the top of the obstacle its jump arcs, in metres.")]
+        [Min(0f)] public float climbHop = 0.35f;
         [Tooltip("Seconds it has to be stopped by an obstacle before it climbs it.")]
         [Min(0f)] public float climbAfterBlocked = 0.15f;
 
@@ -101,6 +103,18 @@ namespace PX
         public ClipWindow climb;
         public AnimationClip death;
         [Min(0f)] public float fadeTime = 0.12f;
+
+        [Header("Procedural motion")]
+        [Tooltip("Degrees it leans forward per m/s of forward speed, running. 0 turns the lean off.")]
+        [Min(0f)] public float runLean = 5f;
+        [Tooltip("How fast the lean follows its target. Higher is stiffer; it overshoots a little either way.")]
+        [Min(1f)] public float leanStiffness = 90f;
+        [Tooltip("Degrees the pelvis rolls with each stride.")]
+        [Min(0f)] public float stride = 3f;
+        [Tooltip("Degrees per second it swivels round when it turns to face her.")]
+        [Min(1f)] public float turnSpeed = 720f;
+        [Tooltip("How far its hips sink, in metres, as it crouches to jump and lands.")]
+        [Min(0f)] public float crouchDepth = 0.14f;
 
         /// <summary>The swing for a step of its combo.</summary>
         public AttackStep Step(int index) => index == 0 ? attack : attack2;

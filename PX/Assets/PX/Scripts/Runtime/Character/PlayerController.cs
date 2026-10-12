@@ -143,6 +143,12 @@ namespace PX
         /// <summary>Raised when a swing connects, once per target.</summary>
         public event Action<Health> HitLanded;
 
+        /// <summary>Raised when she jumps again in the air (the double jump).</summary>
+        public event Action AirJumped;
+
+        /// <summary>Raised when a dash starts; true when it is an air dash.</summary>
+        public event Action<bool> Dashed;
+
         /// <summary>Raised when she parries a blow. The argument is whatever struck at her.</summary>
         public event Action<GameObject> Parried;
 
@@ -853,6 +859,7 @@ namespace PX
                 if (airJumpsLeft <= 0)
                     return false;
                 airJumpsLeft--;
+                AirJumped?.Invoke();
             }
 
             velocity.y = move.JumpVelocity;
@@ -885,7 +892,8 @@ namespace PX
                 return true;
             }
 
-            if (!motor.IsGrounded)
+            bool airDash = !motor.IsGrounded;
+            if (airDash)
             {
                 if (airDashesLeft <= 0)
                     return false;
@@ -900,6 +908,7 @@ namespace PX
             turnTime = float.MaxValue;
             stamina?.Spend(combat != null ? combat.dashCost : 0f);
             EnterState(PlayerState.Dash);
+            Dashed?.Invoke(airDash);
             return true;
         }
 

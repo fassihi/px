@@ -433,6 +433,93 @@ namespace PX.Tests
             yield return Capture(folder, "09-revived");
         }
 
+        /// <summary>Close-ups of an enemy dying into a ragdoll, from the side and the front. Only runs when PX_SCREENSHOT_DIR is set.</summary>
+        [UnityTest]
+        public IEnumerator RagdollScreenshots()
+        {
+            string folder = System.Environment.GetEnvironmentVariable("PX_SCREENSHOT_DIR");
+            if (string.IsNullOrEmpty(folder))
+                Assert.Ignore("Set PX_SCREENSHOT_DIR to capture screenshots.");
+            folder = Path.Combine(folder, "ragdoll");
+            Directory.CreateDirectory(folder);
+
+            EnemyController enemy = FindEnemy("EnemyA");
+            yield return PlaceAt(enemy.Motor.Distance - 2.5f);
+            yield return Frames(20);
+            yield return CaptureRagdoll(folder, "0-alive", enemy);
+            for (int i = 0; i < 40 && !enemy.Health.IsDead; i++)
+                enemy.Health.TakeHit(new Hit(40f, Motor.transform.forward, Player.gameObject, 8f));
+            for (int i = 1; i <= 6; i++)
+            {
+                yield return Frames(i == 1 ? 3 : 12);
+                yield return CaptureRagdoll(folder, $"{i}-ragdoll", enemy);
+            }
+        }
+
+        /// <summary>Her double jump and air dash with their trails, and an enemy running and leaping a crate. Needs PX_SCREENSHOT_DIR.</summary>
+        [UnityTest]
+        public IEnumerator MotionEffectScreenshots()
+        {
+            string folder = System.Environment.GetEnvironmentVariable("PX_SCREENSHOT_DIR");
+            if (string.IsNullOrEmpty(folder))
+                Assert.Ignore("Set PX_SCREENSHOT_DIR to capture screenshots.");
+            folder = Path.Combine(folder, "motion");
+            Directory.CreateDirectory(folder);
+
+            yield return PlaceAt(20f);
+            Input.Move = 1f;
+            Input.PressJump();
+            yield return Frames(16);
+            Input.PressJump();
+            for (int i = 0; i < 3; i++)
+            {
+                yield return Frames(5);
+                yield return CaptureCloseUp(folder, $"1-double-jump-{i}");
+            }
+            yield return Frames(14);
+            Input.PressDash();
+            for (int i = 0; i < 3; i++)
+            {
+                yield return Frames(6);
+                yield return CaptureCloseUp(folder, $"2-air-dash-{i}");
+            }
+            Input.Move = 0f;
+
+            EnemyController enemy = FindEnemy("EnemyA");
+            yield return PlaceAt(enemy.Motor.Distance - 8.5f);
+            yield return Frames(30);
+            yield return CaptureCloseUp(folder, "3-enemy-run-0", enemy.transform);
+            yield return Frames(7);
+            yield return CaptureCloseUp(folder, "3-enemy-run-1", enemy.transform);
+
+            Motor.Teleport(Rail, 118.5f, 1.5f);
+            Motor.Facing = -1;
+            RailCamera.Snap();
+            for (int i = 0; i < 700 && enemy.State != EnemyState.Climb; i++)
+                yield return null;
+            // A second enemy-facing close-up at each beat of the jump.
+            float duration = enemy.Config.climbDuration;
+            for (int i = 0; i < 5; i++)
+            {
+                while (enemy.State == EnemyState.Climb && enemy.StateTime < duration * (0.12f + 0.2f * i))
+                    yield return null;
+                yield return CaptureCloseUp(folder, $"4-enemy-jump-{i}", enemy.transform);
+            }
+        }
+
+        private IEnumerator CaptureRagdoll(string folder, string name, EnemyController enemy)
+        {
+            yield return null;
+            RailPoint point = Rail.Evaluate(enemy.Motor.Distance);
+            Vector3 center = enemy.Ragdoll.HipsPosition;
+            Vector3 front = (point.Tangent * 0.8f + point.Side * 0.6f).normalized;
+            var image = new Texture2D(1440, 720, TextureFormat.RGB24, false);
+            RenderView(image, 0, center, point.Side);
+            RenderView(image, 720, center, front);
+            File.WriteAllBytes(Path.Combine(folder, name + ".png"), image.EncodeToPNG());
+            Object.Destroy(image);
+        }
+
         /// <summary>
         /// The fight with Enemy A, framed on the two of them: the knight idle and walking in, its swing winding up and
         /// landing, her staggered, then it staggered by her combo and dead. Only runs when PX_SCREENSHOT_DIR is set.

@@ -339,6 +339,8 @@ namespace PX.EditorTools
             Wire(effects, "ring", CreateBurst(effects.transform, "Ring", ring, lifetime: 0.2f, size: 0.5f, speed: 0f, grow: 3f));
             Wire(effects, "dust", CreateBurst(effects.transform, "Dust", dust, lifetime: 0.6f, size: 0.35f, speed: 2f, grow: 2.5f));
 
+            CreateMovementEffects(player, glow, ring);
+
             var hud = new GameObject("CombatHud").AddComponent<CombatHud>();
             Wire(hud, "player", player);
             WireArray(hud, "enemies", enemies.Select(e => (Object)e.GetComponent<EnemyBrain>()).ToArray());
@@ -352,6 +354,56 @@ namespace PX.EditorTools
             for (int i = 0; i < Checkpoints.Length; i++)
                 checkpoints.GetArrayElementAtIndex(i).floatValue = Checkpoints[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>The ribbons and sprays of her dash and double jump, see <see cref="MovementEffects"/>.</summary>
+        private static void CreateMovementEffects(PlayerController player, Material glow, Material ringMaterial)
+        {
+            var effects = new GameObject("MovementEffects").AddComponent<MovementEffects>();
+            Wire(effects, "player", player);
+            // Alpha-blended rather than additive: a ribbon of light would vanish against the bright sky.
+            Material ribbon = LoadOrCreateParticleMaterial("MoveTrail", ring: false, additive: false, streak: true);
+            Wire(effects, "dashTrail", NewTrail(effects.transform, "DashTrail", ribbon, 0.45f, 0.5f, new Color(0.45f, 0.85f, 1f)));
+            Wire(effects, "jumpTrail", NewTrail(effects.transform, "JumpTrail", ribbon, 0.7f, 0.18f, new Color(1f, 0.8f, 0.3f)));
+            Wire(effects, "jumpTrailBack", NewTrail(effects.transform, "JumpTrailBack", ribbon, 0.7f, 0.18f, new Color(1f, 0.8f, 0.3f)));
+
+            ParticleSystem streaks = CreateSparks(effects.transform, glow);
+            streaks.name = "Streaks";
+            ParticleSystem.MainModule main = streaks.main;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.2f, 0.4f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(2f, 6f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.1f);
+            main.gravityModifier = 0.2f;
+            ParticleSystem.ShapeModule streakShape = streaks.shape;
+            streakShape.angle = 25f;
+            streakShape.radius = 0.25f;
+            Wire(effects, "streaks", streaks);
+
+            // A ring flat on the air at her feet, widening as it fades.
+            ParticleSystem ring = CreateBurst(effects.transform, "JumpRing", ringMaterial, lifetime: 0.35f, size: 0.5f, speed: 0f, grow: 4f);
+            ring.GetComponent<ParticleSystemRenderer>().renderMode = ParticleSystemRenderMode.HorizontalBillboard;
+            Wire(effects, "ring", ring);
+        }
+
+        /// <summary>A ribbon that follows its object and fades out behind it, tapering to nothing.</summary>
+        private static TrailRenderer NewTrail(Transform parent, string name, Material material, float time, float width, Color color)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var trail = go.AddComponent<TrailRenderer>();
+            trail.time = time;
+            trail.emitting = false;
+            trail.minVertexDistance = 0.04f;
+            trail.widthCurve = new AnimationCurve(new Keyframe(0f, 0.35f), new Keyframe(0.12f, 1f), new Keyframe(1f, 0f));
+            trail.widthMultiplier = width;
+            trail.alignment = LineAlignment.View;
+            trail.shadowCastingMode = ShadowCastingMode.Off;
+            trail.sharedMaterial = material;
+            var fade = new Gradient();
+            fade.SetKeys(new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.7f, 0.4f), new GradientAlphaKey(0f, 1f) });
+            trail.colorGradient = fade;
+            return trail;
         }
 
         /// <summary>
@@ -421,7 +473,7 @@ namespace PX.EditorTools
         /// A URP particle material on a generated soft texture: a dot fading from the centre, or a thin ring.
         /// Additive for light (sparks, flashes), alpha-blended for dust.
         /// </summary>
-        private static Material LoadOrCreateParticleMaterial(string name, bool ring, bool additive)
+        private static Material LoadOrCreateParticleMaterial(string name, bool ring, bool additive, bool streak = false)
         {
             string path = $"{MaterialFolder}/{name}.mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -429,7 +481,7 @@ namespace PX.EditorTools
                 return material;
 
             material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
-            material.SetTexture("_BaseMap", LoadOrCreateSoftTexture(ring ? "SoftRing" : "SoftDot", ring));
+            material.SetTexture("_BaseMap", LoadOrCreateSoftTexture(streak ? "SoftStreak" : ring ? "SoftRing" : "SoftDot", ring, streak));
             material.SetColor("_BaseColor", Color.white);
             material.SetFloat("_Surface", 1f);
             material.SetFloat("_Blend", additive ? 2f : 0f);
@@ -443,7 +495,7 @@ namespace PX.EditorTools
             return material;
         }
 
-        private static Texture2D LoadOrCreateSoftTexture(string name, bool ring)
+        private static Texture2D LoadOrCreateSoftTexture(string name, bool ring, bool streak = false)
         {
             string path = $"{MaterialFolder}/{name}.png";
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
@@ -459,6 +511,12 @@ namespace PX.EditorTools
                     float r = new Vector2(x + 0.5f - size * 0.5f, y + 0.5f - size * 0.5f).magnitude / (size * 0.5f);
                     float a = ring ? Mathf.Clamp01(1f - Mathf.Abs(r - 0.8f) / 0.12f) : Mathf.Clamp01(1f - r);
                     a = ring ? a * a : a * a * a;
+                    if (streak)
+                    {
+                        // Across the ribbon only: bright core, soft edges, the same all along its length.
+                        float across = Mathf.Abs((y + 0.5f) / size * 2f - 1f);
+                        a = Mathf.Pow(1f - across, 1.2f);
+                    }
                     pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
                 }
             }
