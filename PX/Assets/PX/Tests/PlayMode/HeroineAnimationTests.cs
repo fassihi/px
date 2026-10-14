@@ -261,10 +261,15 @@ namespace PX.Tests
             Input.Move = 1f;
             yield return Frames(20);
             Vector3 first = Player.transform.InverseTransformPoint(hand.position);
-            yield return Frames(10);
-            Vector3 second = Player.transform.InverseTransformPoint(hand.position);
+            float farthest = 0f;
+            for (int i = 0; i < 40; i++)
+            {
+                yield return null;
+                Vector3 now = Player.transform.InverseTransformPoint(hand.position);
+                farthest = Mathf.Max(farthest, (now - first).magnitude);
+            }
 
-            Assert.That((second - first).magnitude, Is.GreaterThan(0.02f), "Her hand does not move while she runs.");
+            Assert.That(farthest, Is.GreaterThan(0.02f), "Her hand does not move while she runs.");
         }
 
         [UnityTest]

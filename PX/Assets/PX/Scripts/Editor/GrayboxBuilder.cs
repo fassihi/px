@@ -856,13 +856,19 @@ namespace PX.EditorTools
         // ------------------------------------------------------- camera, light
 
         // Less perspective: a narrower lens from further back frames the same picture with less distortion.
-        private const float LensScale = 0.83f;
-        private const float DistanceScale = 1.2f;
+        private const float LensScale = 0.55f;
+        private const float DistanceScale = 1.5f;
+
+        // Low angle: the camera sits near ground level and looks up, so the floor shows as a sliver under her feet.
+        private const float LowAnglePitch = -11f;
+        private const float LowAngleFocusLift = 1f;
 
         private static CameraView Flatter(CameraView view)
         {
             view.fieldOfView *= LensScale;
             view.distance *= DistanceScale;
+            view.pitch += LowAnglePitch;
+            view.focusHeight += LowAngleFocusLift;
             return view;
         }
 
@@ -877,7 +883,7 @@ namespace PX.EditorTools
 
             var railCamera = go.AddComponent<RailCamera>();
             railCamera.Target = motor;
-            railCamera.DefaultView = Flatter(CameraView.Side);
+            railCamera.DefaultView = Flatter(new CameraView { yaw = 0f, pitch = 5f, distance = 12f, fieldOfView = 35f, focusHeight = 1.4f, lookAhead = 2f });
 
             // The same gameplay, seen four ways. Distances are metres along the rail.
             railCamera.Zones.Add(new CameraZone

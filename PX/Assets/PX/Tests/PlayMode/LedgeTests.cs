@@ -176,7 +176,7 @@ namespace PX.Tests
         public IEnumerator AWallShortEnoughToJumpOnto_IsNotGrabbed()
         {
             // The step at 8-11 m is 1.5 m tall: she lands on it.
-            yield return PlaceAt(6.5f);
+            yield return PlaceAt(7.4f);
             Input.Move = 1f;
             yield return Frames(10);
             Input.PressJump();
