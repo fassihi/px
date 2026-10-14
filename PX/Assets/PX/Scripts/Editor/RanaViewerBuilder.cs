@@ -72,7 +72,7 @@ namespace PX.EditorTools
             var playerSerialized = new SerializedObject(player);
             playerSerialized.FindProperty("animator").objectReferenceValue = animator;
             // Rana's own clips first, then the stand-ins from the Universal Animation Library for what she lacks.
-            AnimationClip[] rana = LoadClips(RanaImportSettings.Folder + "/Animations/RanaAnimations.fbx");
+            AnimationClip[] rana = LoadClips(RanaImportSettings.AnimationsPath);
             AnimationClip[] library = LoadClips("Assets/PX/Art/Heroine/Animations/UAL1_Standard.fbx");
             var shown = rana.Select(clip => (clip, label: clip.name))
                 .Concat(new[] { "Jump_Start", "Jump_Loop" }.Select(name => (clip: FindClip(library, name), label: name + " (stand-in)")))

@@ -44,6 +44,7 @@ namespace PX.EditorTools
         public static IEnumerable<string> Models()
         {
             yield return RanaImportSettings.BodyPath;
+            yield return RanaImportSettings.AnimationsPath;
             foreach (string body in EnemyImportSettings.BodyPaths)
             {
                 if (AssetDatabase.LoadAssetAtPath<GameObject>(body) != null)

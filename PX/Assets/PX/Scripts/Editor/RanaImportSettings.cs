@@ -3,7 +3,7 @@ using UnityEditor;
 namespace PX.EditorTools
 {
     /// <summary>
-    /// Import settings for Rana's art. The animation file holds her body and her clips, imported as a humanoid so
+    /// Import settings for Rana's art. Her body and her clips are imported as a humanoid so
     /// other clips retarget onto her. The materials are built by <see cref="RanaViewerBuilder"/>.
     /// </summary>
     public sealed class RanaImportSettings : AssetPostprocessor
@@ -13,9 +13,10 @@ namespace PX.EditorTools
         // Clips downloaded from Mixamo, "without skin". Their avatars need straightening, see AvatarPose.
         public const string MixamoFolder = Folder + "/Animations/Mixamo";
 
-        // Rana's body is the model inside her animation file. Tripo's separate "rigged" export has a different bind
-        // pose, and the same clips retargeted onto it lean her backwards. Clips and body must come from one export.
-        public const string BodyPath = Folder + "/Animations/RanaAnimations.fbx";
+        // Rana's body is the Rana_Oct_14 model from Soheil, a Tripo rig imported as a humanoid. Her own clips stay in
+        // the older animation file below; it also keeps its model, which is no longer used as her body.
+        public const string BodyPath = Folder + "/Rana.fbx";
+        public const string AnimationsPath = Folder + "/Animations/RanaAnimations.fbx";
 
         // Mixamo clips that loop. The rest play once.
         private static readonly string[] LoopingClips =
@@ -25,7 +26,7 @@ namespace PX.EditorTools
         };
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 17;
+        public override uint GetVersion() => 18;
 
         private void OnPreprocessAnimation()
         {
@@ -67,7 +68,7 @@ namespace PX.EditorTools
                 return;
 
             var importer = (ModelImporter)assetImporter;
-            bool isHumanoid = assetPath.Contains("/Animations/");
+            bool isHumanoid = assetPath.Contains("/Animations/") || assetPath == BodyPath;
             importer.animationType = isHumanoid ? ModelImporterAnimationType.Human : ModelImporterAnimationType.None;
             importer.avatarSetup = isHumanoid ? ModelImporterAvatarSetup.CreateFromThisModel : ModelImporterAvatarSetup.NoAvatar;
             importer.importAnimation = isHumanoid;
