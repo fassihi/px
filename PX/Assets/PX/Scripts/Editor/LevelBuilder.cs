@@ -681,7 +681,7 @@ namespace PX.EditorTools
             var light = moon.AddComponent<Light>();
             light.type = LightType.Directional;
             light.color = new Color(0.7f, 0.82f, 0.9f);
-            light.intensity = 1.2f;
+            light.intensity = 1.8f;
             light.shadows = LightShadows.Soft;
             moon.transform.rotation = Quaternion.Euler(52f, -35f, 0f);
 
