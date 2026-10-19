@@ -51,8 +51,8 @@ namespace PX.EditorTools
             var glow2 = new Color(0.15f, 0.9f, 0.8f);
             return Build("Hall", new Color(0.09f, 0.17f, 0.2f), new Color(0.04f, 0.08f, 0.11f), new Color(0.78f, 0.58f, 0.22f),
                 glow, glow2, new Color(0.03f, 0.12f, 0.15f), new Color(0.11f, 0.24f, 0.26f))
-                .WithAtmosphere(new Color(0.03f, 0.1f, 0.13f), 0.013f,
-                    new Color(0.14f, 0.26f, 0.32f), new Color(0.1f, 0.17f, 0.2f), new Color(0.03f, 0.05f, 0.06f));
+                .WithAtmosphere(new Color(0.06f, 0.16f, 0.2f), 0.009f,
+                    new Color(0.34f, 0.5f, 0.58f), new Color(0.28f, 0.38f, 0.42f), new Color(0.12f, 0.16f, 0.18f));
         }
 
         /// <summary>Act 2: the face shrine and the bazaar scaffolds. Olive stone, magenta neon, green glow, ochre haze.</summary>
@@ -62,8 +62,8 @@ namespace PX.EditorTools
             var glow2 = new Color(0.3f, 1f, 0.5f);
             return Build("Shrine", new Color(0.17f, 0.2f, 0.14f), new Color(0.08f, 0.1f, 0.07f), new Color(0.7f, 0.6f, 0.3f),
                 glow, glow2, new Color(0.04f, 0.09f, 0.05f), new Color(0.16f, 0.18f, 0.12f))
-                .WithAtmosphere(new Color(0.2f, 0.19f, 0.12f), 0.011f,
-                    new Color(0.24f, 0.24f, 0.16f), new Color(0.14f, 0.15f, 0.1f), new Color(0.04f, 0.05f, 0.03f));
+                .WithAtmosphere(new Color(0.26f, 0.24f, 0.15f), 0.008f,
+                    new Color(0.45f, 0.45f, 0.32f), new Color(0.34f, 0.35f, 0.26f), new Color(0.13f, 0.15f, 0.1f));
         }
 
         private static Palette Build(string name, Color stone, Color deep, Color trim, Color glow, Color glow2, Color water, Color cloth)

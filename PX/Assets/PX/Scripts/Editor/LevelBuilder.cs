@@ -676,12 +676,12 @@ namespace PX.EditorTools
 
         private static void CreateLighting(Level level)
         {
-            // A dim, cool key from above and behind, for the shapes; the colour comes from the lamps.
+            // A cool key from above and behind, for the shapes; the colour comes from the lamps.
             var moon = new GameObject("Moon");
             var light = moon.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.color = new Color(0.55f, 0.72f, 0.82f);
-            light.intensity = 0.45f;
+            light.color = new Color(0.7f, 0.82f, 0.9f);
+            light.intensity = 1.2f;
             light.shadows = LightShadows.Soft;
             moon.transform.rotation = Quaternion.Euler(52f, -35f, 0f);
 
