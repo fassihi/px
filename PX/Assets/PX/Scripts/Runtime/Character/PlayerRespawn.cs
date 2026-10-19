@@ -13,6 +13,8 @@ namespace PX
         [Tooltip("Rail distances of the checkpoints, in increasing order. Passing one makes it the place she gets up.")]
         [SerializeField] private float[] checkpoints = { 3f };
         [SerializeField] private EnemyController[] enemies = System.Array.Empty<EnemyController>();
+        [Tooltip("On: every regular enemy comes back when she gets up, dead or alive, as at a rest. Off: only the living return to their posts.")]
+        [SerializeField] private bool reviveOnDeath;
 
         private CharacterMotor motor;
         private float respawnTimer = -1f;
@@ -20,10 +22,27 @@ namespace PX
         /// <summary>The rail distance she gets up at.</summary>
         public float Checkpoint { get; private set; }
 
+        /// <summary>The height she gets up at.</summary>
+        public float CheckpointHeight { get; private set; } = 0.1f;
+
+        /// <summary>Raised the moment she gets up again.</summary>
+        public event System.Action Respawned;
+
+        /// <summary>Raised when a new checkpoint is set: by passing one, or by a shrine.</summary>
+        public event System.Action CheckpointChanged;
+
         private void Awake()
         {
             motor = player != null ? player.GetComponent<CharacterMotor>() : null;
             Checkpoint = checkpoints.Length > 0 ? checkpoints[0] : 0f;
+        }
+
+        /// <summary>Makes a place the one she gets up at: what lighting a shrine does.</summary>
+        public void SetCheckpoint(float distance, float height)
+        {
+            Checkpoint = distance;
+            CheckpointHeight = height;
+            CheckpointChanged?.Invoke();
         }
 
         private void OnEnable()
@@ -53,7 +72,7 @@ namespace PX
                 foreach (float checkpoint in checkpoints)
                 {
                     if (motor.Distance >= checkpoint && checkpoint > Checkpoint)
-                        Checkpoint = checkpoint;
+                        SetCheckpoint(checkpoint, 0.1f);
                 }
                 return;
             }
@@ -64,12 +83,17 @@ namespace PX
             if (respawnTimer >= 0f)
                 return;
 
-            player.Respawn(Checkpoint);
+            player.Respawn(Checkpoint, CheckpointHeight);
             foreach (EnemyController enemy in enemies)
             {
-                if (enemy != null)
+                if (enemy == null)
+                    continue;
+                if (reviveOnDeath && !(enemy.Config != null && enemy.Config.isBoss))
+                    enemy.Reset();
+                else
                     enemy.ReturnToPost();
             }
+            Respawned?.Invoke();
         }
     }
 }

@@ -149,13 +149,13 @@ namespace PX.Tests
         }
 
         [UnityTest]
-        public IEnumerator HerStrikes_ReachNoFurtherThanHerFistsAndFeet()
+        public IEnumerator HerStrikes_ReachNoFurtherThanHerBladeAndFeet()
         {
             yield return PlaceAt(OpenStretch);
             ComboConfig combo = Player.Combo;
-            Assert.That(combo.steps.Length, Is.EqualTo(5), "jab, cross, side kick, roundhouse, spinning back kick");
+            Assert.That(combo.steps.Length, Is.EqualTo(5), "two cuts, side kick, a heavy cut, spinning back kick");
             foreach (AttackStep step in combo.steps)
-                Assert.That(step.hitboxCenter.x + step.hitboxSize.x * 0.5f, Is.LessThanOrEqualTo(1.6f), "a strike reaches past her limb");
+                Assert.That(step.hitboxCenter.x + step.hitboxSize.x * 0.5f, Is.LessThanOrEqualTo(1.9f), "a strike reaches past her blade");
             Assert.That(combo.hitboxDepth, Is.LessThanOrEqualTo(0.7f), "a strike reaches far off the rail");
         }
 

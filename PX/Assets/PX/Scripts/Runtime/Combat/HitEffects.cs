@@ -28,11 +28,32 @@ namespace PX
         private void OnEnable()
         {
             Health.AnyStruck += OnStruck;
+            EnemyController.AnySlam += OnSlam;
+            Sentinel.AnyBurst += OnBurst;
         }
 
         private void OnDisable()
         {
             Health.AnyStruck -= OnStruck;
+            EnemyController.AnySlam -= OnSlam;
+            Sentinel.AnyBurst -= OnBurst;
+        }
+
+        /// <summary>A slam landing: a wide ring and a cloud of dust at the feet.</summary>
+        private void OnSlam(Vector3 feet)
+        {
+            Burst(ring, feet + Vector3.up * 0.2f, Vector3.up, 1, hitColor, 3f);
+            Burst(dust, feet + Vector3.up * 0.05f, Vector3.up, 30, new Color(0.8f, 0.72f, 0.6f, 0.6f), 2.5f);
+            Burst(sparks, feet + Vector3.up * 0.3f, Vector3.up, 30, hitColor, 1.6f);
+        }
+
+        /// <summary>A craft bursting on the ground.</summary>
+        private void OnBurst(Vector3 point)
+        {
+            Burst(sparks, point + Vector3.up * 0.3f, Vector3.up, 60, blockColor, 2f);
+            Burst(flash, point + Vector3.up * 0.4f, Vector3.up, 1, Color.white, 2.5f);
+            Burst(ring, point + Vector3.up * 0.3f, Vector3.up, 1, blockColor, 2.4f);
+            Burst(dust, point + Vector3.up * 0.05f, Vector3.up, 20, new Color(0.5f, 0.6f, 0.65f, 0.6f), 2f);
         }
 
         private void OnStruck(Health target, Hit hit, HitResult result)

@@ -13,26 +13,26 @@ MonoBehaviour:
   m_Name: PlayerLightCombo
   m_EditorClassIdentifier: PX.Runtime::PX.ComboConfig
   steps:
-  - startup: 0.06
+  - startup: 0.08
     active: 0.08
     recovery: 0.22
     cancelDelay: 0.04
-    damage: 10
+    damage: 12
     lunge: 3
-    hitboxCenter: {x: 0.75, y: 1.35}
-    hitboxSize: {x: 1, y: 0.6}
+    hitboxCenter: {x: 0.95, y: 1.2}
+    hitboxSize: {x: 1.5, y: 0.9}
     hitStop: 0.08
     shake: 0.06
     knockback: 2.5
     staminaCost: 6
-  - startup: 0.07
+  - startup: 0.09
     active: 0.08
     recovery: 0.24
     cancelDelay: 0.05
-    damage: 12
+    damage: 14
     lunge: 3.5
-    hitboxCenter: {x: 0.8, y: 1.35}
-    hitboxSize: {x: 1.1, y: 0.6}
+    hitboxCenter: {x: 0.95, y: 1.2}
+    hitboxSize: {x: 1.5, y: 0.9}
     hitStop: 0.09
     shake: 0.07
     knockback: 3
@@ -49,18 +49,18 @@ MonoBehaviour:
     shake: 0.1
     knockback: 4.5
     staminaCost: 10
-  - startup: 0.14
+  - startup: 0.16
     active: 0.1
-    recovery: 0.32
+    recovery: 0.36
     cancelDelay: 0.12
-    damage: 18
+    damage: 22
     lunge: 2.5
-    hitboxCenter: {x: 0.85, y: 1.3}
-    hitboxSize: {x: 1.3, y: 0.8}
+    hitboxCenter: {x: 1, y: 1}
+    hitboxSize: {x: 1.6, y: 1.6}
     hitStop: 0.12
     shake: 0.12
-    knockback: 5
-    staminaCost: 12
+    knockback: 6
+    staminaCost: 13
   - startup: 0.18
     active: 0.12
     recovery: 0.42
@@ -99,6 +99,46 @@ MonoBehaviour:
     shake: 0.24
     knockback: 9
     staminaCost: 0
+  airAttack:
+    startup: 0.14
+    active: 0.22
+    recovery: 0.3
+    cancelDelay: 0.12
+    damage: 22
+    lunge: 6
+    hitboxCenter: {x: 1, y: 0.55}
+    hitboxSize: {x: 1.7, y: 1.8}
+    hitStop: 0.14
+    shake: 0.14
+    knockback: 7
+    staminaCost: 14
+  dashAttack:
+    startup: 0.1
+    active: 0.14
+    recovery: 0.4
+    cancelDelay: 0.18
+    damage: 24
+    lunge: 9
+    hitboxCenter: {x: 1.1, y: 1.1}
+    hitboxSize: {x: 1.8, y: 1}
+    hitStop: 0.14
+    shake: 0.14
+    knockback: 7
+    staminaCost: 14
+  finisher:
+    startup: 0.45
+    active: 0.1
+    recovery: 0.7
+    cancelDelay: 0.5
+    damage: 999
+    lunge: 0
+    hitboxCenter: {x: 0.9, y: 1.1}
+    hitboxSize: {x: 1.6, y: 1.6}
+    hitStop: 0.2
+    shake: 0.16
+    knockback: 2
+    staminaCost: 0
+  airAttackLift: 0
   bufferTime: 0.2
   shakeTime: 0.22
-  hitboxDepth: 0.6
+  hitboxDepth: 0.7

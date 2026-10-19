@@ -63,6 +63,14 @@ namespace PX
 
         public CameraView view = CameraView.Side;
 
+        [Tooltip("On: the zone only applies between the heights below, so an upper route over a lower one can have its own view.")]
+        public bool useHeight;
+        public float heightFrom;
+        public float heightTo;
+
         public bool Contains(float distance) => distance >= from && distance <= to;
+
+        public bool Contains(float distance, float height) =>
+            Contains(distance) && (!useHeight || (height >= heightFrom && height <= heightTo));
     }
 }

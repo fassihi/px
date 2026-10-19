@@ -18,6 +18,8 @@ namespace PX.Tests
         private bool guardPressed;
         private bool dashPressed;
         private bool attackPressed;
+        private bool interactPressed;
+        private bool flaskPressed;
 
         public void PressJump(bool hold = true)
         {
@@ -28,6 +30,10 @@ namespace PX.Tests
         public void PressDash() => dashPressed = true;
 
         public void PressAttack() => attackPressed = true;
+
+        public void PressInteract() => interactPressed = true;
+
+        public void PressFlask() => flaskPressed = true;
 
         /// <summary>Puts the guard up (and keeps it up while <see cref="GuardHeld"/> stays true).</summary>
         public void PressGuard(bool hold = true)
@@ -48,8 +54,10 @@ namespace PX.Tests
                 CrouchHeld = CrouchHeld,
                 GuardPressed = guardPressed,
                 GuardHeld = GuardHeld,
+                InteractPressed = interactPressed,
+                FlaskPressed = flaskPressed,
             };
-            jumpPressed = dashPressed = attackPressed = guardPressed = false;
+            jumpPressed = dashPressed = attackPressed = guardPressed = interactPressed = flaskPressed = false;
             return frame;
         }
     }

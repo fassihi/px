@@ -15,6 +15,10 @@ namespace PX
         public bool GuardPressed;
         /// <summary>Guard is held: she blocks.</summary>
         public bool GuardHeld;
+        /// <summary>Interact went down: rest at a shrine, pull a lever, pick something up, or throw the tether.</summary>
+        public bool InteractPressed;
+        /// <summary>Flask went down: drink to heal.</summary>
+        public bool FlaskPressed;
         /// <summary>
         /// Which way to face along the rail, whatever Move says: -1, +1, or 0 to face where Move goes. Lets an AI back away
         /// while still facing its opponent. The heroine ignores it.
@@ -22,6 +26,10 @@ namespace PX
         public float Face;
         /// <summary>Move at a run, not a walk. Only enemies use it.</summary>
         public bool Run;
+        /// <summary>A special move an AI asks its body for: 0 none, 1 the slam, 2 the spinning charge. Only bosses use it.</summary>
+        public int Special;
+        /// <summary>How far along the rail the special move should carry it, in metres.</summary>
+        public float SpecialRange;
     }
 
     /// <summary>Anything that can drive a character: a device, a test script, later an AI.</summary>

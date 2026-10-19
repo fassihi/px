@@ -29,6 +29,17 @@ namespace PX
         private bool initialized;
         private float distanceScale = 1f;
 
+        // A shot: a view that overrides the zones for a while, with its own focus. Finishers and reveals use it.
+        private bool shotActive;
+        private CameraView shotView;
+        private Transform shotFocusA;
+        private Transform shotFocusB;
+        private float shotTime;
+        private float shotDuration;
+        private float shotBlendIn;
+        private float shotBlendOut;
+        private float sinceShot = float.MaxValue;
+
         public CharacterMotor Target
         {
             get => target;
@@ -53,6 +64,34 @@ namespace PX
         /// <summary>The view currently in effect, mid-blend included.</summary>
         public CameraView CurrentView => current;
 
+        /// <summary>True while a shot overrides the zones.</summary>
+        public bool IsShotActive => shotActive;
+
+        /// <summary>
+        /// Overrides the zones with a view for a while: a cut for a finisher, a sweep for a reveal. The focus is the
+        /// midpoint of the two transforms (or the one given), at the view's focus height; without any, it stays on her.
+        /// </summary>
+        public void PlayShot(CameraView view, float duration, float blendIn = 0.15f, float blendOut = 0.7f, Transform focusA = null, Transform focusB = null)
+        {
+            shotActive = true;
+            shotView = view;
+            shotDuration = duration;
+            shotBlendIn = Mathf.Max(0.01f, blendIn);
+            shotBlendOut = Mathf.Max(0.01f, blendOut);
+            shotFocusA = focusA;
+            shotFocusB = focusB;
+            shotTime = 0f;
+        }
+
+        /// <summary>Ends the shot early, blending back to the zones.</summary>
+        public void EndShot()
+        {
+            if (!shotActive)
+                return;
+            shotActive = false;
+            sinceShot = 0f;
+        }
+
         private void Awake()
         {
             cam = GetComponent<Camera>();
@@ -70,7 +109,16 @@ namespace PX
             }
 
             float dt = Time.deltaTime;
-            if (dt <= 0f)
+            float realDt = Time.captureDeltaTime > 0f ? Time.captureDeltaTime : Time.unscaledDeltaTime;
+            if (shotActive)
+            {
+                shotTime += realDt;
+                if (shotTime >= shotDuration)
+                    EndShot();
+            }
+            else
+                sinceShot += realDt;
+            if (dt <= 0f && !shotActive)
             {
                 // Hit-stop freezes the follow, but the shake that comes with it still shows.
                 if (CameraShake.IsActive)
@@ -78,9 +126,13 @@ namespace PX
                 return;
             }
 
-            current = CameraView.Lerp(current, ViewAt(target.Distance), 1f - Mathf.Exp(-3f * dt / viewBlendTime));
-            lead = Mathf.SmoothDamp(lead, target.Facing * current.lookAhead, ref leadVelocity, lookAheadSmoothTime);
-            focus = Vector3.SmoothDamp(focus, FocusTarget(), ref focusVelocity, followSmoothTime);
+            // A shot blends in fast and out slowly, on real time, so slow motion does not stretch the cut.
+            float blendTime = shotActive ? shotBlendIn : sinceShot < shotBlendOut * 2f ? shotBlendOut : viewBlendTime;
+            float blendDt = shotActive || sinceShot < shotBlendOut * 2f ? realDt : dt;
+            CameraView wanted = shotActive ? shotView : ViewAt(target.Distance, target.transform.position.y);
+            current = CameraView.Lerp(current, wanted, 1f - Mathf.Exp(-3f * blendDt / blendTime));
+            lead = Mathf.SmoothDamp(lead, shotActive ? 0f : target.Facing * current.lookAhead, ref leadVelocity, lookAheadSmoothTime, float.MaxValue, blendDt);
+            focus = Vector3.SmoothDamp(focus, FocusTarget(), ref focusVelocity, shotActive ? followSmoothTime * 0.5f : followSmoothTime, float.MaxValue, blendDt);
             Apply();
         }
 
@@ -92,7 +144,8 @@ namespace PX
             if (target == null || target.Rail == null)
                 return;
 
-            current = ViewAt(target.Distance);
+            shotActive = false;
+            current = ViewAt(target.Distance, target.transform.position.y);
             lead = target.Facing * current.lookAhead;
             leadVelocity = 0f;
             focus = FocusTarget();
@@ -101,12 +154,15 @@ namespace PX
             Apply();
         }
 
-        /// <summary>The view that applies at a rail distance. Later zones in the list win where zones overlap.</summary>
-        public CameraView ViewAt(float distance)
+        /// <summary>The view that applies at a rail distance, at her current height. Later zones in the list win where zones overlap.</summary>
+        public CameraView ViewAt(float distance) => ViewAt(distance, target != null ? target.transform.position.y : 0f);
+
+        /// <summary>The view that applies at a rail distance and height. Later zones in the list win where zones overlap.</summary>
+        public CameraView ViewAt(float distance, float height)
         {
             for (int i = zones.Count - 1; i >= 0; i--)
             {
-                if (zones[i].Contains(distance))
+                if (zones[i].Contains(distance, height))
                     return zones[i].view;
             }
 
@@ -116,6 +172,13 @@ namespace PX
         private Vector3 FocusTarget()
         {
             RailPoint point = target.Rail.Evaluate(target.Distance);
+            if (shotActive && (shotFocusA != null || shotFocusB != null))
+            {
+                Vector3 a = shotFocusA != null ? shotFocusA.position : shotFocusB.position;
+                Vector3 b = shotFocusB != null ? shotFocusB.position : a;
+                Vector3 mid = (a + b) * 0.5f;
+                return new Vector3(mid.x, Mathf.Min(a.y, b.y), mid.z) + Vector3.up * current.focusHeight;
+            }
             return target.transform.position + Vector3.up * current.focusHeight + point.Tangent * lead;
         }
 

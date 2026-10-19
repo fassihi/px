@@ -88,11 +88,69 @@ namespace PX.EditorTools
                 "EnemyB", config, EnemyImportSettings.EnemyBBodyPath, EnemyImportSettings.EnemyBTexturePath, EnemyBHeight, 80f, 0.4f));
         }
 
+        /// <summary>The Captain stands a third taller than the knight whose body it borrows.</summary>
+        public const float CaptainHeight = 2.7f;
+
+        public static EnemyConfig LoadCaptainConfig() => LoadOrCreateAsset<EnemyConfig>($"{ConfigFolder}/Captain.asset", FillCaptain);
+
+        public static GameObject LoadCaptainPrefab()
+        {
+            EnemyConfig config = LoadCaptainConfig();
+            return LoadOrCreatePrefab($"{PrefabFolder}/Captain.prefab", () => CreateEnemy(
+                "Captain", config, EnemyImportSettings.EnemyABodyPath, EnemyImportSettings.EnemyATexturePath, CaptainHeight, 620f, 0.6f));
+        }
+
+        public static GameObject LoadBoltPrefab(EnvironmentKit.Palette palette) =>
+            LoadOrCreatePrefab($"{PrefabFolder}/Bolt.prefab", () => CreateBolt(palette));
+
+        public static GameObject LoadSentinelPrefab(EnvironmentKit.Palette palette, GameObject boltPrefab) =>
+            LoadOrCreatePrefab($"{PrefabFolder}/Sentinel.prefab", () => CreateSentinel(palette, boltPrefab));
+
+        /// <summary>
+        /// Fills the fields added to the configs since they were made, where they are still empty: the guards' look
+        /// around, the light they leave, the sabre's reach. Existing tuning is left alone.
+        /// </summary>
+        public static void UpgradeConfigs()
+        {
+            EnemyConfig a = LoadEnemyAConfig();
+            if (a.lookAround.clip == null && HasEnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Look Around"))
+            {
+                a.lookAround = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Look Around") };
+                a.lightValue = 45f;
+                EditorUtility.SetDirty(a);
+            }
+            EnemyConfig b = LoadEnemyBConfig();
+            if (b.lookAround.clip == null && HasEnemyClip(EnemyImportSettings.EnemyBMixamoFolder, "Look Around"))
+            {
+                b.lookAround = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyBMixamoFolder, "Look Around") };
+                b.lightValue = 30f;
+                b.staggerMax = 45f;
+                EditorUtility.SetDirty(b);
+            }
+            ComboConfig combo = LoadComboConfig();
+            if (combo.steps.Length == 5 && combo.steps[0].hitboxSize.x < 1.3f && HasMixamoClip("Sabre 1 Horizontal"))
+            {
+                FillSabreCombo(combo);
+                EditorUtility.SetDirty(combo);
+            }
+            // The clip windows are measured numbers (see ClipMeasure), so they are re-applied on every build.
+            HeroineAnimationConfig animation = LoadHeroineAnimation();
+            if (HasMixamoClip("Takedown Stab"))
+            {
+                FillSabreAnimation(animation);
+                EditorUtility.SetDirty(animation);
+            }
+            EnemyConfig captain = LoadCaptainConfig();
+            ApplyCaptainClips(captain);
+            EditorUtility.SetDirty(captain);
+        }
+
         // ------------------------------------------------------------- heroine
 
         private static GameObject CreatePlayer(MoveConfig move, ComboConfig combo, PlayerCombatConfig combat, HeroineAnimationConfig animation)
         {
             var root = new GameObject("Player") { tag = "Player" };
+            UpgradeConfigs();
 
             var controller = root.AddComponent<CharacterController>();
             controller.height = 1.7f;
@@ -128,8 +186,115 @@ namespace PX.EditorTools
             Wire(heroineAnimator, "animator", animator);
             Wire(heroineAnimator, "config", animation);
 
+            // Her sabre, seated in her right hand once the rig is posed, and the ribbon of the tether.
+            Transform sabre = CreateSabreVisual(root.transform);
+            var held = root.AddComponent<HeldSabre>();
+            Wire(held, "animator", animator);
+            Wire(held, "blade", sabre);
+            var tether = root.AddComponent<TetherEffects>();
+            Wire(tether, "player", player);
+            Wire(tether, "animator", animator);
+            var ribbon = new GameObject("TetherRibbon").AddComponent<LineRenderer>();
+            ribbon.transform.SetParent(root.transform, false);
+            ribbon.positionCount = 2;
+            ribbon.widthMultiplier = 0.06f;
+            ribbon.numCapVertices = 4;
+            ribbon.alignment = LineAlignment.View;
+            ribbon.sharedMaterial = LoadOrCreateParticleMaterial(GrayboxMaterialFolder, "MoveTrail", ring: false, additive: false, streak: true);
+            ribbon.enabled = false;
+            Wire(tether, "ribbon", ribbon);
+
             root.AddComponent<HitFlash>();
             return root;
+        }
+
+        /// <summary>
+        /// A sabre from primitives: a wrapped grip, a small guard, and a blade of segments that curve toward the edge,
+        /// with a thread of light along the edge. Local +Z runs from pommel to tip, +Y toward the edge.
+        /// </summary>
+        private static Transform CreateSabreVisual(Transform root)
+        {
+            Material steel = EnvironmentKit.LoadOrCreateMetal(GrayboxMaterialFolder, "Sabre Steel", new Color(0.62f, 0.66f, 0.7f));
+            Material grip = LoadOrCreateMaterial(GrayboxMaterialFolder, "Sabre Grip", new Color(0.18f, 0.12f, 0.08f), lit: true, smoothness: 0.35f);
+            Material edge = EnvironmentKit.LoadOrCreateEmissive(GrayboxMaterialFolder, "Sabre Edge", new Color(1f, 0.5f, 0.15f) * 0.5f, new Color(1f, 0.45f, 0.1f), 2.6f);
+            Transform sabre = CreateGroup("Sabre", root);
+
+            AddPart(sabre, PrimitiveType.Sphere, new Vector3(0f, 0f, -0.01f), Vector3.one * 0.05f, steel);
+            GameObject handle = AddPart(sabre, PrimitiveType.Cylinder, new Vector3(0f, 0f, 0.08f), new Vector3(0.036f, 0.08f, 0.036f), grip);
+            handle.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            AddPart(sabre, PrimitiveType.Cube, new Vector3(0f, 0f, 0.17f), new Vector3(0.11f, 0.03f, 0.025f), steel);
+            AddPart(sabre, PrimitiveType.Cube, new Vector3(0f, -0.035f, 0.1f), new Vector3(0.012f, 0.1f, 0.012f), steel);
+
+            // The blade: segments turned a little more toward the edge each time, so the tip sweeps up.
+            Vector3 position = new Vector3(0f, 0f, 0.185f);
+            Quaternion turn = Quaternion.identity;
+            const int segments = 6;
+            const float length = 0.14f;
+            for (int i = 0; i < segments; i++)
+            {
+                float taper = i == segments - 1 ? 0.45f : 1f - i * 0.06f;
+                Vector3 centre = position + turn * new Vector3(0f, 0f, length * 0.5f);
+                GameObject segment = AddPart(sabre, PrimitiveType.Cube, centre, new Vector3(0.006f, 0.034f * taper, length + 0.004f), steel);
+                segment.transform.localRotation = turn;
+                GameObject thread = AddPart(sabre, PrimitiveType.Cube, centre + turn * new Vector3(0f, 0.017f * taper, 0f), new Vector3(0.0035f, 0.004f, length), edge);
+                thread.transform.localRotation = turn;
+                position += turn * new Vector3(0f, 0f, length);
+                turn *= Quaternion.Euler(-4.5f, 0f, 0f);
+            }
+            return sabre;
+        }
+
+        /// <summary>
+        /// The sabre combo: a horizontal cut, a backhand, her side kick, a heavy downward cut, and the spinning back
+        /// kick to finish. The blade reaches a little further than her fists did.
+        /// </summary>
+        private static void FillSabreCombo(ComboConfig combo)
+        {
+            combo.steps[0].hitboxCenter = new Vector2(0.95f, 1.2f);
+            combo.steps[0].hitboxSize = new Vector2(1.5f, 0.9f);
+            combo.steps[0].damage = 12f;
+            combo.steps[0].startup = 0.08f;
+            combo.steps[1].hitboxCenter = new Vector2(0.95f, 1.2f);
+            combo.steps[1].hitboxSize = new Vector2(1.5f, 0.9f);
+            combo.steps[1].damage = 14f;
+            combo.steps[1].startup = 0.09f;
+            combo.steps[3].hitboxCenter = new Vector2(1.0f, 1.0f);
+            combo.steps[3].hitboxSize = new Vector2(1.6f, 1.6f);
+            combo.steps[3].damage = 22f;
+            combo.steps[3].startup = 0.16f;
+            combo.steps[3].recovery = 0.36f;
+            combo.steps[3].knockback = 6f;
+            combo.steps[3].staminaCost = 13f;
+            combo.hitboxDepth = 0.7f;
+        }
+
+        // Sabre clip windows, in seconds into each Mixamo clip: from, impact (blade furthest out), to.
+        // Measured with ClipMeasure (PX > Rana > Measure Clips): the impact is where the right hand is furthest in
+        // front of the hips. The backhand has a second, forehand swing after 1.6 s that is left out.
+        private static readonly Vector3 SabreHorizontal = new Vector3(0.5f, 0.9f, 1.7f);
+        private static readonly Vector3 SabreBackhand = new Vector3(0.6f, 1.05f, 1.6f);
+        private static readonly Vector3 SabreDownward = new Vector3(0.4f, 0.85f, 1.5f);
+        private static readonly Vector3 SabreSpin = new Vector3(0.5f, 1.0f, 1.7f);
+        // The stab goes in at 1.0 s and stays in until 1.5 s.
+        private static readonly Vector3 TakedownStab = new Vector3(0.4f, 1.0f, 2.0f);
+        private static readonly Vector2 DrinkWindow = new Vector2(2.0f, 4.6f);
+
+        /// <summary>Her sabre clips: the cuts in the combo, the lunge out of a dash, the stab for finishers, the drink.</summary>
+        private static void FillSabreAnimation(HeroineAnimationConfig config)
+        {
+            if (HasMixamoClip("Sabre 1 Horizontal") && HasMixamoClip("Sabre 2 Backhand") && HasMixamoClip("Sabre 3 Downward"))
+            {
+                config.comboAttacks[0] = MixamoWindow("Sabre 1 Horizontal", SabreHorizontal.x, SabreHorizontal.y, SabreHorizontal.z);
+                config.comboAttacks[1] = MixamoWindow("Sabre 2 Backhand", SabreBackhand.x, SabreBackhand.y, SabreBackhand.z);
+                config.comboAttacks[3] = MixamoWindow("Sabre 3 Downward", SabreDownward.x, SabreDownward.y, SabreDownward.z);
+                config.attack = config.comboAttacks[0].clip;
+            }
+            if (HasMixamoClip("Sabre Spin"))
+                config.dashAttack = MixamoWindow("Sabre Spin", SabreSpin.x, SabreSpin.y, SabreSpin.z);
+            if (HasMixamoClip("Takedown Stab"))
+                config.finisher = MixamoWindow("Takedown Stab", TakedownStab.x, TakedownStab.y, TakedownStab.z);
+            if (HasMixamoClip("Drink"))
+                config.drink = MixamoWindow("Drink", DrinkWindow.x, 0f, DrinkWindow.y);
         }
 
         private static void FillHeroineAnimation(HeroineAnimationConfig config)
@@ -190,6 +355,7 @@ namespace PX.EditorTools
             config.dash = MixamoClip("Dash Ground Pose");
             config.airDash = MixamoClip("Dash Air Pose");
             config.stretchDashToDuration = false;
+            FillSabreAnimation(config);
         }
 
         public static ClipWindow MixamoWindow(string name, float from, float impact, float to)
@@ -342,6 +508,127 @@ namespace PX.EditorTools
         public static AnimationClip EnemyClip(string folder, string name)
         {
             return RanaViewerBuilder.FindClip(RanaViewerBuilder.LoadClips($"{folder}/{name}.fbx"), name);
+        }
+
+        // The Captain's clip windows, in seconds into Mixamo's Great Sword clips (from, impact, to), measured with
+        // ClipMeasure: the slam's chop lands at 1.15 s after the leap, the charge's cut at 1.15 s, the roar peaks at 2.5 to 3 s.
+        private static readonly Vector3 SlamWindow = new Vector3(0.2f, 1.15f, 1.9f);
+        private static readonly Vector3 SpinWindow = new Vector3(0.3f, 1.15f, 1.8f);
+        private static readonly Vector2 PowerUpWindow = new Vector2(0.3f, 3.4f);
+
+        /// <summary>
+        /// The Captain: the knight's body and clips, half again as much reach, slow heavy swings that hit hard, poise
+        /// that shrugs off her light cuts, a leaping slam, a spinning charge, and a second phase that comes faster.
+        /// </summary>
+        private static void FillCaptain(EnemyConfig config)
+        {
+            FillEnemyA(config);
+            config.isBoss = true;
+            config.aggroRange = 30f;
+            config.chaseRange = 60f;
+            config.aggroHeight = 4f;
+            config.attackRange = 2.6f;
+            config.tooClose = 1.4f;
+            config.walkSpeed = 1.8f;
+            config.runSpeed = 5.2f;
+            config.runClipSpeed = 3.6f;
+            config.runDistance = 5f;
+            config.walkBackSpeed = 1.3f;
+            config.climbHeight = 2.4f;
+            config.attack = new AttackStep
+            {
+                startup = 0.7f, active = 0.16f, recovery = 0.8f, cancelDelay = 0.3f,
+                damage = 26f, lunge = 1.8f, hitStop = 0.14f, shake = 0.2f, knockback = 9f,
+                hitboxCenter = new Vector2(1.5f, 1.3f), hitboxSize = new Vector2(2.4f, 2.2f),
+            };
+            config.attack2 = new AttackStep
+            {
+                startup = 0.55f, active = 0.2f, recovery = 0.95f, cancelDelay = 0f,
+                damage = 34f, lunge = 3f, hitStop = 0.16f, shake = 0.26f, knockback = 12f,
+                hitboxCenter = new Vector2(1.5f, 1.2f), hitboxSize = new Vector2(2.6f, 2.0f),
+            };
+            config.secondOpenerChance = 0.3f;
+            config.comboChance = 0.55f;
+            config.retreatChance = 0.25f;
+            config.attackCooldown = 1.1f;
+            config.hitboxDepth = 1f;
+            config.attackPoise = 60f;
+            config.hitStun = 0.3f;
+            config.parriedStun = 1.6f;
+            config.staggerMax = 220f;
+            config.staggerDecay = 10f;
+            config.staggeredTime = 3f;
+            config.parryStagger = 70f;
+            config.executeDamageShare = 0.22f;
+            config.lightValue = 400f;
+            config.idleHeadLift = 12f;
+            config.runLean = 4f;
+            config.slamLeap = 5f;
+            config.slamArc = 2.2f;
+            config.chargeDistance = 6.5f;
+            config.phase2Health = 0.5f;
+            config.phase2Speed = 1.25f;
+            config.phase2Cooldown = 0.6f;
+            if (HasEnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Slam"))
+                config.slamClip = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Slam"), from = SlamWindow.x, impact = SlamWindow.y, to = SlamWindow.z };
+            if (HasEnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Spin Attack"))
+                config.spinClip = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Spin Attack"), from = SpinWindow.x, impact = SpinWindow.y, to = SpinWindow.z };
+            if (HasEnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Power Up"))
+                config.powerUp = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Power Up"), from = PowerUpWindow.x, to = PowerUpWindow.y };
+            if (HasEnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Look Around"))
+                config.lookAround = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Look Around") };
+        }
+
+        /// <summary>The Captain's clip windows, re-applied on every build: they are measured numbers, not tuning.</summary>
+        private static void ApplyCaptainClips(EnemyConfig config)
+        {
+            config.powerUpTime = 2.2f;
+            if (HasEnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Slam"))
+                config.slamClip = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Slam"), from = SlamWindow.x, impact = SlamWindow.y, to = SlamWindow.z };
+            if (HasEnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Spin Attack"))
+                config.spinClip = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Spin Attack"), from = SpinWindow.x, impact = SpinWindow.y, to = SpinWindow.z };
+            if (HasEnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Power Up"))
+                config.powerUp = new ClipWindow { clip = EnemyClip(EnemyImportSettings.EnemyAMixamoFolder, "Power Up"), from = PowerUpWindow.x, to = PowerUpWindow.y };
+        }
+
+        // ------------------------------------------------------------ craft
+
+        /// <summary>A sentinel's bolt: a small glowing sphere with a light and a short trail.</summary>
+        private static GameObject CreateBolt(EnvironmentKit.Palette palette)
+        {
+            var root = new GameObject("Bolt");
+            var bolt = root.AddComponent<Bolt>();
+            AddPart(root.transform, PrimitiveType.Sphere, Vector3.zero, Vector3.one * 0.32f, palette.Neon);
+            Light light = EnvironmentKit.AddPointLight(root.transform, Vector3.zero, palette.Glow2Color, 4f, 2f);
+            TrailRenderer trail = NewTrail(root.transform, "Trail", LoadOrCreateParticleMaterial(GrayboxMaterialFolder, "MoveTrail", ring: false, additive: false, streak: true), 0.25f, 0.25f, palette.Glow2Color);
+            trail.emitting = true;
+            Wire(bolt, "trail", trail);
+            Wire(bolt, "glow", light);
+            return root;
+        }
+
+        /// <summary>A sentinel: the craft's visual, a sphere to be hit, health, and the brain that is the component itself.</summary>
+        private static GameObject CreateSentinel(EnvironmentKit.Palette palette, GameObject boltPrefab)
+        {
+            var root = new GameObject("Sentinel");
+            var collider = root.AddComponent<SphereCollider>();
+            collider.radius = 0.8f;
+            var health = root.AddComponent<Health>();
+            WireFloat(health, "max", 60f);
+            var sentinel = root.AddComponent<Sentinel>();
+            var visual = CreateGroup("Visual", root.transform);
+            EnvironmentKit.AddCraftVisual(visual, palette);
+            Renderer eye = null;
+            foreach (Renderer renderer in visual.GetComponentsInChildren<Renderer>())
+            {
+                if (renderer.name == "Eye")
+                    eye = renderer;
+            }
+            Wire(sentinel, "visual", visual);
+            Wire(sentinel, "eye", eye);
+            Wire(sentinel, "boltPrefab", boltPrefab.GetComponent<Bolt>());
+            root.AddComponent<HitFlash>();
+            return root;
         }
 
         public static bool HasEnemyClip(string folder, string name) =>

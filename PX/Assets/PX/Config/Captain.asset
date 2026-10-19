@@ -1,0 +1,173 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d7390b4573ba4a77a970f09c327326b, type: 3}
+  m_Name: Captain
+  m_EditorClassIdentifier: PX.Runtime::PX.EnemyConfig
+  aggroRange: 30
+  chaseRange: 60
+  aggroHeight: 4
+  attackRange: 2.6
+  tooClose: 1.4
+  sightRange: 11
+  sightHeight: 2.5
+  hearingRange: 9
+  noticeTime: 0.45
+  investigateTime: 4
+  patrolWait: 2.5
+  lookAround:
+    clip: {fileID: -203655887218126122, guid: c0523d90ae9c24fe7852e4f15e30e204, type: 3}
+    from: 0
+    impact: 0
+    to: 0
+  lightValue: 400
+  staggerMax: 220
+  staggerDecay: 10
+  staggeredTime: 3
+  parryStagger: 70
+  executeDamageShare: 0.22
+  isBoss: 1
+  slam:
+    startup: 0.75
+    active: 0.14
+    recovery: 0.9
+    cancelDelay: 0
+    damage: 30
+    lunge: 0
+    hitboxCenter: {x: 1.2, y: 0.7}
+    hitboxSize: {x: 3.2, y: 1.6}
+    hitStop: 0.16
+    shake: 0.35
+    knockback: 11
+    staminaCost: 8
+  slamClip:
+    clip: {fileID: -203655887218126122, guid: f53c95cf3d2ad453ba6b1083e1bc693e, type: 3}
+    from: 0.2
+    impact: 1.15
+    to: 1.9
+  slamLeap: 5
+  slamArc: 2.2
+  spin:
+    startup: 0.45
+    active: 0.3
+    recovery: 0.8
+    cancelDelay: 0
+    damage: 26
+    lunge: 7
+    hitboxCenter: {x: 0.9, y: 1.1}
+    hitboxSize: {x: 2.6, y: 1.8}
+    hitStop: 0.14
+    shake: 0.2
+    knockback: 9
+    staminaCost: 8
+  spinClip:
+    clip: {fileID: -203655887218126122, guid: 759c4e8e89ba6436c9171455a18015ac, type: 3}
+    from: 0.3
+    impact: 1.15
+    to: 1.8
+  powerUp:
+    clip: {fileID: -203655887218126122, guid: 6404761887f88421885f3e8a0c3306aa, type: 3}
+    from: 0.3
+    impact: 0
+    to: 3.4
+  powerUpTime: 2.2
+  phase2Health: 0.5
+  phase2Speed: 1.25
+  phase2Cooldown: 0.6
+  chargeChance: 0.6
+  slamChance: 0.5
+  chargeDistance: 6.5
+  walkSpeed: 1.8
+  runSpeed: 5.2
+  runDistance: 5
+  walkBackSpeed: 1.3
+  acceleration: 12
+  gravity: 30
+  climbHeight: 2.4
+  climbProbe: 0.5
+  climbDuration: 0.9
+  climbHop: 0.15
+  climbAfterBlocked: 0.15
+  attack:
+    startup: 0.7
+    active: 0.16
+    recovery: 0.8
+    cancelDelay: 0.3
+    damage: 26
+    lunge: 1.8
+    hitboxCenter: {x: 1.5, y: 1.3}
+    hitboxSize: {x: 2.4, y: 2.2}
+    hitStop: 0.14
+    shake: 0.2
+    knockback: 9
+    staminaCost: 8
+  attack2:
+    startup: 0.55
+    active: 0.2
+    recovery: 0.95
+    cancelDelay: 0
+    damage: 34
+    lunge: 3
+    hitboxCenter: {x: 1.5, y: 1.2}
+    hitboxSize: {x: 2.6, y: 2}
+    hitStop: 0.16
+    shake: 0.26
+    knockback: 12
+    staminaCost: 8
+  secondOpenerChance: 0.3
+  comboChance: 0.55
+  retreatChance: 0.25
+  retreatTime: 0.8
+  attackCooldown: 1.1
+  hitboxDepth: 1
+  hitStun: 0.3
+  attackPoise: 60
+  parriedStun: 1.6
+  knockbackFriction: 25
+  idle: {fileID: -203655887218126122, guid: 46a3cab9cec5e4e9b90816f4082e9670, type: 3}
+  walk: {fileID: -203655887218126122, guid: 6d8705613bf0f41b585754b5b74c1dce, type: 3}
+  walkBack: {fileID: -203655887218126122, guid: b9eacd2c071854e149867f1644d0be99, type: 3}
+  walkClipSpeed: 1.4
+  run: {fileID: -203655887218126122, guid: 5d0e1c7a8aa924ec6bc3800c1568f9a2, type: 3}
+  runClipSpeed: 3.6
+  attackClip:
+    clip: {fileID: -203655887218126122, guid: ec4a57b8966b24d228b58fdc0906d9c4, type: 3}
+    from: 0
+    impact: 0.64
+    to: 0
+  attack2Clip:
+    clip: {fileID: -203655887218126122, guid: d0ffd3d43edd944fe98e94d334ba5c89, type: 3}
+    from: 0.7
+    impact: 1.4
+    to: 1.8
+  hurt:
+    clip: {fileID: -203655887218126122, guid: 1f6159137103a4b9d9682604d1d3f170, type: 3}
+    from: 0
+    impact: 0
+    to: 0
+  parried:
+    clip: {fileID: -203655887218126122, guid: 826616073efee414fb3a10c804e44ddc, type: 3}
+    from: 0
+    impact: 0
+    to: 0
+  climb:
+    clip: {fileID: -203655887218126122, guid: 870af7ff9d8ca450b9a44252eca75d50, type: 3}
+    from: 0
+    impact: 0
+    to: 0
+  death: {fileID: -203655887218126122, guid: 87401aaecc84f4e27ab3aea8b239a6af, type: 3}
+  fadeTime: 0.12
+  runLean: 4
+  leanStiffness: 90
+  stride: 3
+  idleHeadLift: 12
+  turnSpeed: 720
+  crouchDepth: 0.1

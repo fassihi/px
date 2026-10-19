@@ -14,7 +14,8 @@ This repository holds the game project and its technical conventions.
 ## Open and play
 
 1. In Unity Hub, add the `PX/` folder as a project and open it with 6000.3.11f1.
-2. Open `Assets/PX/Scenes/Graybox.unity` and press Play.
+2. Open `Assets/PX/Scenes/Level01.unity` (the 20-minute level, "The Gate Halls") or `Assets/PX/Scenes/Graybox.unity`
+   (the test level) and press Play.
 
 | Action | Keyboard | Gamepad |
 | --- | --- | --- |
@@ -28,12 +29,41 @@ This repository holds the game project and its technical conventions.
 | Counter (Attack just after a parry) | J or left mouse | West button |
 | Crouch (hold; she fits behind low cover, can turn but not walk) | S or down arrow | Stick or d-pad down |
 | Sweep (attack while crouched) | J or left mouse | West button |
+| Lunge (Attack during a ground dash: a running thrust with the blade) | J or left mouse | West button |
+| Take down (Attack just behind a guard that has not seen her) or Execute (Attack in front of a staggered enemy) | J or left mouse | West button |
+| Interact: rest at a shrine, pull a lever, or throw the Tether at a lamp in reach | E, W or up arrow | North button or right bumper |
+| Flask (drink to heal; refilled at shrines) | Q | D-pad up or left trigger |
+| Shrine menu (after resting): spend light | 1 flask slot, 2 health, E leave | D-pad left / right |
 | Ledges: she catches one in the air; Jump or toward the wall climbs, Down lets go, Jump away springs off | | |
 | Revive enemies (debug: stands the dead back up where they lie, at full health) | R, or the button at the top right | |
 
-Run to the right to see the same gameplay through several camera angles: side view, a three-quarter view
-through the turn, a pulled-back view at the training dummies, a view from behind, then the side again for
+In the graybox, run to the right to see the same gameplay through several camera angles: side view, a three-quarter
+view through the turn, a pulled-back view at the training dummies, a view from behind, then the side again for
 Enemy A's arena, a raised view for the climbing walls and the side view for Enemy B at the end.
+
+## Level 01: The Gate Halls
+
+A 20-minute draft of the game, built from Soheil's concept drafts (the plan and the decisions behind it are in
+`docs/Level01-Plan.md`). One rail of about 590 m through two acts:
+
+| Rail | Zone | What happens |
+| --- | --- | --- |
+| 0–60 | The Threshold | She wakes at a shrine. A gap over the water, a step, a ledge; a guard with its back to her (the first takedown); an alcove high on the wall for later. |
+| 79–140 | The Flooded Court | Broken platforms over dark water, two sentinels drifting above, a ledge over the middle with a cache of light for whoever can tether up to it. |
+| 140–230 | The Guardhouse | Low walls to crouch behind, four guards on their rounds, a sealed door and the lever beside the last guard. The gallery runs overhead. |
+| 230–300 | The Gate | The mandala gate. The Tether on its plinth, a knight guarding it, lamps up to the gallery (which leads back over the guardhouse) and on across the chasm. |
+| 317–430 | The Scaffolds | Act 2. Scaffolds climbing through the bazaar's underside: platforms, a wall to catch, lamps, sentinels, a knight on a walkway. |
+| 430–520 | The Bazaar | Hanging walkways under neon signs, a two-guard patrol among cover, a sentinel, the last shrine. |
+| 538–592 | The Face Shrine | The Captain before the giant face. Gates fall when she enters; its fall ends the draft. |
+
+**Shrines** light as she passes and become where she gets up. Resting at one (Interact) refills health, stamina
+and flasks and brings the regular enemies back. **Light** is what enemies leave; on death she drops it where she
+fell and can take it back once; at a shrine it buys a flask slot or more health. **Stealth:** guards see only in
+front of them, crouching behind cover hides her, blows make noise, and an unaware guard taken from behind dies at
+once; marks over their heads show what they know. **Stagger:** enough blows (or a parry) throw an enemy open for an
+execution. **The Tether**, found in the gate chamber, pulls her up to glowing lamps: the upper routes and the way into
+Act 2 need it. **Sentinels** fire slow bolts she can dodge, block or parry back. **The camera** cuts in for finishers,
+the last kill of a fight and the boss's fall, and plays a wide reveal with the place's name on first entering a zone.
 
 ## Layout
 
@@ -47,20 +77,33 @@ PX/                         Unity project
         Combat/             Health (with block and parry), stamina, combo and player combat config, hit-stop,
                             hit effects and hit flash, training dummy
         Enemies/            Enemy config, controller (idle, walk, run, walk back, two swings that it opens with either of and
-                            sometimes chains, hurt, parried, climb, dead), AI brain (an IInputSource), animator and
-                            ragdoll (a dead enemy goes limp as a ragdoll, its joints made around the pose it dies in; Revive stands it up again), animator also lays a procedural layer on its clips (run lean on a spring, stride sway, swivel when it turns, a crouch-leap-land jump over obstacles)
-        UI/                 Combat HUD: her health and stamina, the health of the enemy she fights
+                            sometimes chains, hurt, parried, climb, dead, staggered and open to an execution, a boss's slam,
+                            spinning charge and second-phase roar), AI brain (an IInputSource: patrols, sight in front with
+                            cover, hearing (Noise), suspicious and alert states, boss choices), animator and
+                            ragdoll (a dead enemy goes limp as a ragdoll, its joints made around the pose it dies in; Revive stands it up again), animator also lays a procedural layer on its clips (run lean on a spring, stride sway, swivel when it turns, a crouch-leap-land jump over obstacles);
+                            Sentinel (a floating craft that drifts, sees, aims and fires) and Bolt (its shot, in rail space, parried back)
+        Level/              The level's parts: Shrine, LevelFlow (shrines, light, flasks, interact, pickups, levers, encounters, the
+                            boss, the end), Door, Lever, EncounterGroup, Pickup, DroppedLight, TetherAnchor
+        World/              Small world behaviours: Sway (banners), Bob (lamps), Pulse (breathing emission), Atmosphere (fog and
+                            ambient keyed by rail distance), KillPlane (the water)
+        UI/                 Combat HUD (graybox) and Level HUD: bars, flasks, light, prompts, awareness marks, boss bar,
+                            letterbox and reveal cards, the shrine menu, the titles
+        (Character/ also has HeldSabre, which seats the blade in her right hand, and TetherEffects, the ribbon of the tether)
+        (Camera/ also has CameraDirector: the cinematic shots for finishers, last kills, the boss's fall and the reveals)
         (Character/ also has MovementEffects: the ribbons and sprays of her air dash and double jump)
         Camera/             Rail-relative camera and camera zones
         Debugging/          Graybox stand-ins for animation and UI
         (Character/ also has HeroineAnimator, which plays the clips named in Config/HeroineAnimation, one attack clip per combo step)
-      Scripts/Editor/       Editor tools (assembly PX.Editor)
+      Scripts/Editor/       Editor tools (assembly PX.Editor): the scene builders (GrayboxBuilder, LevelBuilder) on a shared
+                            BuilderKit, CharacterBuilder (prefabs and configs), EnvironmentKit (the level's simple art), import
+                            settings, PoseSnapshot
       Tests/EditMode/       Fast tests that need no scene
       Tests/PlayMode/       Tests that play the graybox scene
-      Config/               Tuning assets: PlayerMove, PlayerLightCombo, PlayerCombat, HeroineAnimation, EnemyA, EnemyB
-      Prefabs/              Player, TrainingDummy, EnemyA, EnemyB
-      Scenes/               Graybox.unity (generated, see below)
-      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; her body is Soheil's Rana_Oct_14 Tripo model, Rana.fbx, and her old Tripo model stays inside Animations/RanaAnimations.fbx with her own clips; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo, downloaded as FBX without skin at 30 fps and named for their use (Combo 1 Jab is Mixamo's Lead Jab, Combo 2 Cross its Cross Punch, Combo 3 Side Kick its Mma Kick (side kick), Crouch Sweep its Front Leg Sweep (held down to her crouch by BodyHeightJob, since Mixamo plays it from a higher stance), Running the running from its Female Locomotion Pack (her run: an ordinary upright run; the ninja run was dropped), Crouch Idle its Low Crouching Idle, and Land Idle comes from its unarmed jump and crouch pack (there is no crouch down or stand up clip: those squats ended in a different pose from the held crouch, which read as two movements, so she blends straight into the pose); landing at a run plays the end of Unarmed Jump Running, since Land Run holds an arm out; Dash Ground Pose is Mixamo's Female Locomotion Pose "Sprinting", Dash Air Pose its Male Dynamic Pose "Leaping Forward, Arms Extended Backwards"); the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the Universal Animation Library: her idle, standing jump and hit reaction). Enemy A (Art/EnemyA) is Soheil's Tripo knight, auto-rigged as a humanoid (its coat is re-weighted off the arms on import, see CoatWeights, and its sword is made rigid in the right hand and turned into the two-handed grip of the Great Sword clips, see HeldWeapon); it waits in an arena on the last straight. Its clips are in Art/EnemyA/Animations/Mixamo, from Mixamo's Great Sword set: Idle (Great Sword Idle), Walk (Great Sword Walk), Walk Back (Great Sword Backward Walk), Run (Great Sword Run), Attack (Great Sword Downward Slash), Attack 2 (Great Sword Power Slash), Hit (Great Sword Unblocked Impact), Parried (Great Sword Blocked Impact), Jump (Great Sword Running Jump, its climb) and Death (Two Handed Sword Death, falling back). Enemy B (Art/EnemyB) is Soheil's Tripo swordsman with a sabre and a musket slung on its back (strapped to its torso on import), at the end of the level; its clips are Mixamo's Sword And Shield set under the same names (Idle, Walk, Walk Back, Run (Male Weighted Run, a free-arm run; the Sword And Shield Run is still in the folder as Run.fbx), High Attack, Cross Slash, Unblocked and Blocked Impact, Jump (Sword And Shield Running Jump, its climb), Falling Back Death). Rana's newer clips: Ninja Crouch (Male Crouch Pose "Leaning Forward, Right Hand Supporting"), Combo 4 Roundhouse and Combo 5 Spinning Back Kick (Mma Kick), Counter Hurricane Kick (Flying Hurricane Kick), Hurt (Standing React Large From Front), Death (Flying Back Death), Standing Dodge Backward (a controlled backstep; the old Jumping Backwards Dodge flailed), Air Attack (Flying Kick: her air attack), Guard (Block), Parry (Outward Block), Guard Hit (Standing Block React Large), Ledge Grab (Ledge Hit To Hanging Braced), Ledge Hang Braced (Braced Hang: her hands reach over the lip; the old free hang held her 0.5 m out from the wall) and Ledge Climb (Braced Hang To Crouch, its rise kept)
+      Config/               Tuning assets: PlayerMove (also the tether), PlayerLightCombo (also the lunge and the finisher),
+                            PlayerCombat (also flasks, light costs, takedown reach), HeroineAnimation, EnemyA, EnemyB, Captain
+      Prefabs/              Player, TrainingDummy, EnemyA, EnemyB, Captain, Sentinel, Bolt
+      Scenes/               Graybox.unity and Level01.unity (both generated, see below)
+      Art/                  Art assets. Graybox materials, Rana (Art/Rana, the player; her body is Soheil's Rana_Oct_14 Tripo model, Rana.fbx, and her old Tripo model stays inside Animations/RanaAnimations.fbx with her own clips; open Scenes/RanaViewer to preview her animations; Mixamo clips go in Art/Rana/Animations/Mixamo, downloaded as FBX without skin at 30 fps and named for their use (Combo 1 Jab is Mixamo's Lead Jab, Combo 2 Cross its Cross Punch, Combo 3 Side Kick its Mma Kick (side kick), Crouch Sweep its Front Leg Sweep (held down to her crouch by BodyHeightJob, since Mixamo plays it from a higher stance), Running the running from its Female Locomotion Pack (her run: an ordinary upright run; the ninja run was dropped), Crouch Idle its Low Crouching Idle, and Land Idle comes from its unarmed jump and crouch pack (there is no crouch down or stand up clip: those squats ended in a different pose from the held crouch, which read as two movements, so she blends straight into the pose); landing at a run plays the end of Unarmed Jump Running, since Land Run holds an arm out; Dash Ground Pose is Mixamo's Female Locomotion Pose "Sprinting", Dash Air Pose its Male Dynamic Pose "Leaping Forward, Arms Extended Backwards"); the graybox builder straightens their avatars and hers, see AvatarPose) and the old stand-in heroine (Art/Heroine, now only the Universal Animation Library: her idle, standing jump and hit reaction). Enemy A (Art/EnemyA) is Soheil's Tripo knight, auto-rigged as a humanoid (its coat is re-weighted off the arms on import, see CoatWeights, and its sword is made rigid in the right hand and turned into the two-handed grip of the Great Sword clips, see HeldWeapon); it waits in an arena on the last straight. Its clips are in Art/EnemyA/Animations/Mixamo, from Mixamo's Great Sword set: Idle (Great Sword Idle), Walk (Great Sword Walk), Walk Back (Great Sword Backward Walk), Run (Great Sword Run), Attack (Great Sword Downward Slash), Attack 2 (Great Sword Power Slash), Hit (Great Sword Unblocked Impact), Parried (Great Sword Blocked Impact), Jump (Great Sword Running Jump, its climb) and Death (Two Handed Sword Death, falling back). Enemy B (Art/EnemyB) is Soheil's Tripo swordsman with a sabre and a musket slung on its back (strapped to its torso on import), at the end of the level; its clips are Mixamo's Sword And Shield set under the same names (Idle, Walk, Walk Back, Run (Male Weighted Run, a free-arm run; the Sword And Shield Run is still in the folder as Run.fbx), High Attack, Cross Slash, Unblocked and Blocked Impact, Jump (Sword And Shield Running Jump, its climb), Falling Back Death). Rana's newer clips: Ninja Crouch (Male Crouch Pose "Leaning Forward, Right Hand Supporting"), Combo 4 Roundhouse and Combo 5 Spinning Back Kick (Mma Kick), Counter Hurricane Kick (Flying Hurricane Kick), Hurt (Standing React Large From Front), Death (Flying Back Death), Standing Dodge Backward (a controlled backstep; the old Jumping Backwards Dodge flailed), Air Attack (Flying Kick: her air attack), Guard (Block), Parry (Outward Block), Guard Hit (Standing Block React Large), Ledge Grab (Ledge Hit To Hanging Braced), Ledge Hang Braced (Braced Hang: her hands reach over the lip; the old free hang held her 0.5 m out from the wall) and Ledge Climb (Braced Hang To Crouch, its rise kept). Her sabre clips (2026-10-19): Sabre 1 Horizontal, Sabre 2 Backhand, Sabre 3 Downward and Sabre Spin are Mixamo's Standing Melee Attack Horizontal, Backhand, Downward and 360 High; Takedown Stab is Stabbing; Drink is Drinking. Enemy A's extra clips for the Captain: Slam (Great Sword Jump Attack From Run), Spin Attack (Great Sword High Spin Attack From Run), Power Up (Great Sword Powering Up), Look Around (Great Sword Look Around Idle); Enemy B's Look Around is Sword And Shield Look Around Idle. Art/Level01 holds the level's generated materials and lattice textures.
     Settings/               Render pipeline assets and volume profiles
   Packages/                 Package manifest
   ProjectSettings/
@@ -87,10 +130,11 @@ little chip damage, and breaks when stamina runs out; pressed just before a blow
 enemy off balance and opening a counter. Enemies have poise: light strikes do not interrupt their swings. When she
 falls she gets up at the last checkpoint and the enemies still standing return to their posts.
 
-**The graybox scene is generated.** `Graybox.unity` is written by
-`Scripts/Editor/GrayboxBuilder.cs` and overwritten on every rebuild (menu: PX > Graybox > Rebuild Scene).
-To change the test level, change the builder. Config assets, materials and prefabs are only created
-when missing, so edits made to them in the editor are kept. Hand-made scenes go in their own files.
+**The scenes are generated.** `Graybox.unity` is written by `Scripts/Editor/GrayboxBuilder.cs` and
+`Level01.unity` by `Scripts/Editor/LevelBuilder.cs`, each overwritten on every rebuild (menus: PX > Graybox > Rebuild
+Scene, PX > Level 01 > Rebuild Scene). To change a level, change its builder. Config assets, materials and prefabs are
+only created when missing, so edits made to them in the editor are kept; `CharacterBuilder.UpgradeConfigs` fills fields
+added since a config was made. Hand-made scenes go in their own files.
 
 ## Command line
 
@@ -100,10 +144,17 @@ Close the project in the Unity editor first. Unity allows one process per projec
 UNITY="/Applications/Unity/Hub/Editor/6000.3.11f1/Unity.app/Contents/MacOS/Unity"
 ```
 
-Rebuild the graybox scene:
+Rebuild the graybox scene, or Level 01:
 
 ```bash
 "$UNITY" -batchmode -quit -projectPath PX -executeMethod PX.EditorTools.GrayboxBuilder.Build -logFile -
+"$UNITY" -batchmode -quit -projectPath PX -executeMethod PX.EditorTools.LevelBuilder.Build -logFile -
+```
+
+Type-check the code without the editor (Unity's own compiler, no import, no tests):
+
+```bash
+Tools/typecheck.sh all
 ```
 
 Run the tests (leave out `-quit`, the test runner exits by itself):

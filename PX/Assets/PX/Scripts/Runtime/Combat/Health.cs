@@ -101,5 +101,20 @@ namespace PX
         {
             Current = max;
         }
+
+        /// <summary>Gives back some health, up to the maximum.</summary>
+        public void Heal(float amount)
+        {
+            if (IsDead || amount <= 0f)
+                return;
+            Current = Mathf.Min(max, Current + amount);
+        }
+
+        /// <summary>Raises the maximum, and fills the new room.</summary>
+        public void RaiseMax(float amount)
+        {
+            max += amount;
+            Current = Mathf.Min(max, Current + amount);
+        }
     }
 }

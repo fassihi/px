@@ -17,6 +17,74 @@ MonoBehaviour:
   aggroHeight: 2.5
   attackRange: 1.9
   tooClose: 1.1
+  sightRange: 11
+  sightHeight: 2.5
+  hearingRange: 9
+  noticeTime: 0.45
+  investigateTime: 4
+  patrolWait: 2.5
+  lookAround:
+    clip: {fileID: -203655887218126122, guid: c0523d90ae9c24fe7852e4f15e30e204, type: 3}
+    from: 0
+    impact: 0
+    to: 0
+  lightValue: 45
+  staggerMax: 60
+  staggerDecay: 14
+  staggeredTime: 2.6
+  parryStagger: 30
+  executeDamageShare: 0.25
+  isBoss: 0
+  slam:
+    startup: 0.75
+    active: 0.14
+    recovery: 0.9
+    cancelDelay: 0
+    damage: 30
+    lunge: 0
+    hitboxCenter: {x: 1.2, y: 0.7}
+    hitboxSize: {x: 3.2, y: 1.6}
+    hitStop: 0.16
+    shake: 0.35
+    knockback: 11
+    staminaCost: 8
+  slamClip:
+    clip: {fileID: 0}
+    from: 0
+    impact: 0
+    to: 0
+  slamLeap: 4.5
+  slamArc: 1.8
+  spin:
+    startup: 0.45
+    active: 0.3
+    recovery: 0.8
+    cancelDelay: 0
+    damage: 26
+    lunge: 7
+    hitboxCenter: {x: 0.9, y: 1.1}
+    hitboxSize: {x: 2.6, y: 1.8}
+    hitStop: 0.14
+    shake: 0.2
+    knockback: 9
+    staminaCost: 8
+  spinClip:
+    clip: {fileID: 0}
+    from: 0
+    impact: 0
+    to: 0
+  powerUp:
+    clip: {fileID: 0}
+    from: 0
+    impact: 0
+    to: 0
+  powerUpTime: 1.6
+  phase2Health: 0.5
+  phase2Speed: 1.25
+  phase2Cooldown: 0.6
+  chargeChance: 0.6
+  slamChance: 0.5
+  chargeDistance: 6
   walkSpeed: 1.6
   runSpeed: 3.6
   runDistance: 7
@@ -100,5 +168,6 @@ MonoBehaviour:
   runLean: 5
   leanStiffness: 90
   stride: 3
+  idleHeadLift: 20
   turnSpeed: 720
   crouchDepth: 0.1

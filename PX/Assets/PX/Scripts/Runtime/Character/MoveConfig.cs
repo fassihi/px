@@ -130,6 +130,24 @@ namespace PX
         [Tooltip("How hard a hit on her shakes the camera, in metres.")]
         [Min(0f)] public float hurtShake = 0.16f;
 
+        [Header("Tether")]
+        [Tooltip("How far along the rail, in metres, she can throw the tether at a lamp.")]
+        [Min(0f)] public float tetherRange = 8f;
+        [Tooltip("How far above her feet, in metres, a lamp can be for her to reach it.")]
+        [Min(0f)] public float tetherHeight = 9f;
+        [Tooltip("A lamp has to be at least this far above her feet: the tether pulls her up, not sideways.")]
+        public float tetherMinHeight = 1.5f;
+        [Tooltip("Speed of the pull toward the lamp, in m/s.")]
+        [Min(1f)] public float tetherSpeed = 17f;
+        [Tooltip("How far below the lamp the pull ends, in metres: she stops short of the lamp itself.")]
+        [Min(0f)] public float tetherStandoff = 1.1f;
+        [Tooltip("Upward speed she leaves the pull with, in m/s, so she arcs up and over onto the ledge beside the lamp.")]
+        [Min(0f)] public float tetherExitRise = 7f;
+        [Tooltip("Share of her run speed she keeps along the rail as the pull ends.")]
+        [Range(0f, 1f)] public float tetherExitRun = 0.8f;
+        [Tooltip("Seconds the throw takes before the pull starts: the ribbon flies out.")]
+        [Min(0f)] public float tetherThrowTime = 0.12f;
+
         [Header("Crouch")]
         [Tooltip("Height of her collider while crouched, in metres. Cover lower than this hides her.")]
         [Min(0.3f)] public float crouchHeight = 1.1f;

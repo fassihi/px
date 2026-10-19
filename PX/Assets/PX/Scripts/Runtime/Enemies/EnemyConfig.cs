@@ -21,6 +21,75 @@ namespace PX
         [Tooltip("Closer than this, in metres, it backs off to get room to swing.")]
         [Min(0f)] public float tooClose = 1.1f;
 
+        [Header("Awareness")]
+        [Tooltip("With its brain set to stealth, it only notices her within this distance along the rail, in the direction it faces.")]
+        [Min(0f)] public float sightRange = 11f;
+        [Tooltip("It sees her only within this height of its own feet, in metres.")]
+        [Min(0f)] public float sightHeight = 2.5f;
+        [Tooltip("It hears blows and landings within this distance, in metres, from any direction.")]
+        [Min(0f)] public float hearingRange = 9f;
+        [Tooltip("Seconds it has to see her before it is sure. A shorter glimpse only makes it suspicious.")]
+        [Min(0f)] public float noticeTime = 0.45f;
+        [Tooltip("Seconds it spends looking into something it saw or heard before going back to its post.")]
+        [Min(0f)] public float investigateTime = 4f;
+        [Tooltip("Seconds it stands at each end of its patrol.")]
+        [Min(0f)] public float patrolWait = 2.5f;
+        [Tooltip("Looking about, suspicious. Empty: it stands in its idle.")]
+        public ClipWindow lookAround;
+        [Tooltip("Light it leaves behind when it dies.")]
+        [Min(0f)] public float lightValue = 30f;
+
+        [Header("Stagger")]
+        [Tooltip("Stagger it can take before it is thrown open for an execution. Her blows add their damage to it, a parry adds Parry Stagger.")]
+        [Min(1f)] public float staggerMax = 60f;
+        [Tooltip("Stagger that drains away per second while it is not being hit.")]
+        [Min(0f)] public float staggerDecay = 14f;
+        [Tooltip("Seconds it stays open once staggered.")]
+        [Min(0f)] public float staggeredTime = 2.6f;
+        [Tooltip("Stagger a parry adds.")]
+        [Min(0f)] public float parryStagger = 30f;
+        [Tooltip("Share of its health an execution takes from a boss. Everyone else dies to one.")]
+        [Range(0f, 1f)] public float executeDamageShare = 0.25f;
+
+        [Header("Boss")]
+        [Tooltip("A boss: it does not come back with the others when she rests, executions only wound it, and it has the moves below.")]
+        public bool isBoss;
+        [Tooltip("The slam: a leap at her and a blow that shakes the ground, wide and low.")]
+        public AttackStep slam = new AttackStep
+        {
+            startup = 0.75f, active = 0.14f, recovery = 0.9f, cancelDelay = 0f,
+            damage = 30f, lunge = 0f, hitStop = 0.16f, shake = 0.35f, knockback = 11f,
+            hitboxCenter = new Vector2(1.2f, 0.7f), hitboxSize = new Vector2(3.2f, 1.6f),
+        };
+        public ClipWindow slamClip;
+        [Tooltip("How far along the rail the slam's leap carries it at most, in metres.")]
+        [Min(0f)] public float slamLeap = 4.5f;
+        [Tooltip("How high the leap arcs, in metres.")]
+        [Min(0f)] public float slamArc = 1.8f;
+        [Tooltip("The spinning charge: it runs at her and whirls its blade through her.")]
+        public AttackStep spin = new AttackStep
+        {
+            startup = 0.45f, active = 0.3f, recovery = 0.8f, cancelDelay = 0f,
+            damage = 26f, lunge = 7f, hitStop = 0.14f, shake = 0.2f, knockback = 9f,
+            hitboxCenter = new Vector2(0.9f, 1.1f), hitboxSize = new Vector2(2.6f, 1.8f),
+        };
+        public ClipWindow spinClip;
+        [Tooltip("Roaring into its second phase.")]
+        public ClipWindow powerUp;
+        [Min(0.1f)] public float powerUpTime = 1.6f;
+        [Tooltip("Share of its health at which it enters its second phase.")]
+        [Range(0f, 1f)] public float phase2Health = 0.5f;
+        [Tooltip("How much faster it moves and swings in its second phase.")]
+        [Min(1f)] public float phase2Speed = 1.25f;
+        [Tooltip("Its cooldown between attacks is multiplied by this in its second phase.")]
+        [Range(0.1f, 1f)] public float phase2Cooldown = 0.6f;
+        [Tooltip("Chance, 0 to 1, that it charges when she is far off, instead of walking up.")]
+        [Range(0f, 1f)] public float chargeChance = 0.6f;
+        [Tooltip("Chance, 0 to 1, that it slams when she is at middle distance.")]
+        [Range(0f, 1f)] public float slamChance = 0.5f;
+        [Tooltip("She has to be further than this, in metres, for a charge.")]
+        [Min(0f)] public float chargeDistance = 6f;
+
         [Header("Movement")]
         [Min(0f)] public float walkSpeed = 1.6f;
         [Tooltip("Speed when it runs, in m/s: it breaks into a run when she is further off than Run Distance.")]
@@ -118,7 +187,7 @@ namespace PX
         [Tooltip("How far its hips sink, in metres, as it crouches to jump and lands.")]
         [Min(0f)] public float crouchDepth = 0.1f;
 
-        /// <summary>The swing for a step of its combo.</summary>
-        public AttackStep Step(int index) => index == 0 ? attack : attack2;
+        /// <summary>The swing for a step of its combo: the two swings, then the boss's slam and spinning charge.</summary>
+        public AttackStep Step(int index) => index == 0 ? attack : index == 1 ? attack2 : index == 2 ? slam : spin;
     }
 }
