@@ -28,10 +28,10 @@ namespace PX.EditorTools
         private static readonly string[] Folders = { EnemyAFolder, EnemyBFolder };
 
         // Clips that loop. The rest play once.
-        private static readonly string[] LoopingClips = { "Idle", "Walk", "Walk Back", "Run", "Run Weighted" };
+        private static readonly string[] LoopingClips = { "Idle", "Walk", "Walk Back", "Run", "Run Weighted", "Look Around" };
 
         // Bump when the settings below change, so Unity re-imports the enemies' files.
-        public override uint GetVersion() => 20;
+        public override uint GetVersion() => 21;
 
         private bool IsEnemy => Folders.Any(folder => assetPath.StartsWith(folder + "/"));
 
@@ -63,7 +63,7 @@ namespace PX.EditorTools
             // travel too, so the body falls back rather than in place. A jump keeps its rise, so it reads as a climb.
             string name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
             bool death = name == "Death";
-            bool swing = name.StartsWith("Attack");
+            bool swing = name.StartsWith("Attack") || name == "Slam" || name == "Spin Attack";
             ModelImporterClipAnimation clip = clips[0];
             clip.name = name;
             clip.loopTime = System.Array.IndexOf(LoopingClips, name) >= 0;

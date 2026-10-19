@@ -49,6 +49,30 @@ namespace PX
         [Tooltip("Seconds after a parry during which Attack throws the counter instead of the combo.")]
         [Min(0f)] public float counterWindow = 1.1f;
 
+        [Header("Flasks")]
+        [Tooltip("Healing flasks she carries. Refilled only at a shrine.")]
+        [Min(0)] public int flasks = 3;
+        [Tooltip("Health a flask gives back.")]
+        [Min(1f)] public float flaskHeal = 45f;
+        [Tooltip("Seconds a drink takes. She stands still for it, and a hit interrupts it.")]
+        [Min(0.1f)] public float flaskDrinkTime = 1.1f;
+        [Tooltip("Share of the drink after which the health arrives.")]
+        [Range(0f, 1f)] public float flaskHealAt = 0.6f;
+
+        [Header("Light")]
+        [Tooltip("Light it costs at a shrine to carry one more flask.")]
+        [Min(0f)] public float flaskUpgradeCost = 300f;
+        [Tooltip("Light it costs at a shrine to raise her health.")]
+        [Min(0f)] public float healthUpgradeCost = 200f;
+        [Tooltip("Health each upgrade adds.")]
+        [Min(0f)] public float healthUpgrade = 20f;
+
+        [Header("Takedowns")]
+        [Tooltip("How close behind an unaware enemy, in metres along the rail, a takedown can start.")]
+        [Min(0f)] public float takedownRange = 1.6f;
+        [Tooltip("How close in front of a staggered enemy, in metres along the rail, an execution can start.")]
+        [Min(0f)] public float executeRange = 1.8f;
+
         [Header("Death")]
         [Tooltip("Seconds from her fall to getting up again at the last checkpoint.")]
         [Min(0f)] public float respawnDelay = 2.5f;

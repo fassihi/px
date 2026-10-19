@@ -20,11 +20,18 @@ namespace PX
         /// <summary>Pulling herself up from a ledge onto its top.</summary>
         Climb,
         Dead,
+        /// <summary>Drinking a flask: standing still, open to a blow.</summary>
+        Drink,
+        /// <summary>Pulled through the air toward a lamp by the tether.</summary>
+        Tether,
+        /// <summary>A takedown from behind, or the execution of a staggered enemy: a killing blow that plays out.</summary>
+        Finisher,
     }
 
     /// <summary>
     /// The heroine's moment-to-moment control: run, jump, dash, dodge, crouch, guard and parry, the combo, the
-    /// crouching sweep and the counter, and hanging from and climbing onto ledges.
+    /// crouching sweep, the counter, the lunge out of a dash, takedowns and executions, drinking a flask, the tether
+    /// to the lamps, and hanging from and climbing onto ledges.
     /// Works in rail space (x = along the rail, y = up) and leaves the 3D part to <see cref="CharacterMotor"/>.
     /// Moves commit: each one says from when it can be cut short (its cancel window), and a press that comes too early
     /// is buffered and carried out when the window opens, instead of being dropped or acted on at once.
@@ -70,6 +77,11 @@ namespace PX
         private float ledgeTop;
         private float ledgeWall;
         private bool guardBroken;
+        private bool finisherLanded;
+        private bool drankThisDrink;
+        private Vector2 tetherPoint;
+        private int tetherFacing;
+        private TetherAnchor lastAnchor;
 
         /// <summary>Where input comes from. Defaults to an <see cref="IInputSource"/> on the same object.</summary>
         public IInputSource InputSource { get; set; }
@@ -88,9 +100,37 @@ namespace PX
         /// <summary>True while the attack in progress is the counter after a parry.</summary>
         public bool IsCounter { get; private set; }
 
-        /// <summary>The attack being performed. Only meaningful in <see cref="PlayerState.Attack"/>.</summary>
+        /// <summary>True while the attack in progress is the lunge out of a dash.</summary>
+        public bool IsDashAttack { get; private set; }
+
+        /// <summary>In a finisher: true for the execution of a staggered enemy, false for a takedown from behind.</summary>
+        public bool IsExecution { get; private set; }
+
+        /// <summary>The enemy a finisher is being done to.</summary>
+        public EnemyController FinisherTarget { get; private set; }
+
+        /// <summary>The attack being performed. Only meaningful in <see cref="PlayerState.Attack"/> and <see cref="PlayerState.Finisher"/>.</summary>
         public AttackStep CurrentStep =>
-            IsCounter ? combo.counterAttack : IsCrouchAttack ? combo.crouchAttack : IsAirAttack ? combo.airAttack : combo.steps[ComboIndex];
+            State == PlayerState.Finisher ? combo.finisher
+            : IsCounter ? combo.counterAttack : IsCrouchAttack ? combo.crouchAttack : IsAirAttack ? combo.airAttack
+            : IsDashAttack ? combo.dashAttack : combo.steps[ComboIndex];
+
+        /// <summary>Whether she has found the tether, the ribbon she throws at the lamps.</summary>
+        public bool HasTether { get; set; }
+
+        /// <summary>The lamp she is being pulled to, while she is.</summary>
+        public TetherAnchor Tether { get; private set; }
+
+        /// <summary>Healing flasks she carries now, and the most she can carry. Refilled at a shrine.</summary>
+        public int Flasks { get; private set; }
+
+        public int MaxFlasks { get; set; }
+
+        /// <summary>
+        /// Asked first when Interact is pressed, so the level can take the press for a shrine, a lever or a pickup.
+        /// Returns true when it did; otherwise the press goes to the tether.
+        /// </summary>
+        public Func<bool> Interaction { get; set; }
 
         /// <summary>Seconds since the current state began.</summary>
         public float StateTime => stateTime;
@@ -158,12 +198,26 @@ namespace PX
         /// <summary>Raised when her health runs out.</summary>
         public event Action Died;
 
+        /// <summary>Raised as a finisher starts, with its target; true for an execution, false for a takedown.</summary>
+        public event Action<EnemyController, bool> FinisherStarted;
+
+        /// <summary>Raised as a finisher's killing blow lands.</summary>
+        public event Action<EnemyController, bool> FinisherLanded;
+
+        /// <summary>Raised as the tether catches a lamp.</summary>
+        public event Action<TetherAnchor> Tethered;
+
+        /// <summary>Raised when a flask heals her.</summary>
+        public event Action Drank;
+
         private void Awake()
         {
             motor = GetComponent<CharacterMotor>();
             ownHealth = GetComponent<Health>();
             stamina = GetComponent<Stamina>();
             InputSource ??= GetComponent<IInputSource>();
+            MaxFlasks = combat != null ? combat.flasks : 3;
+            Flasks = MaxFlasks;
         }
 
         private void OnEnable()
@@ -252,6 +306,8 @@ namespace PX
                 regrabTimer = move.regrabDelay;
                 StepOutOfWall();
             }
+            Tether = null;
+            FinisherTarget = null;
             turnTime = float.MaxValue;
             counterTimer = 0f;
             invulnerable = move.hurtInvulnerability;
@@ -271,16 +327,33 @@ namespace PX
             EnterState(PlayerState.Hurt);
         }
 
-        /// <summary>Gets her back up after a fall: full health and stamina, standing at a rail distance.</summary>
-        public void Respawn(float distance)
+        /// <summary>Gets her back up after a fall: full health and stamina, standing at a rail distance and height.</summary>
+        public void Respawn(float distance, float height = 0.1f)
         {
             ownHealth.Restore();
             stamina?.Restore();
-            motor.Teleport(motor.Rail, distance, 0.1f);
+            motor.Teleport(motor.Rail, distance, height);
             velocity = Vector2.zero;
             invulnerable = move.hurtInvulnerability;
             counterTimer = 0f;
+            Tether = null;
+            FinisherTarget = null;
             EnterState(PlayerState.Locomotion);
+        }
+
+        /// <summary>Full health, stamina and flasks: what a rest at a shrine gives her.</summary>
+        public void RestoreAll()
+        {
+            ownHealth.Restore();
+            stamina?.Restore();
+            Flasks = MaxFlasks;
+        }
+
+        /// <summary>One more flask to carry, full: a shrine upgrade.</summary>
+        public void AddFlaskSlot()
+        {
+            MaxFlasks++;
+            Flasks = MaxFlasks;
         }
 
         // ----------------------------------------------------------------- update
@@ -298,6 +371,15 @@ namespace PX
             float dt = Time.deltaTime;
             if (dt <= 0f)
                 return;
+
+            if (input.InteractPressed && State != PlayerState.Dead && State != PlayerState.Finisher)
+            {
+                bool taken = Interaction != null && Interaction();
+                if (!taken)
+                    TryStartTether();
+            }
+            if (input.FlaskPressed)
+                TryStartDrink();
 
             if (motor.IsGrounded)
             {
@@ -338,6 +420,15 @@ namespace PX
                 case PlayerState.Dead:
                     TickDead(dt);
                     break;
+                case PlayerState.Drink:
+                    TickDrink(dt);
+                    break;
+                case PlayerState.Tether:
+                    TickTether(dt);
+                    break;
+                case PlayerState.Finisher:
+                    TickFinisher(dt);
+                    break;
             }
 
             // On a ledge the position is set by hand; everything else moves through the motor.
@@ -370,17 +461,243 @@ namespace PX
                 turnTime += dt;
 
             if (ownHealth != null)
-                ownHealth.Invulnerable = invulnerable > 0f || IsDodgeInvulnerable || State == PlayerState.Dead;
+                ownHealth.Invulnerable = invulnerable > 0f || IsDodgeInvulnerable || State == PlayerState.Dead || State == PlayerState.Finisher;
             if (stamina != null)
                 stamina.RegenScale = State == PlayerState.Guard ? combat.guardRegenScale : 1f;
         }
 
-        /// <summary>A hard landing costs speed and a moment of recovery, so it reads as weight.</summary>
+        /// <summary>A hard landing costs speed and a moment of recovery, so it reads as weight. The guards hear it.</summary>
         private void LandHard()
         {
             CameraShake.Trigger(move.landingShake, move.landingShakeTime);
             velocity.x *= move.hardLandingSpeedKeep;
             landingRecovery = move.hardLandingRecovery;
+            Noise.Emit(transform.position, 7f, gameObject);
+        }
+
+        // ------------------------------------------------------ flask, tether
+
+        /// <summary>Drinks a flask, if she has one, is on her feet with her hands free, and is hurt.</summary>
+        private bool TryStartDrink()
+        {
+            if (combat == null || Flasks <= 0 || !motor.IsGrounded)
+                return false;
+            if (State != PlayerState.Locomotion && State != PlayerState.Crouch && State != PlayerState.Guard)
+                return false;
+            if (ownHealth != null && ownHealth.Current >= ownHealth.Max)
+                return false;
+            if (motor.IsCrouched && !motor.TryStand())
+                return false;
+            Flasks--;
+            drankThisDrink = false;
+            turnTime = float.MaxValue;
+            EnterState(PlayerState.Drink);
+            return true;
+        }
+
+        /// <summary>Standing still with the flask: the health arrives part way through, and a hit spills the rest.</summary>
+        private void TickDrink(float dt)
+        {
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, move.groundDeceleration * dt);
+            ApplyGravity(false, dt);
+            if (!drankThisDrink && stateTime >= combat.flaskDrinkTime * combat.flaskHealAt)
+            {
+                drankThisDrink = true;
+                ownHealth?.Heal(combat.flaskHeal);
+                Drank?.Invoke();
+            }
+            if (stateTime >= combat.flaskDrinkTime)
+                EnterState(PlayerState.Locomotion);
+        }
+
+        /// <summary>
+        /// Throws the tether at the best lamp in reach: ahead of her or above her, within range along the rail and
+        /// in height. Works from the ground and from the air, so a jump can be carried on from.
+        /// </summary>
+        private bool TryStartTether()
+        {
+            if (!HasTether || State == PlayerState.Dead || State == PlayerState.Hurt || State == PlayerState.Finisher
+                || State == PlayerState.Tether || State == PlayerState.Hang || State == PlayerState.Climb)
+                return false;
+            TetherAnchor anchor = FindAnchor();
+            if (anchor == null)
+                return false;
+
+            if (motor.IsCrouched)
+                motor.TryStand();
+            Tether = anchor;
+            lastAnchor = anchor;
+            tetherPoint = new Vector2(anchor.Distance, anchor.Height - move.tetherStandoff);
+            float along = anchor.Distance - motor.Distance;
+            tetherFacing = Mathf.Abs(along) > 0.3f ? (int)Mathf.Sign(along) : motor.Facing;
+            motor.Facing = tetherFacing;
+            velocity = Vector2.zero;
+            turnTime = float.MaxValue;
+            counterTimer = 0f;
+            EnterState(PlayerState.Tether);
+            Tethered?.Invoke(anchor);
+            return true;
+        }
+
+        /// <summary>The lamp she can reach that is nearest the way she faces, or straight above her.</summary>
+        public TetherAnchor FindAnchor()
+        {
+            if (!HasTether)
+                return null;
+            TetherAnchor best = null;
+            float bestScore = float.MaxValue;
+            float feet = transform.position.y;
+            foreach (TetherAnchor anchor in TetherAnchor.All)
+            {
+                if (anchor == null || !anchor.isActiveAndEnabled)
+                    continue;
+                // Not the lamp she just let go of, until she has landed: the next throw goes on, not back up.
+                if (anchor == lastAnchor && !motor.IsGrounded)
+                    continue;
+                float along = anchor.Distance - motor.Distance;
+                float up = anchor.Height - feet;
+                if (Mathf.Abs(along) > move.tetherRange || up > move.tetherHeight || up < move.tetherMinHeight)
+                    continue;
+                // Behind her only when it is nearly overhead.
+                if (Mathf.Sign(along) != motor.Facing && Mathf.Abs(along) > 1.5f)
+                    continue;
+                float score = Mathf.Abs(along) + Mathf.Abs(up) * 0.5f;
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    best = anchor;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// The pull: a moment for the ribbon to fly, then a straight run through the air to just under the lamp, where
+        /// she is flung up and on, her air moves given back. A jump on the way lets go early.
+        /// </summary>
+        private void TickTether(float dt)
+        {
+            if (Tether == null)
+            {
+                EnterState(PlayerState.Locomotion);
+                return;
+            }
+            if (stateTime < move.tetherThrowTime)
+            {
+                velocity = new Vector2(Mathf.MoveTowards(velocity.x, 0f, move.groundDeceleration * dt), motor.IsGrounded ? -GroundStickSpeed : velocity.y * 0.5f);
+                return;
+            }
+
+            Vector2 here = new Vector2(motor.Distance, transform.position.y);
+            Vector2 toLamp = tetherPoint - here;
+            airJumpsLeft = move.airJumps;
+            airDashesLeft = move.airDashes;
+
+            bool arrived = toLamp.magnitude < 0.35f;
+            bool stuck = stateTime > move.tetherThrowTime + 0.2f && motor.Velocity.sqrMagnitude < 0.5f;
+            if (arrived || stuck || (jumpBuffer > 0f && stateTime > move.tetherThrowTime + 0.1f))
+            {
+                bool jumped = jumpBuffer > 0f;
+                jumpBuffer = 0f;
+                velocity = new Vector2(tetherFacing * move.runSpeed * move.tetherExitRun, jumped ? move.JumpVelocity : move.tetherExitRise);
+                Tether = null;
+                coyoteTimer = 0f;
+                EnterState(PlayerState.Locomotion);
+                return;
+            }
+            velocity = toLamp.normalized * move.tetherSpeed;
+        }
+
+        // ----------------------------------------------------------- finishers
+
+        /// <summary>
+        /// A takedown or an execution, if one is on offer: an unaware enemy just ahead with its back to her, or a
+        /// staggered one in front of her. She steps in and the killing blow plays out.
+        /// </summary>
+        private bool TryStartFinisher()
+        {
+            if (combat == null || !motor.IsGrounded)
+                return false;
+            EnemyController target = FindFinisherTarget(out bool execution);
+            if (target == null)
+                return false;
+
+            FinisherTarget = target;
+            IsExecution = execution;
+            finisherLanded = false;
+            attackBuffer = 0f;
+            turnTime = float.MaxValue;
+            counterTimer = 0f;
+            velocity = Vector2.zero;
+            // Facing it, a blade's length away.
+            motor.Facing = target.Motor.Distance >= motor.Distance ? 1 : -1;
+            float reach = Mathf.Min(0.95f, Mathf.Abs(target.Motor.Distance - motor.Distance));
+            motor.Place(target.Motor.Distance - motor.Facing * reach, transform.position.y);
+            EnterState(PlayerState.Finisher);
+            FinisherStarted?.Invoke(target, execution);
+            return true;
+        }
+
+        /// <summary>The enemy a finisher could be done to right now, and which kind, or null.</summary>
+        public EnemyController FindFinisherTarget(out bool execution)
+        {
+            execution = false;
+            if (combat == null)
+                return null;
+            EnemyController best = null;
+            float bestDistance = float.MaxValue;
+            foreach (EnemyController enemy in EnemyController.All)
+            {
+                if (enemy == null || enemy.Health == null || enemy.Health.IsDead || enemy.Config == null)
+                    continue;
+                float along = enemy.Motor.Distance - motor.Distance;
+                if (Mathf.Abs(enemy.transform.position.y - transform.position.y) > 1.2f)
+                    continue;
+                bool inFront = Mathf.Abs(along) < 0.4f || Mathf.Sign(along) == motor.Facing;
+                if (!inFront)
+                    continue;
+                bool staggered = enemy.IsStaggered && Mathf.Abs(along) <= combat.executeRange;
+                bool unaware = !enemy.Config.isBoss && enemy.Mood != Mood.Alert && enemy.Motor.Facing == motor.Facing
+                    && Mathf.Abs(along) <= combat.takedownRange && enemy.State != EnemyState.Dead;
+                if (!staggered && !unaware)
+                    continue;
+                if (Mathf.Abs(along) < bestDistance)
+                {
+                    bestDistance = Mathf.Abs(along);
+                    best = enemy;
+                    execution = staggered;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>She stands over it; the blow lands at the step's startup, whatever its health, and then she recovers.</summary>
+        private void TickFinisher(float dt)
+        {
+            AttackStep step = combo.finisher;
+            velocity.x = Mathf.MoveTowards(velocity.x, 0f, move.groundDeceleration * dt);
+            ApplyGravity(false, dt);
+            if (FinisherTarget == null)
+            {
+                EnterState(PlayerState.Locomotion);
+                return;
+            }
+            if (!finisherLanded && stateTime >= step.startup)
+            {
+                finisherLanded = true;
+                IsHitboxActive = true;
+                FinisherTarget.Finish(transform.forward, gameObject, IsExecution);
+                HitStop.Trigger(step.hitStop);
+                CameraShake.Trigger(step.shake, combo.shakeTime);
+                FinisherLanded?.Invoke(FinisherTarget, IsExecution);
+            }
+            if (stateTime >= step.ActiveEnd)
+                IsHitboxActive = false;
+            if (stateTime >= step.Total)
+            {
+                FinisherTarget = null;
+                EnterState(PlayerState.Locomotion);
+            }
         }
 
         // -------------------------------------------------------------- moving
@@ -484,6 +801,14 @@ namespace PX
         {
             // A ground dash stays glued to the floor; an air dash travels flat.
             velocity = new Vector2(dashDirection * move.dashSpeed, motor.IsGrounded ? -GroundStickSpeed : 0f);
+
+            // Attack out of a ground dash is the lunge: the dash's speed carried into a thrust.
+            if (attackBuffer > 0f && motor.IsGrounded && stateTime >= 0.04f && HasStamina() && combo.dashAttack != null)
+            {
+                dashCooldown = move.dashCooldown;
+                StartDashAttack();
+                return;
+            }
 
             // Late in the dash a jump can cut it short, carrying run speed into the jump.
             if (stateTime >= move.dashJumpCancel && jumpBuffer > 0f && (coyoteTimer > 0f || airJumpsLeft > 0))
@@ -770,7 +1095,7 @@ namespace PX
 
         private bool HasStamina() => stamina == null || stamina.HasAny;
 
-        /// <summary>The counter while one is on offer, the first strike of the combo otherwise.</summary>
+        /// <summary>The counter while one is on offer, a finisher if one is, the first strike of the combo otherwise.</summary>
         private bool TryStartAttackOrCounter(InputFrame input)
         {
             if (CanCounter)
@@ -779,6 +1104,8 @@ namespace PX
                 StartStrike(input, 0, counter: true);
                 return true;
             }
+            if (motor.IsGrounded && TryStartFinisher())
+                return true;
             if (combo.steps.Length == 0 || !HasStamina())
                 return false;
             if (!motor.IsGrounded)
@@ -792,6 +1119,21 @@ namespace PX
 
         private void StartAttack(int index, InputFrame input) => StartStrike(input, index, counter: false);
 
+        private void StartDashAttack()
+        {
+            ComboIndex = 0;
+            IsCrouchAttack = false;
+            IsAirAttack = false;
+            IsCounter = false;
+            IsDashAttack = true;
+            attackBuffer = 0f;
+            swingConnected = false;
+            turnTime = float.MaxValue;
+            hitThisSwing.Clear();
+            stamina?.Spend(combo.dashAttack.staminaCost);
+            EnterState(PlayerState.Attack);
+        }
+
         private void StartStrike(InputFrame input, int index, bool counter)
         {
             if (input.Move != 0f)
@@ -800,6 +1142,7 @@ namespace PX
             ComboIndex = index;
             IsCrouchAttack = false;
             IsAirAttack = false;
+            IsDashAttack = false;
             IsCounter = counter;
             attackBuffer = 0f;
             swingConnected = false;
@@ -818,6 +1161,7 @@ namespace PX
             ComboIndex = 0;
             IsCrouchAttack = false;
             IsAirAttack = true;
+            IsDashAttack = false;
             IsCounter = false;
             attackBuffer = 0f;
             swingConnected = false;
@@ -833,6 +1177,7 @@ namespace PX
             ComboIndex = 0;
             IsCrouchAttack = true;
             IsAirAttack = false;
+            IsDashAttack = false;
             IsCounter = false;
             attackBuffer = 0f;
             swingConnected = false;
@@ -957,6 +1302,8 @@ namespace PX
                 swingConnected = true;
                 HitStop.Trigger(step.hitStop);
                 CameraShake.Trigger(step.shake, combo.shakeTime);
+                // A blow landing rings through the hall: the guards nearby come to look.
+                Noise.Emit(center, 9f, gameObject);
             }
         }
 

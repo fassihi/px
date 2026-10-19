@@ -26,9 +26,14 @@ namespace PX
             Climb,
             Dead,
             Run,
+            Staggered,
+            LookAround,
+            Slam,
+            Spin,
+            PowerUp,
         }
 
-        private const int PoseCount = 10;
+        private const int PoseCount = 15;
 
         [SerializeField] private EnemyController enemy;
         [SerializeField] private Animator animator;
@@ -69,6 +74,12 @@ namespace PX
             clips[(int)Pose.Climb] = config.climb.clip;
             clips[(int)Pose.Dead] = config.death;
             clips[(int)Pose.Run] = config.run;
+            // Reeling from a broken stagger plays the parried clip slowly; without one, the hurt clip.
+            clips[(int)Pose.Staggered] = config.parried.clip != null ? config.parried.clip : config.hurt.clip;
+            clips[(int)Pose.LookAround] = config.lookAround.clip;
+            clips[(int)Pose.Slam] = config.slamClip.clip;
+            clips[(int)Pose.Spin] = config.spinClip.clip;
+            clips[(int)Pose.PowerUp] = config.powerUp.clip;
 
             graph = PlayableGraph.Create("Enemy");
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
@@ -200,6 +211,10 @@ namespace PX
                     // Knocked back, it rocks away from the blow and recovers.
                     target = Mathf.Clamp(forward * config.runLean * 0.8f, -14f, 0f);
                     break;
+                case EnemyState.Staggered:
+                    // Reeling: tipped back, swaying.
+                    target = -10f + Mathf.Sin(enemy.StateTime * 5f) * 4f;
+                    break;
                 case EnemyState.Climb:
                     ClimbPose(config, out target, out dropTarget);
                     break;
@@ -279,8 +294,16 @@ namespace PX
                 case EnemyState.WalkBack:
                     return clips[(int)Pose.WalkBack] != null ? Pose.WalkBack : clips[(int)Pose.Walk] != null ? Pose.Walk : Pose.Idle;
                 case EnemyState.Attack:
+                    if (enemy.ComboIndex == 2)
+                        return clips[(int)Pose.Slam] != null ? Pose.Slam : Pose.Attack;
+                    if (enemy.ComboIndex == 3)
+                        return clips[(int)Pose.Spin] != null ? Pose.Spin : clips[(int)Pose.Attack2] != null ? Pose.Attack2 : Pose.Attack;
                     return enemy.ComboIndex == 1 && clips[(int)Pose.Attack2] != null ? Pose.Attack2 : Pose.Attack;
                 case EnemyState.Hurt: return Pose.Hurt;
+                case EnemyState.Staggered: return clips[(int)Pose.Staggered] != null ? Pose.Staggered : Pose.Hurt;
+                case EnemyState.PowerUp: return clips[(int)Pose.PowerUp] != null ? Pose.PowerUp : Pose.Idle;
+                case EnemyState.Idle:
+                    return enemy.Mood == Mood.Suspicious && clips[(int)Pose.LookAround] != null ? Pose.LookAround : Pose.Idle;
                 case EnemyState.Parried: return clips[(int)Pose.Parried] != null ? Pose.Parried : Pose.Hurt;
                 case EnemyState.Climb: return clips[(int)Pose.Climb] != null ? Pose.Climb : Pose.Idle;
                 case EnemyState.Dead: return Pose.Dead;
@@ -309,9 +332,20 @@ namespace PX
                     return (time + dt * Mathf.Clamp(speed, 0.5f, 1.6f)) % clip.length;
                 }
                 case Pose.Attack:
-                    return StrikeTime(config.attackClip, config.attack, enemy.StateTime);
+                    return StrikeTime(config.attackClip, config.attack, enemy.StateTime * enemy.SpeedScale);
                 case Pose.Attack2:
-                    return StrikeTime(config.attack2Clip, config.attack2, enemy.StateTime);
+                    return StrikeTime(config.attack2Clip, config.attack2, enemy.StateTime * enemy.SpeedScale);
+                case Pose.Slam:
+                    return StrikeTime(config.slamClip, config.slam, enemy.StateTime * enemy.SpeedScale);
+                case Pose.Spin:
+                    return StrikeTime(config.spinClip, config.spin, enemy.StateTime * enemy.SpeedScale);
+                case Pose.Staggered:
+                {
+                    ClipWindow window = config.parried.clip != null ? config.parried : config.hurt;
+                    return window.At(Mathf.Clamp01(enemy.StateTime / Mathf.Max(0.01f, config.staggeredTime)) * 0.85f);
+                }
+                case Pose.PowerUp:
+                    return config.powerUp.At(enemy.StateTime / Mathf.Max(0.01f, config.powerUpTime));
                 case Pose.Hurt:
                     return config.hurt.At(enemy.StateTime / Mathf.Max(0.01f, config.hitStun));
                 case Pose.Parried:

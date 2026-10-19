@@ -18,13 +18,26 @@ namespace PX
         Dead,
         /// <summary>Running toward her from a distance.</summary>
         Run,
+        /// <summary>Its stagger ran over: reeling, open to an execution.</summary>
+        Staggered,
+        /// <summary>A boss roaring into its second phase.</summary>
+        PowerUp,
+    }
+
+    /// <summary>How much it knows about her. Set by its brain; the animator and the HUD read it.</summary>
+    public enum Mood
+    {
+        Calm,
+        Suspicious,
+        Alert,
     }
 
     /// <summary>
     /// A melee enemy's body: walks along its rail, backs off, climbs what blocks it, swings a one- or two-hit combo,
     /// staggers when hit and dies. Decisions come from an <see cref="IInputSource"/> (normally <see cref="EnemyBrain"/>);
     /// this only carries them out, with the same commitment rules as the player: a swing, once started, plays out
-    /// unless a heavy enough blow staggers it out, or it is parried.
+    /// unless a heavy enough blow staggers it out, or it is parried. Blows also fill a stagger meter; when it runs
+    /// over, the enemy reels and she can execute it. A boss has a slam and a spinning charge too, and a second phase.
     /// </summary>
     [RequireComponent(typeof(CharacterMotor), typeof(Health))]
     public sealed class EnemyController : MonoBehaviour
@@ -55,24 +68,33 @@ namespace PX
         private Vector2 climbFrom;
         private bool posted;
         private float postDistance;
+        private float postHeight;
         private int postFacing;
         private Hit lastHit;
         private bool hasHit;
         private EnemyRagdoll ragdoll;
+        private float leapFrom;
+        private float leapTo;
+        private float leapGround;
+        private float specialRange;
 
         public IInputSource InputSource { get; set; }
 
         public EnemyConfig Config => config;
 
-        public CharacterMotor Motor => motor;
+        /// <summary>Its motor and health, found on first use: other objects may ask before this one has woken.</summary>
+        public CharacterMotor Motor => motor != null ? motor : motor = GetComponent<CharacterMotor>();
 
-        public Health Health => health;
+        public Health Health => health != null ? health : health = GetComponent<Health>();
 
         public EnemyState State { get; private set; }
 
         public float StateTime { get; private set; }
 
-        /// <summary>Which swing of its combo is in progress: 0 or 1. Only meaningful in <see cref="EnemyState.Attack"/>.</summary>
+        /// <summary>What it knows about her, set by its brain.</summary>
+        public Mood Mood { get; set; }
+
+        /// <summary>Which swing is in progress: 0 or 1 of the combo, 2 the slam, 3 the spinning charge. Only meaningful in <see cref="EnemyState.Attack"/>.</summary>
         public int ComboIndex { get; private set; }
 
         /// <summary>The swing in progress.</summary>
@@ -88,8 +110,37 @@ namespace PX
         /// <summary>True from the point in its first swing where the second could follow.</summary>
         public bool CanChain => State == EnemyState.Attack && ComboIndex == 0 && StateTime >= config.attack.CancelFrom;
 
+        /// <summary>How close it is to being thrown open: her blows and parries fill it, time drains it.</summary>
+        public float Stagger { get; private set; }
+
+        /// <summary>True while it is open to an execution.</summary>
+        public bool IsStaggered => State == EnemyState.Staggered;
+
+        /// <summary>A boss's phase: 1, then 2 once its health falls far enough.</summary>
+        public int Phase { get; private set; } = 1;
+
+        /// <summary>How much faster it moves and swings right now: more than 1 in a boss's second phase.</summary>
+        public float SpeedScale => config != null && Phase == 2 ? config.phase2Speed : 1f;
+
+        /// <summary>Rail distance and height of the post it returns to.</summary>
+        public float PostDistance => posted ? postDistance : motor.Distance;
+
+        public float PostHeight => posted ? postHeight : transform.position.y;
+
         /// <summary>Raised when its swing connects with something that has health.</summary>
         public event Action<Health> HitLanded;
+
+        /// <summary>Raised when it is thrown open by its stagger running over.</summary>
+        public event Action StaggerBroken;
+
+        /// <summary>Raised when a boss enters its second phase.</summary>
+        public event Action PhaseChanged;
+
+        /// <summary>Raised when a slam lands on the ground, with where: for the shock ring and the dust.</summary>
+        public static event Action<Vector3> AnySlam;
+
+        /// <summary>Every enemy alive in the scene, for finishers and the HUD to look through.</summary>
+        public static readonly System.Collections.Generic.List<EnemyController> All = new System.Collections.Generic.List<EnemyController>();
 
         private void Awake()
         {
@@ -103,12 +154,14 @@ namespace PX
         {
             health.Damaged += OnDamaged;
             health.Died += OnDied;
+            All.Add(this);
         }
 
         private void OnDisable()
         {
             health.Damaged -= OnDamaged;
             health.Died -= OnDied;
+            All.Remove(this);
         }
 
         private void Update()
@@ -121,10 +174,14 @@ namespace PX
             {
                 posted = true;
                 postDistance = motor.Distance;
+                postHeight = transform.position.y;
                 postFacing = motor.Facing;
             }
 
             InputFrame input = State == EnemyState.Dead || InputSource == null ? default : InputSource.Read();
+
+            if (State != EnemyState.Attack && State != EnemyState.Staggered && State != EnemyState.Dead)
+                Stagger = Mathf.Max(0f, Stagger - config.staggerDecay * dt);
 
             switch (State)
             {
@@ -135,6 +192,13 @@ namespace PX
                     TickLocomotion(input, dt);
                     break;
                 case EnemyState.Attack:
+                    if (ComboIndex == 2)
+                    {
+                        TickSlam(dt);
+                        StateTime += dt;
+                        cooldown -= dt;
+                        return;
+                    }
                     TickAttack(input, dt);
                     break;
                 case EnemyState.Hurt:
@@ -146,6 +210,16 @@ namespace PX
                     if (StateTime >= config.parriedStun)
                         Enter(EnemyState.Idle);
                     velocity.x = knockback;
+                    break;
+                case EnemyState.Staggered:
+                    if (StateTime >= config.staggeredTime)
+                        Enter(EnemyState.Idle);
+                    velocity.x = Mathf.MoveTowards(velocity.x, 0f, config.acceleration * dt);
+                    break;
+                case EnemyState.PowerUp:
+                    if (StateTime >= config.powerUpTime)
+                        Enter(EnemyState.Idle);
+                    velocity.x = 0f;
                     break;
                 case EnemyState.Climb:
                     TickClimb();
@@ -176,10 +250,16 @@ namespace PX
             bool backing = walking && Mathf.Sign(input.Move) != motor.Facing;
             bool running = walking && !backing && input.Run && config.runSpeed > config.walkSpeed;
             float target = walking
-                ? Mathf.Sign(input.Move) * (backing ? config.walkBackSpeed : running ? config.runSpeed : config.walkSpeed)
+                ? Mathf.Sign(input.Move) * (backing ? config.walkBackSpeed : running ? config.runSpeed * SpeedScale : config.walkSpeed)
                 : 0f;
             velocity.x = Mathf.MoveTowards(velocity.x, target, config.acceleration * dt);
 
+            if (input.Special != 0 && cooldown <= 0f && motor.IsGrounded)
+            {
+                specialRange = input.SpecialRange;
+                StartSwing(input.Special == 1 ? 2 : 3);
+                return;
+            }
             if (input.AttackPressed && cooldown <= 0f && motor.IsGrounded)
             {
                 StartSwing(UnityEngine.Random.value < config.secondOpenerChance ? 1 : 0);
@@ -236,21 +316,34 @@ namespace PX
             ComboIndex = index;
             swingConnected = false;
             poiseTaken = 0f;
+            if (index == 2)
+            {
+                leapFrom = motor.Distance;
+                leapTo = motor.Distance + motor.Facing * Mathf.Clamp(specialRange, 0f, config.slamLeap);
+                leapGround = transform.position.y;
+                velocity = Vector2.zero;
+            }
+            // A swing is loud: the others come to see.
+            Noise.Emit(transform.position, config.hearingRange * 0.8f, gameObject);
             Enter(EnemyState.Attack);
         }
+
+        /// <summary>The attack's time runs faster in a boss's second phase, so its swings come quicker.</summary>
+        private float AttackTime => StateTime * SpeedScale;
 
         private void TickAttack(InputFrame input, float dt)
         {
             AttackStep step = CurrentStep;
-            velocity.x = StateTime < step.ActiveEnd
-                ? motor.Facing * step.lunge
+            float t = AttackTime;
+            velocity.x = t < step.ActiveEnd
+                ? motor.Facing * step.lunge * SpeedScale
                 : Mathf.MoveTowards(velocity.x, 0f, config.acceleration * dt);
 
-            IsHitboxActive = StateTime >= step.startup && StateTime < step.ActiveEnd;
+            IsHitboxActive = t >= step.startup && t < step.ActiveEnd;
             if (IsHitboxActive && !swingConnected)
                 ApplyHits(step);
 
-            if (CanChain && input.AttackPressed)
+            if (ComboIndex == 0 && t >= config.attack.CancelFrom && input.AttackPressed)
             {
                 if (input.Face != 0f)
                     motor.Facing = input.Face > 0f ? 1 : -1;
@@ -258,9 +351,38 @@ namespace PX
                 return;
             }
 
-            if (StateTime >= step.Total)
+            if (t >= step.Total)
             {
-                cooldown = config.attackCooldown;
+                cooldown = config.attackCooldown * (Phase == 2 ? config.phase2Cooldown : 1f);
+                Enter(EnemyState.Idle);
+            }
+        }
+
+        /// <summary>
+        /// The slam: through its startup it leaps along the rail toward her in an arc, lands as the hitbox goes live,
+        /// and shakes the ground.
+        /// </summary>
+        private void TickSlam(float dt)
+        {
+            AttackStep step = CurrentStep;
+            float t = AttackTime;
+            float u = Mathf.Clamp01(t / Mathf.Max(0.01f, step.startup));
+            float arc = 4f * u * (1f - u) * config.slamArc;
+            motor.Place(Mathf.Lerp(leapFrom, leapTo, Mathf.SmoothStep(0f, 1f, u)), leapGround + arc + 0.02f);
+
+            bool live = t >= step.startup && t < step.ActiveEnd;
+            if (live && !IsHitboxActive)
+            {
+                AnySlam?.Invoke(transform.position);
+                CameraShake.Trigger(step.shake, 0.4f);
+            }
+            IsHitboxActive = live;
+            if (IsHitboxActive && !swingConnected)
+                ApplyHits(step);
+
+            if (t >= step.Total)
+            {
+                cooldown = config.attackCooldown * (Phase == 2 ? config.phase2Cooldown : 1f);
                 Enter(EnemyState.Idle);
             }
         }
@@ -276,7 +398,7 @@ namespace PX
                 if (target == null || target == health || target.IsDead || target.Invulnerable)
                     continue;
                 // Enemies do not hurt each other.
-                if (target.GetComponent<EnemyController>() != null)
+                if (target.GetComponent<EnemyController>() != null || target.GetComponent<Sentinel>() != null)
                     continue;
 
                 // Where the blow meets the body: the point on it nearest the attacker, at the height of the swing.
@@ -288,9 +410,10 @@ namespace PX
                 swingConnected = true;
                 if (result == HitResult.Parried)
                 {
-                    // Its blade is turned aside and it reels back, wide open.
+                    // Its blade is turned aside and it reels back, wide open, and the parry rocks its footing.
                     knockback = -motor.Facing * 2.5f;
                     Enter(EnemyState.Parried);
+                    AddStagger(config.parryStagger);
                     return;
                 }
 
@@ -309,6 +432,21 @@ namespace PX
             halfExtents = new Vector3(config.hitboxDepth, step.hitboxSize.y * 0.5f, step.hitboxSize.x * 0.5f);
         }
 
+        /// <summary>Adds to its stagger. Past the limit it reels, open to an execution; a boss in its roar does not.</summary>
+        public void AddStagger(float amount)
+        {
+            if (health.IsDead || State == EnemyState.Staggered || State == EnemyState.PowerUp || amount <= 0f)
+                return;
+            Stagger += amount;
+            if (Stagger < config.staggerMax)
+                return;
+            Stagger = 0f;
+            knockback = 0f;
+            velocity = Vector2.zero;
+            Enter(EnemyState.Staggered);
+            StaggerBroken?.Invoke();
+        }
+
         private void OnDamaged(Hit hit)
         {
             lastHit = hit;
@@ -316,8 +454,28 @@ namespace PX
             if (health.IsDead)
                 return;
 
+            Noise.Emit(transform.position, config.hearingRange, gameObject);
+
+            // A boss drops into its roar at the phase line, whatever it was doing, and shrugs off blows during it.
+            if (config.isBoss && Phase == 1 && health.Current <= health.Max * config.phase2Health)
+            {
+                Phase = 2;
+                Stagger = 0f;
+                knockback = 0f;
+                velocity = Vector2.zero;
+                Enter(EnemyState.PowerUp);
+                PhaseChanged?.Invoke();
+                return;
+            }
+            if (State == EnemyState.PowerUp)
+                return;
+
+            AddStagger(hit.Damage);
+            if (State == EnemyState.Staggered)
+                return;
+
             // Mid-swing it shrugs off light blows: only enough damage staggers it out of the attack.
-            if (State == EnemyState.Attack && StateTime < CurrentStep.ActiveEnd)
+            if (State == EnemyState.Attack && AttackTime < CurrentStep.ActiveEnd)
             {
                 poiseTaken += hit.Damage;
                 if (poiseTaken < config.attackPoise)
@@ -335,6 +493,25 @@ namespace PX
             // A parried enemy stays open for the counter: the blow lands but does not restart its stagger.
             if (State != EnemyState.Parried)
                 Enter(EnemyState.Hurt);
+        }
+
+        /// <summary>
+        /// The killing blow of a takedown from behind or an execution: it dies at once, pushed gently the way the blow
+        /// travels. A boss is only wounded by an execution and comes out of its stagger.
+        /// </summary>
+        public void Finish(Vector3 direction, GameObject source, bool execution)
+        {
+            if (health.IsDead)
+                return;
+            float damage = config.isBoss && execution ? health.Max * config.executeDamageShare : health.Max * 10f;
+            Vector3 point = transform.position + Vector3.up * 1.1f;
+            health.Invulnerable = false;
+            health.TakeHit(new Hit(damage, direction, source, 2.5f, point));
+            if (!health.IsDead && State == EnemyState.Staggered)
+            {
+                Stagger = 0f;
+                Enter(EnemyState.Hurt);
+            }
         }
 
         private void OnDied()
@@ -375,11 +552,7 @@ namespace PX
                 motor.Place(motor.Distance, transform.position.y + 0.05f);
             }
             health.Restore();
-            velocity = Vector2.zero;
-            knockback = 0f;
-            cooldown = 0f;
-            blockedTime = 0f;
-            hasHit = false;
+            ClearFight();
             Enter(EnemyState.Idle);
         }
 
@@ -392,12 +565,44 @@ namespace PX
             if (health.IsDead || !posted)
                 return;
             health.Restore();
-            motor.Place(postDistance, 0.05f);
+            motor.Place(postDistance, postHeight + 0.05f);
             motor.Facing = postFacing;
+            ClearFight();
+            if (InputSource is EnemyBrain brain)
+                brain.Forget();
+            Enter(EnemyState.Idle);
+        }
+
+        /// <summary>Back at its post at full health, dead or alive: what resting at a shrine does to the regular enemies.</summary>
+        public void Reset()
+        {
+            if (!posted)
+                return;
+            if (health.IsDead)
+            {
+                if (ragdoll != null && ragdoll.IsActive)
+                    ragdoll.Deactivate();
+                GetComponent<CharacterController>().enabled = true;
+            }
+            health.Restore();
+            motor.Place(postDistance, postHeight + 0.05f);
+            motor.Facing = postFacing;
+            ClearFight();
+            Phase = 1;
+            if (InputSource is EnemyBrain brain)
+                brain.Forget();
+            Enter(EnemyState.Idle);
+        }
+
+        private void ClearFight()
+        {
             velocity = Vector2.zero;
             knockback = 0f;
             cooldown = 0f;
-            Enter(EnemyState.Idle);
+            blockedTime = 0f;
+            hasHit = false;
+            Stagger = 0f;
+            Mood = Mood.Calm;
         }
 
         private void Enter(EnemyState next)

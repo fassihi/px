@@ -21,6 +21,8 @@ namespace PX
         private InputAction crouch;
         private InputAction crouchStick;
         private InputAction guard;
+        private InputAction interact;
+        private InputAction flask;
 
         private void Awake()
         {
@@ -63,6 +65,18 @@ namespace PX
             guard.AddBinding("<Keyboard>/l");
             guard.AddBinding("<Mouse>/rightButton");
             guard.AddBinding("<Gamepad>/leftShoulder");
+
+            interact = new InputAction("Interact", InputActionType.Button);
+            interact.AddBinding("<Keyboard>/e");
+            interact.AddBinding("<Keyboard>/upArrow");
+            interact.AddBinding("<Keyboard>/w");
+            interact.AddBinding("<Gamepad>/buttonNorth");
+            interact.AddBinding("<Gamepad>/rightShoulder");
+
+            flask = new InputAction("Flask", InputActionType.Button);
+            flask.AddBinding("<Keyboard>/q");
+            flask.AddBinding("<Gamepad>/dpad/up");
+            flask.AddBinding("<Gamepad>/leftTrigger");
         }
 
         private void OnEnable()
@@ -74,6 +88,8 @@ namespace PX
             crouch.Enable();
             crouchStick.Enable();
             guard.Enable();
+            interact.Enable();
+            flask.Enable();
         }
 
         private void OnDisable()
@@ -85,6 +101,8 @@ namespace PX
             crouch.Disable();
             crouchStick.Disable();
             guard.Disable();
+            interact.Disable();
+            flask.Disable();
         }
 
         private void OnDestroy()
@@ -96,6 +114,8 @@ namespace PX
             crouch.Dispose();
             crouchStick.Dispose();
             guard.Dispose();
+            interact.Dispose();
+            flask.Dispose();
         }
 
         public InputFrame Read()
@@ -111,6 +131,8 @@ namespace PX
                 CrouchHeld = crouch.IsPressed() || crouchStick.ReadValue<float>() < -CrouchStickThreshold,
                 GuardPressed = guard.WasPressedThisFrame(),
                 GuardHeld = guard.IsPressed(),
+                InteractPressed = interact.WasPressedThisFrame(),
+                FlaskPressed = flask.WasPressedThisFrame(),
             };
         }
     }

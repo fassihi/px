@@ -32,6 +32,7 @@ namespace PX
         Hang,
         Climb,
         AirAttack,
+        Drink,
     }
 
     /// <summary>
@@ -120,6 +121,7 @@ namespace PX
             clips[(int)HeroinePose.Hang] = config.ledgeHang;
             clips[(int)HeroinePose.Climb] = config.ledgeClimb.clip;
             clips[(int)HeroinePose.AirAttack] = config.airAttack.clip;
+            clips[(int)HeroinePose.Drink] = config.drink.clip;
             modelRotation = animator.transform.localRotation;
 
             graph = PlayableGraph.Create("Heroine");
@@ -242,7 +244,9 @@ namespace PX
             bool attackStarted = NewAttackStarted();
             if (attackStarted && !player.IsCrouchAttack && !player.IsAirAttack)
             {
-                attackWindow = player.IsCounter && config.counter.clip != null ? config.counter : AttackWindowFor(player.ComboIndex);
+                attackWindow = player.State == PlayerState.Finisher && config.finisher.clip != null ? config.finisher
+                    : player.IsDashAttack && config.dashAttack.clip != null ? config.dashAttack
+                    : player.IsCounter && config.counter.clip != null ? config.counter : AttackWindowFor(player.ComboIndex);
                 UseAttackClip(attackWindow.clip);
             }
 
@@ -342,6 +346,19 @@ namespace PX
                     landing = null;
                     standingUp = false;
                     return clips[(int)HeroinePose.Dead] != null ? HeroinePose.Dead : HeroinePose.Hurt;
+                case PlayerState.Drink:
+                    landing = null;
+                    standingUp = false;
+                    return clips[(int)HeroinePose.Drink] != null ? HeroinePose.Drink : clips[(int)HeroinePose.Guard] != null ? HeroinePose.Guard : HeroinePose.Idle;
+                case PlayerState.Tether:
+                    landing = null;
+                    standingUp = false;
+                    airTime = 0f;
+                    return clips[(int)HeroinePose.AirDash] != null ? HeroinePose.AirDash : HeroinePose.JumpLoop;
+                case PlayerState.Finisher:
+                    landing = null;
+                    standingUp = false;
+                    return HeroinePose.Attack;
                 case PlayerState.Dodge:
                     landing = null;
                     standingUp = false;
@@ -497,8 +514,9 @@ namespace PX
 
         private bool NewAttackStarted()
         {
-            return player.State == PlayerState.Attack
-                && (lastState != PlayerState.Attack || player.ComboIndex != lastComboIndex
+            bool striking = player.State == PlayerState.Attack || player.State == PlayerState.Finisher;
+            return striking
+                && (lastState != player.State || player.ComboIndex != lastComboIndex
                     || player.IsCrouchAttack != lastCrouchAttack || player.IsAirAttack != lastAirAttack || player.IsCounter != lastCounter
                     || player.StateTime <= Time.deltaTime * 1.001f);
         }
@@ -509,7 +527,8 @@ namespace PX
                 || pose == HeroinePose.LandRun || pose == HeroinePose.LandIdle
                 || pose == HeroinePose.CrouchDown || pose == HeroinePose.CrouchUp || pose == HeroinePose.Hurt
                 || pose == HeroinePose.Dead || pose == HeroinePose.Dodge || pose == HeroinePose.Parry
-                || pose == HeroinePose.GuardHit || pose == HeroinePose.LedgeGrab || pose == HeroinePose.Climb;
+                || pose == HeroinePose.GuardHit || pose == HeroinePose.LedgeGrab || pose == HeroinePose.Climb
+                || pose == HeroinePose.Drink;
         }
 
         private float GuardHitDuration => player.Combat != null ? Mathf.Max(0.2f, player.Combat.blockStun * 1.5f) : 0.35f;
@@ -547,6 +566,8 @@ namespace PX
                     return config.ledgeGrab.At(player.StateTime / player.Move.grabTime);
                 case HeroinePose.Climb:
                     return config.ledgeClimb.At(player.StateTime / Mathf.Max(0.01f, player.Move.climbDuration));
+                case HeroinePose.Drink:
+                    return config.drink.At(player.StateTime / Mathf.Max(0.01f, player.Combat != null ? player.Combat.flaskDrinkTime : 1f));
                 default:
                     return 0f;
             }

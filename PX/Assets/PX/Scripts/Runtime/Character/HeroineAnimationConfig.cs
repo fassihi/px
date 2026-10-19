@@ -64,6 +64,15 @@ namespace PX
         [Tooltip("The attack in the air: a flying kick, timed like a combo strike.")]
         public ClipWindow airAttack;
 
+        [Tooltip("The lunge out of a dash, timed like a combo strike. Empty: the first combo clip.")]
+        public ClipWindow dashAttack;
+
+        [Tooltip("The takedown from behind and the execution: a stab, with the blow at its impact. Empty: the first combo clip.")]
+        public ClipWindow finisher;
+
+        [Tooltip("Drinking a flask, played over the drink. Empty: she holds her guard pose.")]
+        public ClipWindow drink;
+
         [Header("Dodge and guard")]
         [Tooltip("The dodge back, played over the dodge.")]
         public ClipWindow dodge;

@@ -77,6 +77,23 @@ namespace PX
             hitboxCenter = new Vector2(1f, 0.55f), hitboxSize = new Vector2(1.7f, 1.8f),
         };
 
+        [Tooltip("The lunge out of a dash: a running thrust that carries her a long way.")]
+        public AttackStep dashAttack = new AttackStep
+        {
+            startup = 0.1f, active = 0.14f, recovery = 0.4f, cancelDelay = 0.18f,
+            damage = 24f, lunge = 9f, hitStop = 0.14f, shake = 0.14f, knockback = 7f, staminaCost = 14f,
+            hitboxCenter = new Vector2(1.1f, 1.1f), hitboxSize = new Vector2(1.8f, 1.0f),
+        };
+
+        [Tooltip("The takedown from behind and the execution of a staggered enemy: the startup is the time to the " +
+                 "killing blow, which lands whatever the target's health.")]
+        public AttackStep finisher = new AttackStep
+        {
+            startup = 0.45f, active = 0.1f, recovery = 0.7f, cancelDelay = 0.5f,
+            damage = 999f, lunge = 0f, hitStop = 0.2f, shake = 0.16f, knockback = 2f, staminaCost = 0f,
+            hitboxCenter = new Vector2(0.9f, 1.1f), hitboxSize = new Vector2(1.6f, 1.6f),
+        };
+
         [Tooltip("Upward speed the flying kick gives her at the start, in m/s, if she is not already rising faster. " +
                  "Zero: she throws it from wherever she is, rising or falling.")]
         [Min(0f)] public float airAttackLift = 0f;

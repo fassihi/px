@@ -16,6 +16,8 @@ namespace PX
         [SerializeField] private CharacterMotor motor;
         [SerializeField] private RailCamera railCamera;
         [SerializeField] private EnemyController[] enemies = System.Array.Empty<EnemyController>();
+        [Tooltip("Off: the debug keys still work but the panel of controls stays hidden, for the real level.")]
+        [SerializeField] private bool showControls = true;
 
         private GUIStyle style;
         private int timeScaleIndex = NormalTimeScale;
@@ -30,10 +32,14 @@ namespace PX
         {
             HandleDebugKeys();
 
-            // A hit's freeze owns the time scale while it lasts, then HitStop returns to the base.
-            HitStop.BaseTimeScale = TimeScales[timeScaleIndex];
-            if (!HitStop.IsActive)
-                Time.timeScale = HitStop.BaseTimeScale;
+            // A hit's freeze owns the time scale while it lasts, then HitStop returns to the base. The debug scale only
+            // takes over once it is moved off normal, so a cinematic's slow motion is left alone.
+            if (timeScaleIndex != NormalTimeScale)
+            {
+                HitStop.BaseTimeScale = TimeScales[timeScaleIndex];
+                if (!HitStop.IsActive)
+                    Time.timeScale = HitStop.BaseTimeScale;
+            }
         }
 
         private void HandleDebugKeys()
@@ -81,6 +87,8 @@ namespace PX
 
         private void OnGUI()
         {
+            if (!showControls)
+                return;
             style ??= new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true };
 
             const string controls =
