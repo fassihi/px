@@ -28,8 +28,9 @@ namespace PX.EditorTools
         private const float RanaFootPitch = 33f;
         private const float MixamoFootPitch = 61f;
 
-        // Rana's head bone points out of her face. Level with the ground, she looks down; tilted up this much, ahead.
-        // Heads with an end bone on top (Mixamo) have that pointed straight up instead.
+        // A head bone without an end bone on top points out of the face. Level with the ground, the character looks
+        // down; tilted up this much, ahead. Heads with an end bone on top (Mixamo, Rana_Oct_14) have that pointed
+        // straight up instead.
         private const float HeadPitch = 35f;
 
         private const float Tolerance = 0.5f;
@@ -157,7 +158,7 @@ namespace PX.EditorTools
                     Vector3 lifted = Quaternion.AngleAxis(-HeadPitch, Vector3.Cross(Vector3.up, facing)) * facing;
                     head.rotation = Quaternion.FromToRotation(head.up, lifted) * head.rotation;
                 }
-                Turn(head, Face(head, top != null, bone), Vector3.forward);
+                Turn(head, Face(head, chest, top != null, mixamo, bone), Vector3.forward);
             }
 
             foreach (var (name, child, side) in Arms)
@@ -204,12 +205,20 @@ namespace PX.EditorTools
         /// Squaring Rana's by her forward axis left her face turned about 120 degrees, and every retargeted clip
         /// looked off to her side.
         /// </summary>
-        private static Vector3 Face(Transform head, bool hasTop, System.Func<string, Transform> bone)
+        /// <summary>The direction the face points, in world space.</summary>
+        private static Vector3 Face(Transform head, Transform chest, bool hasTop, bool mixamo, System.Func<string, Transform> bone)
         {
             Transform left = bone("LeftEye"), right = bone("RightEye");
             if (left != null && right != null)
                 return Vector3.Cross(right.position - left.position, Vector3.up);
-            return hasTop ? head.forward : head.up;
+            if (!hasTop)
+                return head.up;
+            if (mixamo || chest == null)
+                return head.forward;
+            // A Tripo rig with Mixamo bone names (Rana_Oct_14) does not point its bones' +z ahead: its spine and head
+            // face along their -x. Taking +z turned her head about 100 degrees in every clip. Its head shares the
+            // chest's axes, and the chest is already squared to face +z, so the face is the head's version of that axis.
+            return head.rotation * (Quaternion.Inverse(chest.rotation) * Vector3.forward);
         }
 
         /// <summary>Rotates <paramref name="bone"/> so that its child lies in <paramref name="direction"/>.</summary>
