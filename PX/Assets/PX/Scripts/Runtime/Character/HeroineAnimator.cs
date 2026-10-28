@@ -33,6 +33,7 @@ namespace PX
         Climb,
         AirAttack,
         Drink,
+        Walk,
     }
 
     /// <summary>
@@ -82,6 +83,10 @@ namespace PX
         private float standingBody;
         private float landDipTime = float.MaxValue;
         private float landDipStrength;
+        private float windupDip;
+        private int lastFacing;
+        private float turnFrom;
+        private float turnTime = float.MaxValue;
 
         public HeroinePose CurrentPose { get; private set; }
 
@@ -97,6 +102,7 @@ namespace PX
 
             attackWindow = AttackWindowFor(0);
             clips[(int)HeroinePose.Idle] = config.idle;
+            clips[(int)HeroinePose.Walk] = config.walk;
             clips[(int)HeroinePose.Run] = config.run;
             clips[(int)HeroinePose.JumpStart] = config.jumpStart;
             clips[(int)HeroinePose.JumpLoop] = config.jumpLoop;
@@ -123,6 +129,7 @@ namespace PX
             clips[(int)HeroinePose.AirAttack] = config.airAttack.clip;
             clips[(int)HeroinePose.Drink] = config.drink.clip;
             modelRotation = animator.transform.localRotation;
+            lastFacing = motor != null ? motor.Facing : 1;
 
             graph = PlayableGraph.Create("Heroine");
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
@@ -228,6 +235,9 @@ namespace PX
                     return config.landFadeTime;
                 case HeroinePose.CrouchIdle:
                     return config.crouchFadeTime;
+                case HeroinePose.Walk:
+                case HeroinePose.Run:
+                    return IsGait(CurrentPose) ? config.walkRunFadeTime : config.fadeTime;
                 default:
                     return config.fadeTime;
             }
@@ -252,7 +262,8 @@ namespace PX
 
             if (pose != CurrentPose || attackStarted || restartPose)
             {
-                times[(int)pose] = pose == HeroinePose.RunJump ? config.runJumpTakeoff : 0.0;
+                times[(int)pose] = pose == HeroinePose.RunJump ? config.runJumpTakeoff
+                    : IsGait(pose) && IsGait(CurrentPose) ? InStep(CurrentPose, pose) : 0.0;
                 poseTime = 0f;
             }
             else
@@ -263,7 +274,9 @@ namespace PX
             // The turn clip spins her round, so the body is turned back to face where she came from while it plays.
             // That cannot be blended with other poses, so the turn cuts in and out.
             bool cut = (pose == HeroinePose.Turn) != (CurrentPose == HeroinePose.Turn);
-            animator.transform.localRotation = pose == HeroinePose.Turn ? Quaternion.Euler(0f, 180f, 0f) * modelRotation : modelRotation;
+            animator.transform.localRotation = pose == HeroinePose.Turn
+                ? Quaternion.Euler(0f, 180f, 0f) * modelRotation
+                : Quaternion.Euler(0f, TurnOffset(pose, dt), 0f) * modelRotation;
 
             CurrentPose = pose;
             lastState = player.State;
@@ -315,7 +328,11 @@ namespace PX
             }
 
             landDipTime += dt;
-            LandDip = DipAt(landDipTime);
+            float gather = config.jumpWindupDip * standingBody;
+            windupDip = player.IsJumpWindup
+                ? Mathf.SmoothStep(0f, gather, player.JumpWindupProgress)
+                : Mathf.MoveTowards(windupDip, 0f, gather * dt / config.jumpPushTime);
+            LandDip = Mathf.Max(DipAt(landDipTime), windupDip);
             bodyCap.SetJobData(new BodyHeightJob
             {
                 weight = weights[(int)HeroinePose.CrouchAttack], ceiling = CrouchAttackCeiling, dip = LandDip,
@@ -476,7 +493,71 @@ namespace PX
                 standingUp = false;
             }
 
-            return moving ? HeroinePose.Run : HeroinePose.Idle;
+            if (!moving)
+                return HeroinePose.Idle;
+            if (clips[(int)HeroinePose.Walk] == null)
+                return HeroinePose.Run;
+            // A little either side of the change, so a speed that hovers there does not flicker between the two.
+            float speed = Mathf.Abs(motor.Velocity.x);
+            const float band = 0.15f;
+            if (CurrentPose == HeroinePose.Walk)
+                return speed > config.walkRunSpeed + band ? HeroinePose.Run : HeroinePose.Walk;
+            if (CurrentPose == HeroinePose.Run)
+                return speed < config.walkRunSpeed - band ? HeroinePose.Walk : HeroinePose.Run;
+            return speed > config.walkRunSpeed ? HeroinePose.Run : HeroinePose.Walk;
+        }
+
+        private static bool IsGait(HeroinePose pose) => pose == HeroinePose.Walk || pose == HeroinePose.Run;
+
+        /// <summary>The time in <paramref name="to"/>'s clip at the same point of the stride as <paramref name="from"/>'s now.</summary>
+        private double InStep(HeroinePose from, HeroinePose to)
+        {
+            double fromLength = clips[(int)from].length;
+            double phase = fromLength > 0.0 ? (times[(int)from] % fromLength) / fromLength : 0.0;
+            return phase * clips[(int)to].length;
+        }
+
+        /// <summary>
+        /// The body's yaw behind where she faces, in degrees: when she turns round outside a skid turn, gameplay flips
+        /// her at once and her body swings after it over Facing Turn Time, turning through the camera's side.
+        /// </summary>
+        private float TurnOffset(HeroinePose pose, float dt)
+        {
+            float current = turnTime < config.facingTurnTime
+                ? turnFrom * (1f - Mathf.SmoothStep(0f, 1f, turnTime / config.facingTurnTime))
+                : 0f;
+            turnTime += dt;
+
+            if (motor.Facing != lastFacing)
+            {
+                lastFacing = motor.Facing;
+                if (pose == HeroinePose.Turn || config.facingTurnTime <= 0f)
+                {
+                    turnTime = float.MaxValue;
+                    return 0f;
+                }
+
+                // Her root just spun 180 degrees: the body keeps where it was, so the offset swings by the same.
+                float from = current - 180f;
+                if (from < -180f)
+                    from += 360f;
+                if (Mathf.Abs(Mathf.Abs(from) - 180f) < 1f)
+                    from = 180f * TowardCamera();
+                turnFrom = from;
+                turnTime = dt;
+                return turnFrom * (1f - Mathf.SmoothStep(0f, 1f, dt / config.facingTurnTime));
+            }
+            return pose == HeroinePose.Turn ? 0f : current;
+        }
+
+        /// <summary>+1 or -1: the way round that has her face the camera half way through a turn.</summary>
+        private float TowardCamera()
+        {
+            Camera view = Camera.main;
+            if (view == null)
+                return 1f;
+            Vector3 halfway = Quaternion.Euler(0f, 90f, 0f) * motor.transform.forward;
+            return Vector3.Dot(halfway, -view.transform.forward) >= 0f ? 1f : -1f;
         }
 
         /// <summary>The turn plays while the controller is in a skid turn; gameplay decides when one starts and ends.</summary>
@@ -590,7 +671,7 @@ namespace PX
 
         private bool IsLooping(HeroinePose pose)
         {
-            return pose == HeroinePose.Idle || pose == HeroinePose.Run || pose == HeroinePose.JumpLoop
+            return pose == HeroinePose.Idle || pose == HeroinePose.Run || pose == HeroinePose.Walk || pose == HeroinePose.JumpLoop
                 || pose == HeroinePose.CrouchIdle || pose == HeroinePose.Guard || pose == HeroinePose.Hang
                 || (IsDash(pose) && !config.stretchDashToDuration);
         }
@@ -606,6 +687,11 @@ namespace PX
                 {
                     float scale = Mathf.Abs(motor.Velocity.x) / Mathf.Max(0.1f, config.runClipSpeed);
                     return Mathf.Clamp(scale, config.runSpeedScaleRange.x, config.runSpeedScaleRange.y);
+                }
+                case HeroinePose.Walk:
+                {
+                    float scale = Mathf.Abs(motor.Velocity.x) / Mathf.Max(0.1f, config.walkClipSpeed);
+                    return Mathf.Clamp(scale, config.walkSpeedScaleRange.x, config.walkSpeedScaleRange.y);
                 }
                 case HeroinePose.Dash:
                 case HeroinePose.AirDash:

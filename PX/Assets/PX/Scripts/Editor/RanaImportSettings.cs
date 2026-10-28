@@ -21,12 +21,12 @@ namespace PX.EditorTools
         // Mixamo clips that loop. The rest play once.
         private static readonly string[] LoopingClips =
         {
-            "Running", "Ninja Run", "Crouch Idle", "Ninja Crouch", "Dash Ground Pose", "Dash Air Pose",
+            "Running", "Ninja Run", "Walk", "Crouch Idle", "Ninja Crouch", "Dash Ground Pose", "Dash Air Pose",
             "Guard", "Ledge Hang", "Ledge Hang Braced",
         };
 
         // Bump when the settings below change, so Unity re-imports Rana's files.
-        public override uint GetVersion() => 19;
+        public override uint GetVersion() => 20;
 
         private void OnPreprocessAnimation()
         {

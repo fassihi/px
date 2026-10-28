@@ -10,6 +10,7 @@ namespace PX.Tests
     public sealed class ScriptedInput : IInputSource
     {
         public float Move;
+        public bool Run;
         public bool JumpHeld;
         public bool CrouchHeld;
         public bool GuardHeld;
@@ -47,6 +48,7 @@ namespace PX.Tests
             var frame = new InputFrame
             {
                 Move = Move,
+                Run = Run,
                 JumpHeld = JumpHeld,
                 JumpPressed = jumpPressed,
                 DashPressed = dashPressed,

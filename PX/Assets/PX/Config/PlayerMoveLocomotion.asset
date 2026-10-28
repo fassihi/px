@@ -1,0 +1,199 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad6ce82a327854ee5a9985324a88008d, type: 3}
+  m_Name: PlayerMoveLocomotion
+  m_EditorClassIdentifier: PX.Runtime::PX.MoveConfig
+  runSpeed: 3.8
+  walkSpeed: 1.2
+  groundAcceleration: 5
+  groundDeceleration: 7
+  airAcceleration: 4
+  airDeceleration: 2
+  jumpHeight: 1.15
+  timeToApex: 0.4
+  fallGravityMultiplier: 1.35
+  releasedGravityMultiplier: 1.6
+  maxFallSpeed: 30
+  coyoteTime: 0.1
+  jumpBufferTime: 0.15
+  airJumps: 0
+  jumpWindup: 0.14
+  runJumpWindup: 0.07
+  hardLandingSpeed: 6
+  landingShake: 0.015
+  landingShakeTime: 0.2
+  hardLandingSpeedKeep: 0.7
+  hardLandingRecovery: 0.2
+  turnMinSpeed: 2.6
+  turnDuration: 0.45
+  turnJumpCancel: 0.12
+  turnActionCancel: 0.2
+  dashSpeed: 13
+  dashDuration: 0.3
+  dashCooldown: 0.3
+  airDashes: 0
+  dashJumpCancel: 0.18
+  dashBufferTime: 0.15
+  dodgeSpeed: 8
+  dodgeDuration: 0.5
+  dodgeHop: 1.2
+  dodgeInvulnerable: {x: 0.03, y: 0.3}
+  dodgeCancel: 0.36
+  ledgeReach: {x: 1.2, y: 2.3}
+  ledgeProbe: 0.45
+  ledgeGrabMaxRise: 2
+  hangHeight: 2.2
+  grabHandsHeight: 1.85
+  grabTime: 0.3
+  hangBlend: 0.12
+  hangStandoff: 0.17
+  climbHandsHeight:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1.23
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.16
+      value: 1.34
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.32
+      value: 1.48
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.49
+      value: 1.55
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.65
+      value: 1.62
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1.62
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  climbHandsReach:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0.21
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.16
+      value: 0.21
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.32
+      value: 0.13
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.49
+      value: 0.09
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.65
+      value: 0.05
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0.05
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  climbGrip: 0.04
+  climbRelease: 0.65
+  hangSettle: 0.2
+  climbDuration: 0.95
+  climbSettle: 0.2
+  regrabDelay: 0.35
+  hurtStun: 0.45
+  hurtStunPerKnockback: 0.03
+  hurtHop: 3
+  hurtInvulnerability: 1
+  hurtHitStop: 0.1
+  hurtShake: 0.16
+  tetherRange: 8
+  tetherHeight: 9
+  tetherMinHeight: 1.5
+  tetherSpeed: 17
+  tetherStandoff: 1.1
+  tetherExitRise: 7
+  tetherExitRun: 0.8
+  tetherThrowTime: 0.12
+  crouchHeight: 1.1

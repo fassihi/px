@@ -1,0 +1,165 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac21e649ebdb74d36bcfe1eea1384554, type: 3}
+  m_Name: HeroineAnimationLocomotion
+  m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
+  idle: {fileID: 7994627924475153551, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  walk: {fileID: -203655887218126122, guid: cb45eedbcc790409bbe342fe8e7b346f, type: 3}
+  run: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
+  runTurn: {fileID: -203655887218126122, guid: 8130124ee15784ad3a4e67a246f7ccc7, type: 3}
+  jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  runJump: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
+  dash: {fileID: -203655887218126122, guid: 12a63f228ceee4201878ceb5319a51d8, type: 3}
+  airDash: {fileID: -203655887218126122, guid: 7400e9cebff9e4c37b8bf0ef7f197b87, type: 3}
+  attack: {fileID: -203655887218126122, guid: 01aafca4453ba48a3adb94e47b5902f1, type: 3}
+  comboAttacks:
+  - clip: {fileID: -203655887218126122, guid: 01aafca4453ba48a3adb94e47b5902f1, type: 3}
+    from: 0.5
+    impact: 0.9
+    to: 1.7
+  - clip: {fileID: -203655887218126122, guid: c8fd126e0f4404145ad31e6a303d03e5, type: 3}
+    from: 0.6
+    impact: 1.05
+    to: 1.6
+  - clip: {fileID: -203655887218126122, guid: ce9138c3dcc5046fcb8b717eb0ab1ece, type: 3}
+    from: 0.15
+    impact: 0.63
+    to: 1.2
+  - clip: {fileID: -203655887218126122, guid: 28f827b3ddcba4a20bea7ccd894235f1, type: 3}
+    from: 0.4
+    impact: 0.85
+    to: 1.5
+  - clip: {fileID: -203655887218126122, guid: cbe507ea786fb402c99a10fc7f4335a4, type: 3}
+    from: 0.35
+    impact: 0.93
+    to: 1.6
+  hurt:
+    clip: {fileID: -203655887218126122, guid: 6e5d05df01ccb474399363d814f8df18, type: 3}
+    from: 0
+    impact: 0
+    to: 0.9
+  death:
+    clip: {fileID: -203655887218126122, guid: 14f3e7a7beb4d4592a2d0a904e77669b, type: 3}
+    from: 0
+    impact: 0
+    to: 1.5
+  deathDuration: 1.3
+  counter:
+    clip: {fileID: -203655887218126122, guid: ac82351d9020842a5992513c93f7f2cf, type: 3}
+    from: 0.15
+    impact: 0.45
+    to: 1
+  airAttack:
+    clip: {fileID: -203655887218126122, guid: bb0a81f6d549f4bb6a12450ef9027ac7, type: 3}
+    from: 0.1
+    impact: 0.5
+    to: 0.95
+  dashAttack:
+    clip: {fileID: -203655887218126122, guid: 55e2816a9fa0848cb8241dee4eda2c67, type: 3}
+    from: 0.5
+    impact: 1
+    to: 1.7
+  finisher:
+    clip: {fileID: -203655887218126122, guid: d6a5908f5c7bc42fba8a6449c79498a3, type: 3}
+    from: 0.4
+    impact: 1
+    to: 2
+  drink:
+    clip: {fileID: -203655887218126122, guid: 85297f01a55b54928a0940d7844984fe, type: 3}
+    from: 2
+    impact: 0
+    to: 4.6
+  dodge:
+    clip: {fileID: -203655887218126122, guid: b3b8fea1bc3cf4174a5df1a607bca0a4, type: 3}
+    from: 0.05
+    impact: 0
+    to: 0.95
+  guard: {fileID: -203655887218126122, guid: 8116ab39d6b8d49ad96f25394b2dfb59, type: 3}
+  parry:
+    clip: {fileID: -203655887218126122, guid: 2791119bad5ac4f47907ea04aeec8a8b, type: 3}
+    from: 0.2
+    impact: 0
+    to: 0.9
+  parryDuration: 0.4
+  guardHit:
+    clip: {fileID: -203655887218126122, guid: 221df140bf22e436796aa9d8356f876e, type: 3}
+    from: 0
+    impact: 0
+    to: 0.8
+  ledgeGrab:
+    clip: {fileID: -203655887218126122, guid: 92371168ac21c49a59e201e4704ce44e, type: 3}
+    from: 0.3
+    impact: 0
+    to: 1.2
+  ledgeHang: {fileID: -203655887218126122, guid: fb2a0cd709b494534b6450eb2dbd2905, type: 3}
+  ledgeClimb:
+    clip: {fileID: -203655887218126122, guid: ee5503c368ec348eda85d2510964cadd, type: 3}
+    from: 0
+    impact: 0
+    to: 1
+  crouchDown:
+    clip: {fileID: 0}
+    from: 0
+    impact: 0
+    to: 0
+  crouchIdle: {fileID: -203655887218126122, guid: 8425607bebe6b40eba7ded24c7bf1096, type: 3}
+  crouchUp:
+    clip: {fileID: 0}
+    from: 0
+    impact: 0
+    to: 0
+  crouchAttack:
+    clip: {fileID: -203655887218126122, guid: 31cf1b0e9fa0e44e4b726b4564fd565b, type: 3}
+    from: 0.4
+    impact: 0.87
+    to: 1.4
+  crouchAttackRise: 0.1
+  crouchDownDuration: 0.3
+  crouchFadeTime: 0.4
+  crouchUpDuration: 0.3
+  landRun:
+    clip: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
+    from: 1.04
+    impact: 0
+    to: 1.4
+  landIdle:
+    clip: {fileID: -203655887218126122, guid: 02554fc38f0ec4de8be7e076c6d45414, type: 3}
+    from: 0.3
+    impact: 0
+    to: 1.1
+  landRunDuration: 0.42
+  landIdleDuration: 0.6
+  landMinAirTime: 0.35
+  stretchDashToDuration: 0
+  dashClipSpeed: 1.8
+  dashFadeTime: 0.04
+  runJumpMinSpeed: 2.6
+  runJumpTakeoff: 0.36
+  runJumpLanding: 1
+  fadeTime: 0.2
+  attackFadeTime: 0.05
+  landFadeTime: 0.06
+  idleHeadLift: 0.4
+  landDip: 0.2
+  landDipSpeedRange: {x: 2, y: 8}
+  landDipDown: 0.08
+  landDipUp: 0.45
+  runClipSpeed: 3.1
+  runSpeedScaleRange: {x: 0.5, y: 3}
+  walkClipSpeed: 0.8
+  walkSpeedScaleRange: {x: 0.6, y: 1.6}
+  walkRunSpeed: 1.6
+  walkRunFadeTime: 0.35
+  facingTurnTime: 0.32
+  jumpWindupDip: 0.1
+  jumpPushTime: 0.1

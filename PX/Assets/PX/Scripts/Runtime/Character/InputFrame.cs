@@ -24,7 +24,7 @@ namespace PX
         /// while still facing its opponent. The heroine ignores it.
         /// </summary>
         public float Face;
-        /// <summary>Move at a run, not a walk. Only enemies use it.</summary>
+        /// <summary>Move at a run, not a walk. The heroine walks only when her move config has a walk speed.</summary>
         public bool Run;
         /// <summary>A special move an AI asks its body for: 0 none, 1 the slam, 2 the spinning charge. Only bosses use it.</summary>
         public int Special;

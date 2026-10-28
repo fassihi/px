@@ -12,6 +12,8 @@ namespace PX
         [Header("Run")]
         [Tooltip("Top ground speed in m/s. The run animation speeds up to match, so it can be tuned live in play mode.")]
         [Min(0f)] public float runSpeed = 4.5f;
+        [Tooltip("Ground speed in m/s when Run is not held. 0: no walk, she always runs.")]
+        [Min(0f)] public float walkSpeed;
         [Min(0f)] public float groundAcceleration = 60f;
         [Min(0f)] public float groundDeceleration = 70f;
         [Min(0f)] public float airAcceleration = 55f;
@@ -30,6 +32,10 @@ namespace PX
         [Tooltip("How long a jump press is remembered before landing.")]
         [Min(0f)] public float jumpBufferTime = 0.15f;
         [Min(0)] public int airJumps = 1;
+        [Tooltip("Seconds she gathers herself on the ground before a standing jump leaves it. 0: she leaves at once.")]
+        [Min(0f)] public float jumpWindup;
+        [Tooltip("The same for a jump taken at full run speed. In between, the wind-up is blended by speed.")]
+        [Min(0f)] public float runJumpWindup;
 
         [Header("Landing")]
         [Tooltip("A landing at least this fast, in m/s, shakes the camera. A full jump lands at about 16.")]

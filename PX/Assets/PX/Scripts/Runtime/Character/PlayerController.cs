@@ -68,6 +68,9 @@ namespace PX
         private int dashDirection;
         private float turnTime = float.MaxValue;
         private float landingRecovery;
+        // The gather before a jump leaves the ground: its length, and how far into it she is. A zero length: none.
+        private float windupDuration;
+        private float windupTime;
         private bool swingConnected;
         private float invulnerable;
         private float lastGuardPress = float.MinValue;
@@ -146,6 +149,12 @@ namespace PX
 
         /// <summary>True while she is recovering from a hard landing and cannot jump or dash yet.</summary>
         public bool IsRecoveringFromLanding => landingRecovery > 0f;
+
+        /// <summary>True while she gathers herself on the ground before a jump leaves it.</summary>
+        public bool IsJumpWindup => windupDuration > 0f;
+
+        /// <summary>How far through the jump's wind-up she is, 0 to 1.</summary>
+        public float JumpWindupProgress => windupDuration > 0f ? Mathf.Clamp01(windupTime / windupDuration) : 0f;
 
         /// <summary>True during the stagger after a hit.</summary>
         public bool IsHurt => State == PlayerState.Hurt;
@@ -704,10 +713,17 @@ namespace PX
 
         private void TickLocomotion(InputFrame input, float dt)
         {
+            if (IsJumpWindup)
+            {
+                TickJumpWindup(dt);
+                return;
+            }
+
             Steer(input);
 
             // During a skid turn she keeps heading the new way; pushing back is held over until the turn ends.
-            float target = IsTurning ? motor.Facing * Mathf.Abs(input.Move) * move.runSpeed : input.Move * move.runSpeed;
+            float speed = move.walkSpeed > 0f && !input.Run ? move.walkSpeed : move.runSpeed;
+            float target = IsTurning ? motor.Facing * Mathf.Abs(input.Move) * speed : input.Move * speed;
             bool accelerating = Mathf.Abs(target) > 0.01f;
             float rate = motor.IsGrounded
                 ? (accelerating ? move.groundAcceleration : move.groundDeceleration)
@@ -1218,12 +1234,41 @@ namespace PX
                 AirJumped?.Invoke();
             }
 
-            velocity.y = move.JumpVelocity;
             jumpBuffer = 0f;
             coyoteTimer = 0f;
             turnTime = float.MaxValue;
             EnterState(PlayerState.Locomotion);
+
+            // From the ground a jump can gather first: she sinks into her knees, then leaves.
+            float speedShare = move.runSpeed > 0f ? Mathf.Clamp01(Mathf.Abs(velocity.x) / move.runSpeed) : 0f;
+            float windup = Mathf.Lerp(move.jumpWindup, move.runJumpWindup, speedShare);
+            if (motor.IsGrounded && windup > 0f)
+            {
+                windupDuration = windup;
+                windupTime = 0f;
+                return true;
+            }
+
+            velocity.y = move.JumpVelocity;
             return true;
+        }
+
+        /// <summary>
+        /// The gather before the jump: she carries most of her speed into it and leaves the ground when it ends, or at
+        /// once if the ground goes from under her.
+        /// </summary>
+        private void TickJumpWindup(float dt)
+        {
+            windupTime += dt;
+            if (windupTime < windupDuration && motor.IsGrounded)
+            {
+                velocity.x = Mathf.MoveTowards(velocity.x, 0f, move.groundDeceleration * 0.25f * dt);
+                ApplyGravity(true, dt);
+                return;
+            }
+
+            windupDuration = 0f;
+            velocity.y = move.JumpVelocity;
         }
 
         /// <summary>
@@ -1272,6 +1317,7 @@ namespace PX
         {
             State = next;
             stateTime = 0f;
+            windupDuration = 0f;
             IsHitboxActive = false;
         }
 

@@ -35,6 +35,8 @@ namespace PX
     {
         [Header("Clips")]
         public AnimationClip idle;
+        [Tooltip("Played below Walk Run Speed. Empty: she runs at every speed.")]
+        public AnimationClip walk;
         public AnimationClip run;
         [Tooltip("Played when she reverses while running. Its rotation is kept: the clip must turn her by 180 degrees.")]
         public AnimationClip runTurn;
@@ -179,5 +181,30 @@ namespace PX
         [Tooltip("The run clip is sped up or slowed down by at most this factor to match ground speed. Past either end " +
                  "her feet slide, so keep the top above Run Speed / Run Clip Speed.")]
         public Vector2 runSpeedScaleRange = new Vector2(0.5f, 3f);
+
+        [Header("Walk")]
+        [Tooltip("Ground speed in m/s at which the walk clip plays at normal speed. Measure it like Run Clip Speed.")]
+        public float walkClipSpeed = 1.4f;
+
+        [Tooltip("The walk clip is sped up or slowed down by at most this factor to match ground speed.")]
+        public Vector2 walkSpeedScaleRange = new Vector2(0.6f, 1.6f);
+
+        [Tooltip("Ground speed in m/s above which she runs instead of walking. The two blend in step through the change.")]
+        [Min(0f)] public float walkRunSpeed = 2.4f;
+
+        [Tooltip("Seconds to blend between the walk and the run.")]
+        [Min(0f)] public float walkRunFadeTime = 0.3f;
+
+        [Header("Weight")]
+        [Tooltip("Seconds her body takes to swing round when she turns at a walk or from standing. 0: she snaps round. " +
+                 "The skid turn at a run has its own clip.")]
+        [Min(0f)] public float facingTurnTime;
+
+        [Tooltip("How far her body sinks into her knees while she gathers for a jump, as a fraction of her standing " +
+                 "body height.")]
+        [Range(0f, 0.5f)] public float jumpWindupDip;
+
+        [Tooltip("Seconds she takes to straighten her legs from the gather as she leaves the ground.")]
+        [Min(0.01f)] public float jumpPushTime = 0.1f;
     }
 }

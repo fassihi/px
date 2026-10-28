@@ -14,7 +14,12 @@ namespace PX
         // The stick has to be pushed well down to crouch, so running with a sloppy stick does not.
         private const float CrouchStickThreshold = 0.6f;
 
+        [Tooltip("Only moving, running, jumping and crouching: no dash, strikes, guard, interact or flask. Left Shift " +
+                 "runs instead of dashing.")]
+        [SerializeField] private bool locomotionOnly;
+
         private InputAction move;
+        private InputAction run;
         private InputAction jump;
         private InputAction dash;
         private InputAction attack;
@@ -37,6 +42,12 @@ namespace PX
                 .With("Negative", "<Gamepad>/dpad/left")
                 .With("Positive", "<Gamepad>/dpad/right");
             move.AddBinding("<Gamepad>/leftStick/x");
+
+            // Run is held. It only matters when her move config has a walk speed; otherwise she always runs.
+            run = new InputAction("Run", InputActionType.Button);
+            run.AddBinding("<Keyboard>/leftShift");
+            run.AddBinding("<Gamepad>/leftStickPress");
+            run.AddBinding("<Gamepad>/rightTrigger");
 
             jump = new InputAction("Jump", InputActionType.Button);
             jump.AddBinding("<Keyboard>/space");
@@ -82,6 +93,7 @@ namespace PX
         private void OnEnable()
         {
             move.Enable();
+            run.Enable();
             jump.Enable();
             dash.Enable();
             attack.Enable();
@@ -95,6 +107,7 @@ namespace PX
         private void OnDisable()
         {
             move.Disable();
+            run.Disable();
             jump.Disable();
             dash.Disable();
             attack.Disable();
@@ -108,6 +121,7 @@ namespace PX
         private void OnDestroy()
         {
             move.Dispose();
+            run.Dispose();
             jump.Dispose();
             dash.Dispose();
             attack.Dispose();
@@ -121,19 +135,24 @@ namespace PX
         public InputFrame Read()
         {
             float axis = move.ReadValue<float>();
-            return new InputFrame
+            var frame = new InputFrame
             {
                 Move = Mathf.Abs(axis) < StickDeadzone ? 0f : Mathf.Clamp(axis, -1f, 1f),
+                Run = run.IsPressed(),
                 JumpPressed = jump.WasPressedThisFrame(),
                 JumpHeld = jump.IsPressed(),
-                DashPressed = dash.WasPressedThisFrame(),
-                AttackPressed = attack.WasPressedThisFrame(),
                 CrouchHeld = crouch.IsPressed() || crouchStick.ReadValue<float>() < -CrouchStickThreshold,
-                GuardPressed = guard.WasPressedThisFrame(),
-                GuardHeld = guard.IsPressed(),
-                InteractPressed = interact.WasPressedThisFrame(),
-                FlaskPressed = flask.WasPressedThisFrame(),
             };
+            if (locomotionOnly)
+                return frame;
+
+            frame.DashPressed = dash.WasPressedThisFrame();
+            frame.AttackPressed = attack.WasPressedThisFrame();
+            frame.GuardPressed = guard.WasPressedThisFrame();
+            frame.GuardHeld = guard.IsPressed();
+            frame.InteractPressed = interact.WasPressedThisFrame();
+            frame.FlaskPressed = flask.WasPressedThisFrame();
+            return frame;
         }
     }
 }
