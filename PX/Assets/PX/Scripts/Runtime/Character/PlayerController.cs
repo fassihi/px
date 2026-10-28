@@ -1267,7 +1267,9 @@ namespace PX
                 return;
             }
 
+            // Standing through the gather refilled the coyote time: spent here, or a press just after takeoff jumps again.
             windupDuration = 0f;
+            coyoteTimer = 0f;
             velocity.y = move.JumpVelocity;
         }
 

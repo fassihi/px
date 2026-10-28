@@ -146,6 +146,26 @@ namespace PX
         [Tooltip("Seconds into Run Jump where her feet touch down. She holds this pose until she lands.")]
         [Min(0f)] public float runJumpLanding = 1.0f;
 
+        [Tooltip("Seconds into Run Jump where the gather before takeoff starts. It plays over the move config's wind-up.")]
+        [Min(0f)] public float runJumpWindupFrom;
+
+        [Header("Standing jump")]
+        [Tooltip("A whole standing jump, gather to landing, used instead of Jump Start and Jump Loop. Empty: those two.")]
+        public AnimationClip standJump;
+
+        [Tooltip("Seconds into Stand Jump where the gather starts. From here to the takeoff plays over the wind-up.")]
+        [Min(0f)] public float standJumpWindupFrom;
+
+        [Tooltip("Seconds into Stand Jump where her feet leave the ground.")]
+        [Min(0f)] public float standJumpTakeoff;
+
+        [Tooltip("Seconds into Stand Jump where her feet touch down. She holds this pose until she lands.")]
+        [Min(0f)] public float standJumpLanding;
+
+        [Tooltip("On: the air part of Run Jump and Stand Jump is stretched to how long a full jump keeps her in the air, " +
+                 "so she reaches for the ground as she lands instead of holding the pose. Off: it plays at its own speed.")]
+        public bool fitJumpToAirTime;
+
         [Header("Blending")]
         [Tooltip("Seconds to cross-fade between poses. Weights ease in and out, so a fade starts and ends softly.")]
         public float fadeTime = 0.12f;

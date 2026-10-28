@@ -26,7 +26,7 @@ MonoBehaviour:
   coyoteTime: 0.1
   jumpBufferTime: 0.15
   airJumps: 0
-  jumpWindup: 0.14
+  jumpWindup: 0.3
   runJumpWindup: 0.07
   hardLandingSpeed: 6
   landingShake: 0.015

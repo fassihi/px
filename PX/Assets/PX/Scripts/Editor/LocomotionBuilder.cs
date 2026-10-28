@@ -84,7 +84,7 @@ namespace PX.EditorTools
             move.releasedGravityMultiplier = 1.6f;
             move.airJumps = 0;
             move.airDashes = 0;
-            move.jumpWindup = 0.14f;
+            move.jumpWindup = 0.3f;
             move.runJumpWindup = 0.07f;
 
             move.hardLandingSpeed = 6f;
@@ -101,25 +101,65 @@ namespace PX.EditorTools
             EditorUtility.CopySerialized(CharacterBuilder.LoadHeroineAnimation(), animation);
             if (CharacterBuilder.HasMixamoClip("Walk"))
                 animation.walk = CharacterBuilder.MixamoClip("Walk");
+            FillHeavyClips(animation);
             // Measured from the clip's average speed, scaled to her size as the run's (3.62 m/s on Mixamo's skeleton,
             // 3.1 measured on hers).
             animation.walkClipSpeed = 0.8f;
             animation.walkRunSpeed = 1.6f;
             animation.walkRunFadeTime = 0.35f;
             animation.facingTurnTime = 0.32f;
-            animation.jumpWindupDip = 0.1f;
+            animation.jumpWindupDip = 0.04f;
             animation.jumpPushTime = 0.1f;
 
             // Softer blends, deeper landings and a slower crouch.
             animation.fadeTime = 0.2f;
             animation.crouchFadeTime = 0.4f;
             animation.runJumpMinSpeed = 2.6f;
-            animation.landDip = 0.2f;
+            // The landing clips already sink into the knees; the dip only adds the jolt of a hard landing.
+            animation.landDip = 0.08f;
             animation.landDipSpeedRange = new Vector2(2f, 8f);
             animation.landDipDown = 0.08f;
             animation.landDipUp = 0.45f;
-            animation.landIdleDuration = 0.6f;
+            animation.landIdleDuration = 0.85f;
             animation.landRunDuration = 0.42f;
+        }
+
+        /// <summary>
+        /// Mixamo clips picked for weight (2026-10-28). Times are seconds into each clip, read off pose sheets
+        /// (PoseSnapshot.RenderSheet): where the gather starts, where her feet leave the ground, where they touch down.
+        /// </summary>
+        private static void FillHeavyClips(HeroineAnimationConfig animation)
+        {
+            // Idle: Mixamo's Weight Shift Idle, a calm stance that rocks from foot to foot. It looks ahead, not down.
+            if (CharacterBuilder.HasMixamoClip("Idle Weight Shift"))
+            {
+                animation.idle = CharacterBuilder.MixamoClip("Idle Weight Shift");
+                animation.idleHeadLift = 0f;
+            }
+            // Standing jump: Mixamo's Jumping And Landing In Place. A deep squat, a push up, knees drawn in, legs
+            // reaching down for the ground.
+            if (CharacterBuilder.HasMixamoClip("Jump Standing"))
+            {
+                animation.standJump = CharacterBuilder.MixamoClip("Jump Standing");
+                animation.standJumpWindupFrom = 0.1f;
+                animation.standJumpTakeoff = 0.78f;
+                animation.standJumpLanding = 1.2f;
+            }
+            // Running jump: Mixamo's Female Forward Running Jump. A long striding leap; the old one tucked like a ninja.
+            if (CharacterBuilder.HasMixamoClip("Jump Running Stride"))
+            {
+                animation.runJump = CharacterBuilder.MixamoClip("Jump Running Stride");
+                animation.runJumpWindupFrom = 0f;
+                animation.runJumpTakeoff = 0.08f;
+                animation.runJumpLanding = 0.52f;
+            }
+            animation.fitJumpToAirTime = true;
+            // Landings: Mixamo's Landing From Jump, a deep squat with the hands to the knees, and Landing From Running
+            // Jump Into Run Forward, which takes the weight and runs on.
+            if (CharacterBuilder.HasMixamoClip("Land Heavy"))
+                animation.landIdle = CharacterBuilder.MixamoWindow("Land Heavy", 0.42f, 0f, 1.35f);
+            if (CharacterBuilder.HasMixamoClip("Land Running Heavy"))
+                animation.landRun = CharacterBuilder.MixamoWindow("Land Running Heavy", 0.33f, 0f, 0.75f);
         }
 
         // --------------------------------------------------------------- level

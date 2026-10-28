@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac21e649ebdb74d36bcfe1eea1384554, type: 3}
   m_Name: HeroineAnimationLocomotion
   m_EditorClassIdentifier: PX.Runtime::PX.HeroineAnimationConfig
-  idle: {fileID: 7994627924475153551, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
+  idle: {fileID: -203655887218126122, guid: a794b6591ca9a4af8aad13146e88b6c4, type: 3}
   walk: {fileID: -203655887218126122, guid: cb45eedbcc790409bbe342fe8e7b346f, type: 3}
   run: {fileID: -203655887218126122, guid: 054a983d09a8a4e86921aecc3501bc72, type: 3}
   runTurn: {fileID: -203655887218126122, guid: 8130124ee15784ad3a4e67a246f7ccc7, type: 3}
   jumpStart: {fileID: -1862932125039169580, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
   jumpLoop: {fileID: -3659967873887649963, guid: 7fed0dbdf06b14621aa125ed7fc39f53, type: 3}
-  runJump: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
+  runJump: {fileID: -203655887218126122, guid: 8cc6d7f33079a4ca3a750d7bfccb5c50, type: 3}
   dash: {fileID: -203655887218126122, guid: 12a63f228ceee4201878ceb5319a51d8, type: 3}
   airDash: {fileID: -203655887218126122, guid: 7400e9cebff9e4c37b8bf0ef7f197b87, type: 3}
   attack: {fileID: -203655887218126122, guid: 01aafca4453ba48a3adb94e47b5902f1, type: 3}
@@ -128,29 +128,35 @@ MonoBehaviour:
   crouchFadeTime: 0.4
   crouchUpDuration: 0.3
   landRun:
-    clip: {fileID: -203655887218126122, guid: 671b4faac770b43e6b6b936574164096, type: 3}
-    from: 1.04
+    clip: {fileID: -203655887218126122, guid: 066063b39999e4367ba0c6e8aeb474b6, type: 3}
+    from: 0.33
     impact: 0
-    to: 1.4
+    to: 0.75
   landIdle:
-    clip: {fileID: -203655887218126122, guid: 02554fc38f0ec4de8be7e076c6d45414, type: 3}
-    from: 0.3
+    clip: {fileID: -203655887218126122, guid: 338158c0ac23e4f6b9103fe1af617118, type: 3}
+    from: 0.42
     impact: 0
-    to: 1.1
+    to: 1.35
   landRunDuration: 0.42
-  landIdleDuration: 0.6
+  landIdleDuration: 0.85
   landMinAirTime: 0.35
   stretchDashToDuration: 0
   dashClipSpeed: 1.8
   dashFadeTime: 0.04
   runJumpMinSpeed: 2.6
-  runJumpTakeoff: 0.36
-  runJumpLanding: 1
+  runJumpTakeoff: 0.08
+  runJumpLanding: 0.52
+  runJumpWindupFrom: 0
+  standJump: {fileID: -203655887218126122, guid: 833227a28167848a1898d0f58e88c765, type: 3}
+  standJumpWindupFrom: 0.1
+  standJumpTakeoff: 0.78
+  standJumpLanding: 1.2
+  fitJumpToAirTime: 1
   fadeTime: 0.2
   attackFadeTime: 0.05
   landFadeTime: 0.06
-  idleHeadLift: 0.4
-  landDip: 0.2
+  idleHeadLift: 0
+  landDip: 0.08
   landDipSpeedRange: {x: 2, y: 8}
   landDipDown: 0.08
   landDipUp: 0.45
@@ -161,5 +167,5 @@ MonoBehaviour:
   walkRunSpeed: 1.6
   walkRunFadeTime: 0.35
   facingTurnTime: 0.32
-  jumpWindupDip: 0.1
+  jumpWindupDip: 0.04
   jumpPushTime: 0.1

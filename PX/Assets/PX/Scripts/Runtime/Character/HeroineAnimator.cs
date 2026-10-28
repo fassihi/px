@@ -34,6 +34,7 @@ namespace PX
         AirAttack,
         Drink,
         Walk,
+        StandJump,
     }
 
     /// <summary>
@@ -74,6 +75,7 @@ namespace PX
         private bool lastAirAttack;
         private float lastVelocityY;
         private bool runningJump;
+        private bool standingJump;
         private bool airDash;
         private bool restartPose;
         private bool standingUp;
@@ -110,6 +112,7 @@ namespace PX
             clips[(int)HeroinePose.Attack] = attackWindow.clip;
             clips[(int)HeroinePose.Turn] = config.runTurn;
             clips[(int)HeroinePose.RunJump] = config.runJump;
+            clips[(int)HeroinePose.StandJump] = config.standJump;
             clips[(int)HeroinePose.AirDash] = config.airDash;
             clips[(int)HeroinePose.LandRun] = config.landRun.clip;
             clips[(int)HeroinePose.LandIdle] = config.landIdle.clip;
@@ -263,6 +266,7 @@ namespace PX
             if (pose != CurrentPose || attackStarted || restartPose)
             {
                 times[(int)pose] = pose == HeroinePose.RunJump ? config.runJumpTakeoff
+                    : pose == HeroinePose.StandJump ? config.standJumpTakeoff
                     : IsGait(pose) && IsGait(CurrentPose) ? InStep(CurrentPose, pose) : 0.0;
                 poseTime = 0f;
             }
@@ -310,7 +314,14 @@ namespace PX
                 if (weights[i] <= 0f && i != (int)pose)
                     continue;
 
-                if (IsWindowed((HeroinePose)i))
+                if (i == (int)pose && player.IsJumpWindup && IsWholeJump(pose))
+                {
+                    // The gather: the clip's run-up to its takeoff, fitted to the wind-up.
+                    float from = pose == HeroinePose.RunJump ? config.runJumpWindupFrom : config.standJumpWindupFrom;
+                    float takeoff = pose == HeroinePose.RunJump ? config.runJumpTakeoff : config.standJumpTakeoff;
+                    times[i] = Mathf.Lerp(Mathf.Min(from, takeoff), takeoff, player.JumpWindupProgress);
+                }
+                else if (IsWindowed((HeroinePose)i))
                 {
                     // A windowed pose that is fading out holds its last frame.
                     if (i == (int)pose)
@@ -322,6 +333,8 @@ namespace PX
                     double length = clips[i].length;
                     if (i == (int)HeroinePose.RunJump)
                         length = System.Math.Min(length, config.runJumpLanding);
+                    else if (i == (int)HeroinePose.StandJump && config.standJumpLanding > 0f)
+                        length = System.Math.Min(length, config.standJumpLanding);
                     times[i] = IsLooping((HeroinePose)i) && length > 0.0 ? times[i] % length : System.Math.Min(times[i], length);
                 }
                 playables[i].SetTime(times[i]);
@@ -426,27 +439,54 @@ namespace PX
                     return clips[(int)HeroinePose.CrouchIdle] != null ? HeroinePose.CrouchIdle : HeroinePose.Idle;
             }
 
+            // The gather before a jump plays the start of the jump clip it will leave the ground with.
+            if (player.IsJumpWindup)
+            {
+                landing = null;
+                standingUp = false;
+                airTime = 0f;
+                if (CurrentPose != HeroinePose.RunJump && CurrentPose != HeroinePose.StandJump)
+                {
+                    runningJump = clips[(int)HeroinePose.RunJump] != null && Mathf.Abs(motor.Velocity.x) >= config.runJumpMinSpeed;
+                    standingJump = !runningJump && clips[(int)HeroinePose.StandJump] != null;
+                }
+                if (runningJump)
+                    return HeroinePose.RunJump;
+                if (standingJump)
+                    return HeroinePose.StandJump;
+                return CurrentPose;
+            }
+
             if (!motor.IsGrounded)
             {
                 landing = null;
                 standingUp = false;
 
-                // A jump, from the ground or in the air, throws her upwards. One taken at speed is a running jump.
+                // A jump, from the ground or in the air, throws her upwards. One taken at speed is a running jump. One
+                // that gathered first keeps the clip it gathered with.
                 bool jumped = motor.Velocity.y > 0f && (airTime == 0f || motor.Velocity.y > lastVelocityY + 1f);
                 if (jumped)
                 {
-                    runningJump = clips[(int)HeroinePose.RunJump] != null && Mathf.Abs(motor.Velocity.x) >= config.runJumpMinSpeed;
+                    bool gathered = airTime == 0f && IsWholeJump(CurrentPose);
+                    if (!gathered)
+                    {
+                        runningJump = clips[(int)HeroinePose.RunJump] != null && Mathf.Abs(motor.Velocity.x) >= config.runJumpMinSpeed;
+                        standingJump = !runningJump && clips[(int)HeroinePose.StandJump] != null;
+                    }
                     restartPose = airTime > 0f;
                     airTime = 0f;
                 }
                 else if (airTime == 0f)
                 {
                     runningJump = false; // walked off a ledge
+                    standingJump = false;
                 }
 
                 airTime += dt;
                 if (runningJump)
                     return HeroinePose.RunJump;
+                if (standingJump)
+                    return HeroinePose.StandJump;
 
                 float startLength = clips[(int)HeroinePose.JumpStart] != null ? clips[(int)HeroinePose.JumpStart].length : 0f;
                 bool rising = motor.Velocity.y > 0f;
@@ -508,6 +548,18 @@ namespace PX
         }
 
         private static bool IsGait(HeroinePose pose) => pose == HeroinePose.Walk || pose == HeroinePose.Run;
+
+        private static bool IsWholeJump(HeroinePose pose) => pose == HeroinePose.RunJump || pose == HeroinePose.StandJump;
+
+        /// <summary>How fast a whole jump's air part plays: fitted to a full jump's time in the air, or at its own speed.</summary>
+        private float WholeJumpSpeed(float takeoff, float touchdown)
+        {
+            MoveConfig move = player.Move;
+            if (!config.fitJumpToAirTime || touchdown <= takeoff)
+                return 1f;
+            float fall = Mathf.Sqrt(2f * move.jumpHeight / (move.Gravity * move.fallGravityMultiplier));
+            return (touchdown - takeoff) / Mathf.Max(0.1f, move.timeToApex + fall);
+        }
 
         /// <summary>The time in <paramref name="to"/>'s clip at the same point of the stride as <paramref name="from"/>'s now.</summary>
         private double InStep(HeroinePose from, HeroinePose to)
@@ -698,6 +750,10 @@ namespace PX
                     return config.stretchDashToDuration ? StretchTo(clip, player.Move.dashDuration) : config.dashClipSpeed;
                 case HeroinePose.Turn:
                     return StretchTo(clip, player.Move.turnDuration);
+                case HeroinePose.RunJump:
+                    return WholeJumpSpeed(config.runJumpTakeoff, config.runJumpLanding);
+                case HeroinePose.StandJump:
+                    return WholeJumpSpeed(config.standJumpTakeoff, config.standJumpLanding);
                 default:
                     return 1f;
             }

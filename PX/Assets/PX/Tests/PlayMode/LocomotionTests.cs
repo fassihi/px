@@ -112,6 +112,41 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator StandingJumpPlaysItsWholeClipAndLandsHeavily()
+        {
+            Assert.That(heroine.Config.standJump, Is.Not.Null, "The standing jump clip is missing.");
+            input.PressJump();
+            yield return Frames(3);
+            Assert.That(heroine.CurrentPose, Is.EqualTo(HeroinePose.StandJump), "The gather is the start of the jump clip.");
+
+            yield return Frames(30);
+            Assert.That(motor.IsGrounded, Is.False);
+            Assert.That(heroine.CurrentPose, Is.EqualTo(HeroinePose.StandJump), "The same clip carries on into the air.");
+
+            for (int i = 0; i < 120 && !motor.IsGrounded; i++)
+                yield return null;
+            yield return Frames(2);
+            Assert.That(heroine.CurrentPose, Is.EqualTo(HeroinePose.LandIdle), "A standing jump lands in the heavy landing.");
+        }
+
+        [UnityTest]
+        public IEnumerator RunningJumpUsesTheStridingLeap()
+        {
+            input.Move = 1f;
+            input.Run = true;
+            yield return Frames(120);
+            input.PressJump();
+            yield return Frames(12);
+            Assert.That(motor.IsGrounded, Is.False);
+            Assert.That(heroine.CurrentPose, Is.EqualTo(HeroinePose.RunJump));
+
+            for (int i = 0; i < 120 && !motor.IsGrounded; i++)
+                yield return null;
+            yield return Frames(2);
+            Assert.That(heroine.CurrentPose, Is.EqualTo(HeroinePose.LandRun), "Landing at a run takes the weight and runs on.");
+        }
+
+        [UnityTest]
         public IEnumerator OnlyOneJump()
         {
             input.PressJump();
@@ -170,6 +205,16 @@ namespace PX.Tests
             Directory.CreateDirectory(folder);
 
             yield return Capture(folder, "locomotion_idle");
+            input.PressJump();
+            yield return Frames(10);
+            yield return Capture(folder, "locomotion_stand_gather");
+            yield return Frames(22);
+            yield return Capture(folder, "locomotion_stand_air");
+            for (int i = 0; i < 120 && !motor.IsGrounded; i++)
+                yield return null;
+            yield return Frames(12);
+            yield return Capture(folder, "locomotion_stand_land");
+            yield return Frames(60);
             input.Move = 1f;
             yield return Frames(70);
             yield return Capture(folder, "locomotion_walk");
@@ -181,6 +226,10 @@ namespace PX.Tests
             yield return Capture(folder, "locomotion_jump_gather");
             yield return Frames(20);
             yield return Capture(folder, "locomotion_jump_air");
+            for (int i = 0; i < 120 && !motor.IsGrounded; i++)
+                yield return null;
+            yield return Frames(6);
+            yield return Capture(folder, "locomotion_jump_land");
             input.Move = 0f;
             input.Run = false;
             yield return Frames(90);
