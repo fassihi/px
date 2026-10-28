@@ -197,6 +197,32 @@ namespace PX.Tests
         }
 
         [UnityTest]
+        public IEnumerator CameraTunerShowsAViewAtOnceAndSavesIt()
+        {
+            var tuner = Object.FindFirstObjectByType<CameraTuner>();
+            Assert.That(tuner, Is.Not.Null, "The locomotion scene has no camera tuner. Rebuild it from the PX menu.");
+
+            CameraTuning tuning = tuner.Current;
+            tuning.view.distance += 2f;
+            tuning.view.pitch = 12f;
+            tuning.view.fieldOfView = 40f;
+            tuning.followSmoothTime = 0.4f;
+            tuner.Apply(tuning);
+            yield return null;
+            Assert.That(railCamera.CurrentView.distance, Is.EqualTo(tuning.view.distance).Within(0.01f), "No blend: the view shows at once.");
+            Assert.That(railCamera.GetComponent<Camera>().fieldOfView, Is.EqualTo(40f).Within(0.01f));
+
+            string path = Path.Combine(Application.temporaryCachePath, "CameraTunerTest.json");
+            tuner.Save(path);
+            CameraTuning loaded = CameraTuning.Load(path);
+            File.Delete(path);
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.view.distance, Is.EqualTo(tuning.view.distance).Within(0.001f));
+            Assert.That(loaded.view.pitch, Is.EqualTo(12f).Within(0.001f));
+            Assert.That(loaded.followSmoothTime, Is.EqualTo(0.4f).Within(0.001f));
+        }
+
+        [UnityTest]
         public IEnumerator Screenshots()
         {
             string folder = System.Environment.GetEnvironmentVariable("PX_SCREENSHOT_DIR");

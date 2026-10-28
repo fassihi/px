@@ -54,6 +54,30 @@ namespace PX
 
         public List<CameraZone> Zones => zones;
 
+        /// <summary>Seconds the camera takes to catch up with her: higher trails her more.</summary>
+        public float FollowSmoothTime
+        {
+            get => followSmoothTime;
+            set => followSmoothTime = Mathf.Max(0f, value);
+        }
+
+        /// <summary>Seconds the look-ahead takes to swing to the side she faces.</summary>
+        public float LookAheadSmoothTime
+        {
+            get => lookAheadSmoothTime;
+            set => lookAheadSmoothTime = Mathf.Max(0.01f, value);
+        }
+
+        /// <summary>
+        /// Replaces the default view and shows it at once, without the blend between views, while the follow keeps its
+        /// smoothing. For tuning the view live.
+        /// </summary>
+        public void SetDefaultViewNow(CameraView view)
+        {
+            defaultView = view;
+            current = view;
+        }
+
         /// <summary>Multiplies every view's distance: below 1 zooms in, above 1 zooms out. A debug aid, not a camera setting.</summary>
         public float DistanceScale
         {

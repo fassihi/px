@@ -23,6 +23,8 @@ namespace PX.EditorTools
         public const string ScenePath = "Assets/PX/Scenes/Locomotion.unity";
         public const string MoveConfigPath = ConfigFolder + "/PlayerMoveLocomotion.asset";
         public const string AnimationConfigPath = ConfigFolder + "/HeroineAnimationLocomotion.asset";
+        /// <summary>The camera saved with F5 by the scene's camera tuner, relative to Assets. Used on rebuild when present.</summary>
+        public const string CameraTuningPath = "PX/Config/LocomotionCamera.json";
 
         private const float StartDistance = 6f;
         private const float RailLength = 120f;
@@ -51,7 +53,10 @@ namespace PX.EditorTools
             Wire(motor.GetComponent<PlayerController>(), "move", move);
             Wire(motor.GetComponent<HeroineAnimator>(), "config", animation);
             WireBool(motor.GetComponent<PlayerInputSource>(), "locomotionOnly", true);
-            CreateLocomotionCamera(rail, motor);
+            RailCamera railCamera = CreateLocomotionCamera(rail, motor);
+            var tuner = new GameObject("CameraTuner").AddComponent<CameraTuner>();
+            Wire(tuner, "railCamera", railCamera);
+            WireString(tuner, "savePath", CameraTuningPath);
             CreateLighting();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -206,18 +211,23 @@ namespace PX.EditorTools
 
         // ------------------------------------------------------- camera, light
 
-        private static void CreateLocomotionCamera(Rail rail, CharacterMotor motor)
+        /// <summary>The camera saved from the tuner (F5 in play mode) if there is one, otherwise the defaults below.</summary>
+        private static RailCamera CreateLocomotionCamera(Rail rail, CharacterMotor motor)
         {
             RailCamera railCamera = CreateCamera(rail, motor);
             railCamera.GetComponent<Camera>().GetUniversalAdditionalCameraData().renderPostProcessing = false;
             // Close and low, with a camera that trails her a little, so her weight carries into the frame.
-            railCamera.DefaultView = new CameraView
+            var tuning = CameraTuning.Load(System.IO.Path.Combine(Application.dataPath, CameraTuningPath)) ?? new CameraTuning
             {
-                yaw = 0f, pitch = 4f, distance = 6.5f, fieldOfView = 30f, focusHeight = 1.05f, lookAhead = 0.8f,
+                view = new CameraView { yaw = 0f, pitch = 4f, distance = 6.5f, fieldOfView = 30f, focusHeight = 1.05f, lookAhead = 0.8f },
+                followSmoothTime = 0.22f,
+                lookAheadSmoothTime = 0.9f,
             };
-            WireFloat(railCamera, "followSmoothTime", 0.22f);
-            WireFloat(railCamera, "lookAheadSmoothTime", 0.9f);
+            railCamera.DefaultView = tuning.view;
+            WireFloat(railCamera, "followSmoothTime", tuning.followSmoothTime);
+            WireFloat(railCamera, "lookAheadSmoothTime", tuning.lookAheadSmoothTime);
             railCamera.Snap();
+            return railCamera;
         }
 
         /// <summary>Plain daylight: one white sun, flat neutral ambient, no fog and no post-processing.</summary>
